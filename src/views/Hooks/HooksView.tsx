@@ -1,0 +1,93 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link2Icon } from "@radix-ui/react-icons";
+import type { ClaudeSettings, TemplateComponent } from "../../types";
+import {
+  LoadingState,
+  EmptyState,
+  SearchInput,
+  PageHeader,
+  ConfigPage,
+} from "../../components/config";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
+import { MarketplaceContent } from "../Marketplace";
+import { useInvokeQuery } from "../../hooks";
+
+interface HooksViewProps {
+  onMarketplaceSelect: (template: TemplateComponent) => void;
+}
+
+export function HooksView({ onMarketplaceSelect }: HooksViewProps) {
+  const { t } = useTranslation();
+  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
+  const [search, setSearch] = useState("");
+
+  if (isLoading) return <LoadingState message={t('hooks.loading')} />;
+
+  const hooks = settings?.hooks as Record<string, unknown[]> | null;
+  const hookEntries = hooks ? Object.entries(hooks) : [];
+  const filtered = hookEntries.filter(([eventType]) =>
+    eventType.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <ConfigPage>
+      <PageHeader
+        title={t('hooks.title')}
+        subtitle={t('hooks.subtitle')}
+      />
+
+      <Tabs defaultValue="installed" className="flex-1 flex flex-col">
+        <TabsList className="bg-card-alt border border-border">
+          <TabsTrigger value="installed">{t('commands.installed')}</TabsTrigger>
+          <TabsTrigger value="marketplace">{t('commands.marketplace')}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="installed" className="mt-4 space-y-4">
+          <SearchInput
+            placeholder={t('hooks.search_placeholder')}
+            value={search}
+            onChange={setSearch}
+          />
+
+          {filtered.length > 0 && (
+            <div className="space-y-4">
+              {filtered.map(([eventType, handlers]) => (
+                <div key={eventType} className="bg-card rounded-xl p-4 border border-border">
+                  <p className="text-sm font-medium text-primary mb-3">{eventType}</p>
+                  <div className="space-y-2">
+                    {Array.isArray(handlers) &&
+                      handlers.map((handler, i) => (
+                        <pre
+                          key={i}
+                          className="bg-card-alt rounded-lg p-3 text-xs font-mono text-ink overflow-x-auto"
+                        >
+                          {JSON.stringify(handler, null, 2)}
+                        </pre>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {filtered.length === 0 && !search && (
+            <EmptyState
+              icon={Link2Icon}
+              message={t('hooks.no_hooks')}
+              hint={t('hooks.browse_marketplace')}
+            />
+          )}
+
+          {filtered.length === 0 && search && (
+            <p className="text-muted-foreground text-sm">{t('commands.no_match', { search })}</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="marketplace" className="mt-4">
+          <MarketplaceContent category="hooks" onSelectTemplate={onMarketplaceSelect} />
+        </TabsContent>
+      </Tabs>
+    </ConfigPage>
+  );
+}

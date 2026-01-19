@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/lovcode.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lovcode - Vibe Coding Assistant</title>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Disable autocorrect/spellcheck globally for all inputs
+      document.addEventListener('DOMContentLoaded', () => {
+        const disableAutoCorrect = (el) => {
+          el.setAttribute('autocorrect', 'off');
+          el.setAttribute('autocomplete', 'off');
+          el.setAttribute('autocapitalize', 'off');
+          el.setAttribute('spellcheck', 'false');
+        };
+        // Apply to existing elements
+        document.querySelectorAll('input, textarea, [contenteditable="true"]').forEach(disableAutoCorrect);
+        // Watch for dynamically added elements
+        new MutationObserver((mutations) => {
+          mutations.forEach((m) => {
+            m.addedNodes.forEach((node) => {
+              if (node.nodeType === 1) {
+                if (node.matches?.('input, textarea, [contenteditable="true"]')) disableAutoCorrect(node);
+                node.querySelectorAll?.('input, textarea, [contenteditable="true"]').forEach(disableAutoCorrect);
+              }
+            });
+          });
+        }).observe(document.body, { childList: true, subtree: true });
+      });
+    </script>
+  </body>
+</html>
