@@ -6,14 +6,14 @@ import { TEMPLATE_CATEGORIES } from "@/constants";
 import type { FeatureType, TemplateCategory } from "@/types";
 import { useTranslation } from "react-i18next";
 
-type SidebarKey = TemplateCategory | "basic-env" | "basic-llm" | "basic-version" | "basic-context" | "extensions";
+type SidebarKey = TemplateCategory | "basic-env" | "basic-llm" | "basic-version" | "context" | "extensions";
 
 // Map sidebar key to route path
 const KEY_TO_ROUTE: Record<SidebarKey, string> = {
   "basic-env": "/settings/env",
   "basic-llm": "/settings/llm",
   "basic-version": "/settings/version",
-  "basic-context": "/settings/context",
+  "context": "/settings/context",
   settings: "/settings",
   commands: "/commands",
   mcps: "/mcp",
@@ -30,7 +30,7 @@ const FEATURE_TO_KEY: Partial<Record<FeatureType, SidebarKey>> = {
   "basic-env": "basic-env",
   "basic-llm": "basic-llm",
   "basic-version": "basic-version",
-  "basic-context": "basic-context",
+  "context": "context",
   settings: "settings",
   commands: "commands",
   mcp: "mcps",
@@ -61,7 +61,6 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
         { key: "basic-env", label: t('features.basic-env') },
         { key: "basic-llm", label: t('features.basic-llm') },
         { key: "basic-version", label: t('features.basic-version') },
-        { key: "basic-context", label: t('features.basic-context') },
       ],
     },
     {
@@ -86,7 +85,7 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
         "basic-env": "basic-env",
         "basic-llm": "basic-llm",
         "basic-version": "basic-version",
-        "basic-context": "basic-context",
+        "context": "context",
         settings: "settings",
         commands: "commands",
         mcps: "mcp",

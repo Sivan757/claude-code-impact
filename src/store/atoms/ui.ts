@@ -59,7 +59,7 @@ function parseUrlToView(hash: string): View {
         case "env": return { type: "basic-env" };
         case "llm": return { type: "basic-llm" };
         case "version": return { type: "basic-version" };
-        case "context": return { type: "basic-context" };
+        case "context": return { type: "context" };
         default: return { type: "settings" };
       }
     }

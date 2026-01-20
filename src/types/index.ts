@@ -9,7 +9,7 @@ export type FeatureType =
   | "basic-env"
   | "basic-llm"
   | "basic-version"
-  | "basic-context"
+  | "context"
   | "settings"
   | "statusline"
   | "commands"
@@ -219,6 +219,7 @@ export interface TemplatesCatalog {
 }
 
 export type TemplateCategory =
+  | "context"
   | "settings"
   | "commands"
   | "mcps"
@@ -242,7 +243,7 @@ export type View =
   | { type: "basic-env" }
   | { type: "basic-llm" }
   | { type: "basic-version" }
-  | { type: "basic-context" }
+  | { type: "context" }
   | { type: "settings" }
   | { type: "commands" }
   | { type: "command-detail"; command: LocalCommand; scrollToChangelog?: boolean }

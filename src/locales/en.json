@@ -103,7 +103,7 @@
         "basic-env": "Environment",
         "basic-llm": "LLM Provider",
         "basic-version": "CC Version",
-        "basic-context": "Context",
+        "context": "Context",
         "settings": "Settings",
         "commands": "Commands",
         "history": "History",
@@ -113,7 +113,8 @@
         "sub-agents": "Sub Agents",
         "output-styles": "Output Styles",
         "statusline": "Status Line",
-        "extensions": "Plugins"
+        "extensions": "Plugins",
+        "general": "General"
     },
     "knowledge_sidebar": {
         "title": "Knowledge",
@@ -127,7 +128,7 @@
         "basic-env": "Environment variables",
         "basic-llm": "LLM proxy configuration",
         "basic-version": "Claude Code version management",
-        "basic-context": "CLAUDE.md context files",
+        "context": "CLAUDE.md context files",
         "settings": "settings.json templates",
         "commands": "Slash commands",
         "mcp": "MCP servers",

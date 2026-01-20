@@ -55,7 +55,7 @@ function getFeatureFromPath(pathname: string): FeatureType | null {
     if (sub === "env") return "basic-env";
     if (sub === "llm") return "basic-llm";
     if (sub === "version") return "basic-version";
-    if (sub === "context") return "basic-context";
+    if (sub === "context") return "context";
     return "settings";
   }
 
@@ -131,7 +131,7 @@ export default function RootLayout() {
       "basic-env": "/settings/env",
       "basic-llm": "/settings/llm",
       "basic-version": "/settings/version",
-      "basic-context": "/settings/context",
+      "context": "/settings/context",
       "settings": "/settings",
       "commands": "/commands",
       "mcp": "/mcp",

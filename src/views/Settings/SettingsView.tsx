@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { useInvokeQuery, useQueryClient } from "../../hooks";
@@ -45,6 +45,10 @@ type PermissionMode = "bypassPermissions" | "allowEdits" | "normal";
 type ModelType = "opus" | "sonnet" | "haiku";
 type AttributionMode = "none" | "footer" | "coauthor";
 
+const DEFAULT_ATTRIBUTION_FOOTER =
+  "Generated with [Claude Code](https://claude.com/claude-code)";
+const DEFAULT_ATTRIBUTION_COAUTHOR = `${DEFAULT_ATTRIBUTION_FOOTER}\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`;
+
 interface HookItem {
   type: string;
   command?: string;
@@ -60,6 +64,7 @@ interface HookMatcher {
 export function SettingsView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const didNormalizeAttribution = useRef(false);
 
   const PERMISSION_MODES: { value: PermissionMode; label: string; desc: string }[] = useMemo(() => [
     { value: "bypassPermissions", label: t('settings.bypass'), desc: t('settings.bypass_desc') },
@@ -104,7 +109,29 @@ export function SettingsView() {
   const alwaysThinkingEnabled = raw.alwaysThinkingEnabled === true;
   const spinnerTipsEnabled = raw.spinnerTipsEnabled !== false; // default true
   const cleanupPeriodDays = (raw.cleanupPeriodDays as number) ?? 0;
-  const attribution = (raw.attribution as AttributionMode) || "coauthor";
+  const resolveAttributionMode = (value: unknown): AttributionMode => {
+    if (typeof value === "string") {
+      if (value === "none" || value === "footer" || value === "coauthor") {
+        return value;
+      }
+      return "coauthor";
+    }
+    if (value && typeof value === "object") {
+      const commit = (value as Record<string, unknown>).commit;
+      const pr = (value as Record<string, unknown>).pr;
+      const commitText = typeof commit === "string" ? commit : "";
+      const prText = typeof pr === "string" ? pr : "";
+      if (commitText === "" && prText === "") {
+        return "none";
+      }
+      if (commitText.includes("Co-Authored-By")) {
+        return "coauthor";
+      }
+      return "footer";
+    }
+    return "coauthor";
+  };
+  const attribution = resolveAttributionMode(raw.attribution);
   const permissions = (raw.permissions as Record<string, unknown>) || {};
   const defaultMode = (permissions.defaultMode as PermissionMode) || "normal";
   const additionalDirectories = (permissions.additionalDirectories as string[]) || [];
@@ -122,6 +149,40 @@ export function SettingsView() {
     await invoke("update_settings_field", { field, value });
     refreshSettings();
   };
+
+  const getAttributionPr = () => {
+    if (raw.attribution && typeof raw.attribution === "object") {
+      const pr = (raw.attribution as Record<string, unknown>).pr;
+      if (typeof pr === "string" && pr.trim() !== "") {
+        return pr;
+      }
+    }
+    return DEFAULT_ATTRIBUTION_FOOTER;
+  };
+
+  const updateAttribution = async (mode: AttributionMode) => {
+    if (mode === "none") {
+      await updateField("attribution", { commit: "", pr: "" });
+      return;
+    }
+
+    const pr = getAttributionPr();
+    if (mode === "footer") {
+      await updateField("attribution", { commit: DEFAULT_ATTRIBUTION_FOOTER, pr });
+      return;
+    }
+
+    await updateField("attribution", { commit: DEFAULT_ATTRIBUTION_COAUTHOR, pr });
+  };
+
+  useEffect(() => {
+    if (didNormalizeAttribution.current) return;
+    if (typeof raw.attribution === "string") {
+      const mode = resolveAttributionMode(raw.attribution);
+      didNormalizeAttribution.current = true;
+      updateAttribution(mode).catch(() => {});
+    }
+  }, [raw.attribution]);
 
   const updatePermissionField = async (field: string, value: unknown) => {
     await invoke("update_settings_permission_field", { field, value });
@@ -257,7 +318,7 @@ export function SettingsView() {
                     <p className="text-sm text-ink">{t('settings.commit_attribution')}</p>
                     <p className="text-xs text-muted-foreground">{t('settings.commit_attribution_desc')}</p>
                   </div>
-                  <Select value={attribution} onValueChange={(v) => updateField("attribution", v)}>
+                  <Select value={attribution} onValueChange={(v) => updateAttribution(v as AttributionMode)}>
                     <SelectTrigger className="w-32">
                       <SelectValue />
                     </SelectTrigger>

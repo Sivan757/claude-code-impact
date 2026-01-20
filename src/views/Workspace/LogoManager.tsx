@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  ImageIcon,
+
   UploadIcon,
   MagicWandIcon,
   CheckIcon,
@@ -57,7 +57,7 @@ export function LogoManager({ projectPath, embedded = false }: LogoManagerProps)
 
   // Extract project name from path
   const projectName = useMemo(() => {
-    const parts = projectPath.split("/");
+    const parts = projectPath.replace(/\/+$/, "").split("/");
     return parts[parts.length - 1] || "project";
   }, [projectPath]);
 
@@ -229,11 +229,13 @@ export function LogoManager({ projectPath, embedded = false }: LogoManagerProps)
       <div className="p-3 space-y-3">
         {/* Current Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden ${currentLogo ? 'bg-muted' : 'bg-primary/10'}`}>
             {currentLogo ? (
               <img src={currentLogo} alt="Logo" className="w-full h-full object-contain" />
             ) : (
-              <ImageIcon className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xl font-bold text-primary">
+                {projectName.charAt(0).toUpperCase()}
+              </span>
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -274,8 +276,8 @@ export function LogoManager({ projectPath, embedded = false }: LogoManagerProps)
                   key={version.path}
                   onClick={() => handleSetCurrent(version)}
                   className={`relative flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden border-2 transition-colors ${version.is_current
-                      ? "border-primary"
-                      : "border-transparent hover:border-muted-foreground/30"
+                    ? "border-primary"
+                    : "border-transparent hover:border-muted-foreground/30"
                     }`}
                 >
                   <img
@@ -365,8 +367,8 @@ export function LogoManager({ projectPath, embedded = false }: LogoManagerProps)
                           key={index}
                           onClick={() => setSelectedPreview(index)}
                           className={`relative rounded-lg overflow-hidden transition-all ${selectedPreview === index
-                              ? "ring-2 ring-primary ring-offset-1"
-                              : "opacity-60 hover:opacity-100"
+                            ? "ring-2 ring-primary ring-offset-1"
+                            : "opacity-60 hover:opacity-100"
                             }`}
                         >
                           <img

@@ -51,7 +51,7 @@ export const FEATURES: FeatureConfig[] = [
     group: "basic",
   },
   {
-    type: "basic-context",
+    type: "context",
     label: "Context",
     description: "CLAUDE.md context files",
     available: true,
@@ -145,6 +145,7 @@ export const TEMPLATE_CATEGORIES: {
   label: string;
 }[] = [
     { key: "settings", label: "Settings" },
+    { key: "context", label: "Context" },
     { key: "commands", label: "Commands" },
     { key: "mcps", label: "MCPs" },
     { key: "skills", label: "Skills" },

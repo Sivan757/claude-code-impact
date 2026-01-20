@@ -5318,6 +5318,32 @@ fn update_disabled_settings_env(env_key: String, env_value: String) -> Result<()
 // Settings Field Update Commands
 // ============================================================================
 
+const DEFAULT_ATTRIBUTION_FOOTER: &str =
+    "Generated with [Claude Code](https://claude.com/claude-code)";
+const DEFAULT_ATTRIBUTION_COAUTHOR: &str = "Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>";
+
+fn normalize_attribution_setting(value: Value) -> Value {
+    match value {
+        Value::String(mode) => {
+            let lower = mode.to_lowercase();
+            if lower == "none" {
+                serde_json::json!({ "commit": "", "pr": "" })
+            } else if lower == "footer" {
+                serde_json::json!({
+                    "commit": DEFAULT_ATTRIBUTION_FOOTER,
+                    "pr": DEFAULT_ATTRIBUTION_FOOTER
+                })
+            } else {
+                serde_json::json!({
+                    "commit": DEFAULT_ATTRIBUTION_COAUTHOR,
+                    "pr": DEFAULT_ATTRIBUTION_FOOTER
+                })
+            }
+        }
+        other => other,
+    }
+}
+
 #[tauri::command]
 fn update_settings_field(field: String, value: Value) -> Result<(), String> {
     let settings_path = get_claude_dir().join("settings.json");
@@ -5326,6 +5352,12 @@ fn update_settings_field(field: String, value: Value) -> Result<(), String> {
         serde_json::from_str(&content).map_err(|e| e.to_string())?
     } else {
         serde_json::json!({})
+    };
+
+    let value = if field == "attribution" {
+        normalize_attribution_setting(value)
+    } else {
+        value
     };
 
     if let Some(obj) = settings.as_object_mut() {
@@ -6292,6 +6324,17 @@ fn is_marketplace_missing_error(message: &str) -> bool {
         || lower.contains("os error 2")
 }
 
+fn is_already_state_error(action: &str, message: &str) -> bool {
+    let lower = message.to_lowercase();
+    if action == "enable" {
+        lower.contains("already enabled")
+    } else if action == "disable" {
+        lower.contains("already disabled")
+    } else {
+        false
+    }
+}
+
 fn collect_marketplace_plugin_ids(claude_dir: &Path, marketplace: &str) -> Vec<String> {
     let mut errors = Vec::new();
     let installed_plugins = load_installed_plugins(claude_dir, &mut errors);
@@ -7216,6 +7259,9 @@ async fn run_plugin_action_with_fallback(action: &str, plugin_id: &str) -> Resul
     match run_plugin_cli_action(action, plugin_id.to_string()).await {
         Ok(output) => Ok(output),
         Err(err) => {
+            if is_already_state_error(action, &err) {
+                return Ok(err);
+            }
             if is_not_installed_error(&err) {
                 if install_extension(plugin_id.to_string(), None).await.is_ok() {
                     match run_plugin_cli_action(action, plugin_id.to_string()).await {

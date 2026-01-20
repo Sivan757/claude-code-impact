@@ -12,8 +12,8 @@ import { workspaceDataAtom } from "@/store";
 import { invoke } from "@tauri-apps/api/core";
 import { ProjectLogo } from "./ProjectLogo";
 import { GitHistory } from "./GitHistory";
-import { ProjectDiagnostics } from "./ProjectDiagnostics";
-import { LogoManager } from "./LogoManager";
+
+
 import { SessionDropdownMenuItems } from "@/components/shared/SessionMenuItems";
 import { NewTerminalSplitButton } from "@/components/ui/new-terminal-button";
 import type { WorkspaceProject } from "./types";
@@ -341,17 +341,8 @@ export function ProjectDashboard({ project }: ProjectDashboardProps) {
 
           {/* Right sidebar - stacked cards */}
           <div className="col-span-4 row-span-2 flex flex-col gap-4">
-            {/* Logo Manager */}
-            <BentoCard title={t('workspace.logo_manager.title')} className="flex-shrink-0">
-              <LogoManager projectPath={project.path} embedded />
-            </BentoCard>
 
-            {/* Diagnostics */}
-            <BentoCard title={t('workspace.diagnostics.title')} className="flex-1 min-h-0 max-h-[200px]">
-              <div className="overflow-y-auto h-full">
-                <ProjectDiagnostics projectPath={project.path} embedded />
-              </div>
-            </BentoCard>
+
 
             {/* Git History */}
             <BentoCard title={t('workspace.git_history')} className="flex-1 min-h-0 max-h-[200px]">

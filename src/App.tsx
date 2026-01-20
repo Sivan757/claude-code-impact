@@ -154,8 +154,8 @@ function App() {
               ? "basic-llm"
               : view.type === "basic-version"
                 ? "basic-version"
-                : view.type === "basic-context"
-                  ? "basic-context"
+                : view.type === "context"
+                  ? "context"
                   : view.type === "settings"
                     ? "settings"
                     : view.type === "commands" || view.type === "command-detail"
@@ -198,8 +198,8 @@ function App() {
       case "basic-version":
         navigate({ type: "basic-version" });
         break;
-      case "basic-context":
-        navigate({ type: "basic-context" });
+      case "context":
+        navigate({ type: "context" });
         break;
       case "settings":
         navigate({ type: "settings" });
@@ -297,7 +297,7 @@ function App() {
                 onBack={() => navigate({ type: "chat-sessions", projectId: view.projectId, projectPath: view.projectPath })}
               />
             )}
-            {(view.type === "basic-env" || view.type === "basic-llm" || view.type === "basic-version" || view.type === "basic-context" ||
+            {(view.type === "basic-env" || view.type === "basic-llm" || view.type === "basic-version" || view.type === "context" ||
               view.type === "settings" || view.type === "commands" || view.type === "command-detail" || view.type === "mcp" ||
               view.type === "skills" || view.type === "hooks" ||
               view.type === "sub-agents" || view.type === "sub-agent-detail" || view.type === "output-styles" ||
@@ -306,7 +306,7 @@ function App() {
                   {view.type === "basic-env" && <EnvSettingsView />}
                   {view.type === "basic-llm" && <LlmProviderView />}
                   {view.type === "basic-version" && <ClaudeVersionView />}
-                  {view.type === "basic-context" && <ContextFilesView />}
+                  {view.type === "context" && <ContextFilesView />}
                   {view.type === "settings" && (
                     <SettingsView />
                   )}

@@ -11,7 +11,7 @@ export default function FeaturesPage() {
       "basic-env": "/settings/env",
       "basic-llm": "/settings/llm",
       "basic-version": "/settings/version",
-      "basic-context": "/settings/context",
+      "context": "/settings/context",
       "settings": "/settings",
       "commands": "/commands",
       "mcp": "/mcp",

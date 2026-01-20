@@ -3,7 +3,7 @@ import { FeaturesLayout } from "../../views/Features";
 
 export default function ContextFilesPage() {
   return (
-    <FeaturesLayout feature="basic-context">
+    <FeaturesLayout feature="context">
       <ContextFilesView />
     </FeaturesLayout>
   );

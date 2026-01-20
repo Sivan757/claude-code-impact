@@ -101,19 +101,20 @@
         "kb-reference": "开发文档",
         "kb-distill": "经验总结 (CC)",
         "basic-env": "环境变量",
-        "basic-llm": "LLM 供应商",
+        "basic-llm": "供应商",
         "basic-version": "CC 版本",
-        "basic-context": "上下文",
-        "settings": "设置",
+        "context": "上下文",
+        "settings": "通用",
         "commands": "指令",
         "history": "历史会话",
-        "mcp": "MCPs",
+        "mcp": "MCP",
         "skills": "技能",
         "hooks": "挂钩",
         "sub-agents": "子代理",
         "output-styles": "输出样式",
         "statusline": "状态栏",
-        "extensions": "插件"
+        "extensions": "扩展",
+        "general": "常规"
     },
     "knowledge_sidebar": {
         "title": "知识",
@@ -127,7 +128,7 @@
         "basic-env": "环境变量",
         "basic-llm": "LLM 代理配置",
         "basic-version": "Claude Code 版本管理",
-        "basic-context": "CLAUDE.md 上下文文件",
+        "context": "CLAUDE.md 上下文文件",
         "settings": "settings.json 模板",
         "commands": "斜杠指令",
         "mcp": "MCP 服务",
@@ -282,7 +283,7 @@
         "shared": "共享"
     },
     "settings": {
-        "title": "设置",
+        "title": "通用",
         "loading": "正在加载设置...",
         "open_in_editor": "在编辑器中打开",
         "copy_path": "复制路径",
