@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { FileCode, Copy } from "lucide-react";

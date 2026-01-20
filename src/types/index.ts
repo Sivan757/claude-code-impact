@@ -376,3 +376,48 @@ export interface MarketplacePlugin {
   description: string | null;
   path: string;
 }
+
+export interface PluginComponent {
+  name: string;
+  description: string | null;
+  path: string | null;
+}
+
+export interface PluginComponents {
+  agents: PluginComponent[];
+  commands: PluginComponent[];
+  skills: PluginComponent[];
+  hooks: PluginComponent[];
+  mcps: PluginComponent[];
+  lsps: PluginComponent[];
+}
+
+export interface ScannedPlugin {
+  id: string;
+  name: string;
+  description: string | null;
+  version: string | null;
+  author: string | null;
+  repository: string | null;
+  marketplace: string;
+  isInstalled: boolean;
+  isEnabled: boolean;
+  localPath: string | null;
+  components: PluginComponents;
+  componentsSource?: string | null;
+}
+
+export interface ScannedMarketplace {
+  id: string;
+  name: string;
+  installLocation: string | null;
+  source: string | null;
+  pluginCount: number;
+  lastUpdated: string | null;
+}
+
+export interface PluginScanResult {
+  marketplaces: ScannedMarketplace[];
+  plugins: ScannedPlugin[];
+  errors: string[];
+}

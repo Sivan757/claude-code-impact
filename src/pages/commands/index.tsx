@@ -11,9 +11,6 @@ export default function CommandsPage() {
         onSelect={(command) => {
           navigate(`/commands/${encodeURIComponent(command.name)}`);
         }}
-        onMarketplaceSelect={(template) => {
-          navigate(`/commands/${encodeURIComponent(template.name)}?source=marketplace`);
-        }}
       />
     </FeaturesLayout>
   );

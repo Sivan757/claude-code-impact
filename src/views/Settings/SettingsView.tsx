@@ -12,7 +12,6 @@ import {
   ChevronRightIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
 import {
@@ -40,12 +39,7 @@ import {
   PageHeader,
   ConfigPage,
 } from "../../components/config";
-import { MarketplaceContent } from "../Marketplace";
-import type { ClaudeSettings, TemplateComponent } from "../../types";
-
-interface SettingsViewProps {
-  onMarketplaceSelect: (template: TemplateComponent) => void;
-}
+import type { ClaudeSettings } from "../../types";
 
 type PermissionMode = "bypassPermissions" | "allowEdits" | "normal";
 type ModelType = "opus" | "sonnet" | "haiku";
@@ -63,7 +57,7 @@ interface HookMatcher {
   hooks: HookItem[];
 }
 
-export function SettingsView({ onMarketplaceSelect }: SettingsViewProps) {
+export function SettingsView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -206,335 +200,324 @@ export function SettingsView({ onMarketplaceSelect }: SettingsViewProps) {
     <ConfigPage>
       <PageHeader title={t('settings.title')} subtitle="~/.claude/settings.json" action={headerAction} />
 
-      <Tabs defaultValue="installed" className="flex-1 flex flex-col">
-        <TabsList className="bg-card-alt border border-border">
-          <TabsTrigger value="installed">{t('settings.configuration')}</TabsTrigger>
-          <TabsTrigger value="marketplace">{t('settings.marketplace')}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="installed" className="mt-4 space-y-6">
-          {!settings?.raw ? (
-            <EmptyState icon={GearIcon} message={t('settings.no_settings')} hint={t('settings.create_hint')} />
-          ) : (
-            <>
-              {/* General Section */}
-              <section className="bg-card rounded-xl border border-border p-4">
-                <h3 className="text-sm font-medium text-ink mb-4">{t('settings.general')}</h3>
-                <div className="space-y-4">
-                  {/* Model */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-ink">{t('settings.default_model')}</p>
-                      <p className="text-xs text-muted-foreground">{t('settings.default_model_desc')}</p>
-                    </div>
-                    <Select value={model} onValueChange={(v) => updateField("model", v)}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MODEL_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Always Thinking */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-ink">{t('settings.extended_thinking')}</p>
-                      <p className="text-xs text-muted-foreground">{t('settings.extended_thinking_desc')}</p>
-                    </div>
-                    <Switch
-                      checked={alwaysThinkingEnabled}
-                      onCheckedChange={(checked) => updateField("alwaysThinkingEnabled", checked)}
-                    />
-                  </div>
-
-                  {/* Spinner Tips */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-ink">{t('settings.spinner_tips')}</p>
-                      <p className="text-xs text-muted-foreground">{t('settings.spinner_tips_desc')}</p>
-                    </div>
-                    <Switch
-                      checked={spinnerTipsEnabled}
-                      onCheckedChange={(checked) => updateField("spinnerTipsEnabled", checked)}
-                    />
-                  </div>
-
-                  {/* Attribution */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-ink">{t('settings.commit_attribution')}</p>
-                      <p className="text-xs text-muted-foreground">{t('settings.commit_attribution_desc')}</p>
-                    </div>
-                    <Select value={attribution} onValueChange={(v) => updateField("attribution", v)}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ATTRIBUTION_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Cleanup Period */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-ink">{t('settings.chat_retention')}</p>
-                      <p className="text-xs text-muted-foreground">{t('settings.chat_retention_desc')}</p>
-                    </div>
-                    <Select
-                      value={String(cleanupPeriodDays)}
-                      onValueChange={(v) => updateField("cleanupPeriodDays", Number(v))}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CLEANUP_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </section>
-
-              {/* Permissions Section */}
-              <section className="bg-card rounded-xl border border-border p-4">
-                <h3 className="text-sm font-medium text-ink mb-4">{t('settings.permissions')}</h3>
-                <div className="space-y-4">
-                  {/* Default Mode */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-ink">{t('settings.permission_mode')}</p>
-                      <p className="text-xs text-muted-foreground">{t('settings.permission_mode_desc')}</p>
-                    </div>
-                    <Select value={defaultMode} onValueChange={(v) => updatePermissionField("defaultMode", v)}>
-                      <SelectTrigger className="w-36">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PERMISSION_MODES.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Additional Directories */}
+      <div className="flex-1 flex flex-col min-h-0 space-y-6 overflow-y-auto">
+        {!settings?.raw ? (
+          <EmptyState icon={GearIcon} message={t('settings.no_settings')} hint={t('settings.create_hint')} />
+        ) : (
+          <>
+            {/* General Section */}
+            <section className="bg-card rounded-xl border border-border p-4">
+              <h3 className="text-sm font-medium text-ink mb-4">{t('settings.general')}</h3>
+              <div className="space-y-4">
+                {/* Model */}
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm text-ink">{t('settings.additional_directories')}</p>
-                        <p className="text-xs text-muted-foreground">{t('settings.additional_directories_desc')}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const path = prompt(t('settings.enter_path'));
-                          if (path?.trim()) addDirectory(path.trim());
-                        }}
-                      >
-                        {t('common.add')}
-                      </Button>
-                    </div>
-                    {additionalDirectories.length > 0 ? (
-                      <div className="space-y-1">
-                        {additionalDirectories.map((dir) => (
-                          <div
-                            key={dir}
-                            className="flex items-center justify-between px-3 py-2 bg-card-alt rounded-lg text-xs"
-                          >
-                            <span className="font-mono text-muted-foreground">{dir}</span>
-                            <button
-                              onClick={() => removeDirectory(dir)}
-                              className="text-muted-foreground hover:text-red-500"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">{t('settings.no_additional_directories')}</p>
-                    )}
+                    <p className="text-sm text-ink">{t('settings.default_model')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.default_model_desc')}</p>
                   </div>
+                  <Select value={model} onValueChange={(v) => updateField("model", v)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MODEL_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </section>
 
-              {/* Plugins Section */}
-              {Object.keys(enabledPlugins).length > 0 && (
-                <section className="bg-card rounded-xl border border-border p-4">
-                  <h3 className="text-sm font-medium text-ink mb-4">{t('settings.plugins')}</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {Object.entries(enabledPlugins)
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([pluginId, enabled]) => {
-                        const [name, source] = pluginId.split("@");
-                        return (
-                          <div
-                            key={pluginId}
-                            className="flex items-center justify-between px-3 py-2 bg-card-alt rounded-lg"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-ink truncate">{name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{source}</p>
-                            </div>
-                            <Switch
-                              checked={enabled}
-                              onCheckedChange={(checked) => togglePlugin(pluginId, checked)}
-                            />
-                          </div>
-                        );
-                      })}
+                {/* Always Thinking */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-ink">{t('settings.extended_thinking')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.extended_thinking_desc')}</p>
                   </div>
-                </section>
-              )}
+                  <Switch
+                    checked={alwaysThinkingEnabled}
+                    onCheckedChange={(checked) => updateField("alwaysThinkingEnabled", checked)}
+                  />
+                </div>
 
-              {/* Hooks Section */}
-              {(Object.keys(hooks).length > 0 || Object.keys(disabledHooks).length > 0) && (
-                <section className="bg-card rounded-xl border border-border p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-medium text-ink">{t('settings.hooks')}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{t('settings.disable_all')}</span>
-                      <Switch
-                        checked={disableAllHooks}
-                        onCheckedChange={(checked) => updateField("disableAllHooks", checked)}
-                      />
+                {/* Spinner Tips */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-ink">{t('settings.spinner_tips')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.spinner_tips_desc')}</p>
+                  </div>
+                  <Switch
+                    checked={spinnerTipsEnabled}
+                    onCheckedChange={(checked) => updateField("spinnerTipsEnabled", checked)}
+                  />
+                </div>
+
+                {/* Attribution */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-ink">{t('settings.commit_attribution')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.commit_attribution_desc')}</p>
+                  </div>
+                  <Select value={attribution} onValueChange={(v) => updateField("attribution", v)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ATTRIBUTION_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Cleanup Period */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-ink">{t('settings.chat_retention')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.chat_retention_desc')}</p>
+                  </div>
+                  <Select
+                    value={String(cleanupPeriodDays)}
+                    onValueChange={(v) => updateField("cleanupPeriodDays", Number(v))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLEANUP_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </section>
+
+            {/* Permissions Section */}
+            <section className="bg-card rounded-xl border border-border p-4">
+              <h3 className="text-sm font-medium text-ink mb-4">{t('settings.permissions')}</h3>
+              <div className="space-y-4">
+                {/* Default Mode */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-ink">{t('settings.permission_mode')}</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.permission_mode_desc')}</p>
+                  </div>
+                  <Select value={defaultMode} onValueChange={(v) => updatePermissionField("defaultMode", v)}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERMISSION_MODES.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Additional Directories */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm text-ink">{t('settings.additional_directories')}</p>
+                      <p className="text-xs text-muted-foreground">{t('settings.additional_directories_desc')}</p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const path = prompt(t('settings.enter_path'));
+                        if (path?.trim()) addDirectory(path.trim());
+                      }}
+                    >
+                      {t('common.add')}
+                    </Button>
                   </div>
-                  <div className={`space-y-2 ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
-                    {/* Get all event types from both active and disabled hooks */}
-                    {[...new Set([...Object.keys(hooks), ...Object.keys(disabledHooks)])].map((eventType) => {
-                      const isExpanded = expandedHookEvents.has(eventType);
-                      const matchers = hooks[eventType] || [];
-                      const disabledForEvent = disabledHooks[eventType] || [];
-                      const activeCount = matchers.reduce((acc, m) => acc + m.hooks.length, 0);
-                      const totalCount = activeCount + disabledForEvent.length;
-
-                      return (
-                        <div key={eventType} className="bg-card-alt rounded-lg overflow-hidden">
+                  {additionalDirectories.length > 0 ? (
+                    <div className="space-y-1">
+                      {additionalDirectories.map((dir) => (
+                        <div
+                          key={dir}
+                          className="flex items-center justify-between px-3 py-2 bg-card-alt rounded-lg text-xs"
+                        >
+                          <span className="font-mono text-muted-foreground">{dir}</span>
                           <button
-                            onClick={() => toggleHookEvent(eventType)}
-                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-card-alt/80"
+                            onClick={() => removeDirectory(dir)}
+                            className="text-muted-foreground hover:text-red-500"
                           >
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
-                              )}
-                              <span className="text-sm text-ink font-medium">{eventType}</span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {disabledForEvent.length > 0 ? `${activeCount}/${totalCount}` : totalCount}
-                            </span>
+                            ×
                           </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">{t('settings.no_additional_directories')}</p>
+                  )}
+                </div>
+              </div>
+            </section>
 
-                          {isExpanded && (
-                            <div className="px-3 pb-3 space-y-2">
-                              {/* Active hooks */}
-                              {matchers.map((matcher, matcherIndex) => (
-                                <div key={matcherIndex} className="space-y-1">
-                                  {matcher.matcher && (
-                                    <p className="text-xs text-muted-foreground pl-6">
-                                      matcher: <code className="bg-card px-1 rounded">{matcher.matcher}</code>
-                                    </p>
-                                  )}
-                                  {matcher.hooks.map((hook, hookIndex) => (
-                                    <div
-                                      key={hookIndex}
-                                      className="flex items-center justify-between pl-6 pr-2 py-1.5 bg-card rounded group"
-                                    >
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-xs font-mono text-ink truncate">
-                                          {hook.command || hook.type}
-                                        </p>
-                                        {hook.timeout && (
-                                          <p className="text-xs text-muted-foreground">
-                                            timeout: {hook.timeout}s
-                                          </p>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={() => deleteHookItem(eventType, matcherIndex, hookIndex)}
-                                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
-                                        >
-                                          <TrashIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                        <Switch
-                                          checked={true}
-                                          onCheckedChange={() =>
-                                            toggleHookItem(eventType, matcherIndex, hookIndex, true)
-                                          }
-                                        />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ))}
-
-                              {/* Disabled hooks */}
-                              {disabledForEvent.length > 0 && (
-                                <div className="space-y-1 pt-2 border-t border-border/50">
-                                  <p className="text-xs text-muted-foreground pl-6 italic">Disabled</p>
-                                  {disabledForEvent.map((item, disabledIndex) => (
-                                    <div
-                                      key={`disabled-${disabledIndex}`}
-                                      className="flex items-center justify-between pl-6 pr-2 py-1.5 bg-card rounded opacity-50 group"
-                                    >
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-xs font-mono text-ink truncate">
-                                          {item.hook.command || item.hook.type}
-                                        </p>
-                                        {item.hook.timeout && (
-                                          <p className="text-xs text-muted-foreground">
-                                            timeout: {item.hook.timeout}s
-                                          </p>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={() => deleteDisabledHook(eventType, disabledIndex)}
-                                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
-                                        >
-                                          <TrashIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                        <Switch
-                                          checked={false}
-                                          onCheckedChange={() =>
-                                            toggleHookItem(eventType, 0, disabledIndex, false)
-                                          }
-                                        />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
+            {/* Plugins Section */}
+            {Object.keys(enabledPlugins).length > 0 && (
+              <section className="bg-card rounded-xl border border-border p-4">
+                <h3 className="text-sm font-medium text-ink mb-4">{t('settings.plugins')}</h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {Object.entries(enabledPlugins)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([pluginId, enabled]) => {
+                      const [name, source] = pluginId.split("@");
+                      return (
+                        <div
+                          key={pluginId}
+                          className="flex items-center justify-between px-3 py-2 bg-card-alt rounded-lg"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-ink truncate">{name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{source}</p>
+                          </div>
+                          <Switch
+                            checked={enabled}
+                            onCheckedChange={(checked) => togglePlugin(pluginId, checked)}
+                          />
                         </div>
                       );
                     })}
-                  </div>
-                </section>
-              )}
-            </>
-          )}
-        </TabsContent>
+                </div>
+              </section>
+            )}
 
-        <TabsContent value="marketplace" className="mt-4">
-          <MarketplaceContent category="settings" onSelectTemplate={onMarketplaceSelect} />
-        </TabsContent>
-      </Tabs>
+            {/* Hooks Section */}
+            {(Object.keys(hooks).length > 0 || Object.keys(disabledHooks).length > 0) && (
+              <section className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-ink">{t('settings.hooks')}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{t('settings.disable_all')}</span>
+                    <Switch
+                      checked={disableAllHooks}
+                      onCheckedChange={(checked) => updateField("disableAllHooks", checked)}
+                    />
+                  </div>
+                </div>
+                <div className={`space-y-2 ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
+                  {/* Get all event types from both active and disabled hooks */}
+                  {[...new Set([...Object.keys(hooks), ...Object.keys(disabledHooks)])].map((eventType) => {
+                    const isExpanded = expandedHookEvents.has(eventType);
+                    const matchers = hooks[eventType] || [];
+                    const disabledForEvent = disabledHooks[eventType] || [];
+                    const activeCount = matchers.reduce((acc, m) => acc + m.hooks.length, 0);
+                    const totalCount = activeCount + disabledForEvent.length;
+
+                    return (
+                      <div key={eventType} className="bg-card-alt rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleHookEvent(eventType)}
+                          className="w-full flex items-center justify-between px-3 py-2 hover:bg-card-alt/80"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            <span className="text-sm text-ink font-medium">{eventType}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {disabledForEvent.length > 0 ? `${activeCount}/${totalCount}` : totalCount}
+                          </span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="px-3 pb-3 space-y-2">
+                            {/* Active hooks */}
+                            {matchers.map((matcher, matcherIndex) => (
+                              <div key={matcherIndex} className="space-y-1">
+                                {matcher.matcher && (
+                                  <p className="text-xs text-muted-foreground pl-6">
+                                    matcher: <code className="bg-card px-1 rounded">{matcher.matcher}</code>
+                                  </p>
+                                )}
+                                {matcher.hooks.map((hook, hookIndex) => (
+                                  <div
+                                    key={hookIndex}
+                                    className="flex items-center justify-between pl-6 pr-2 py-1.5 bg-card rounded group"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-mono text-ink truncate">
+                                        {hook.command || hook.type}
+                                      </p>
+                                      {hook.timeout && (
+                                        <p className="text-xs text-muted-foreground">
+                                          timeout: {hook.timeout}s
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => deleteHookItem(eventType, matcherIndex, hookIndex)}
+                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
+                                      >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                      </button>
+                                      <Switch
+                                        checked={true}
+                                        onCheckedChange={() =>
+                                          toggleHookItem(eventType, matcherIndex, hookIndex, true)
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+
+                            {/* Disabled hooks */}
+                            {disabledForEvent.length > 0 && (
+                              <div className="space-y-1 pt-2 border-t border-border/50">
+                                <p className="text-xs text-muted-foreground pl-6 italic">Disabled</p>
+                                {disabledForEvent.map((item, disabledIndex) => (
+                                  <div
+                                    key={`disabled-${disabledIndex}`}
+                                    className="flex items-center justify-between pl-6 pr-2 py-1.5 bg-card rounded opacity-50 group"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-mono text-ink truncate">
+                                        {item.hook.command || item.hook.type}
+                                      </p>
+                                      {item.hook.timeout && (
+                                        <p className="text-xs text-muted-foreground">
+                                          timeout: {item.hook.timeout}s
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => deleteDisabledHook(eventType, disabledIndex)}
+                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
+                                      >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                      </button>
+                                      <Switch
+                                        checked={false}
+                                        onCheckedChange={() =>
+                                          toggleHookItem(eventType, 0, disabledIndex, false)
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Raw JSON Dialog */}
       <Dialog open={showRawJson} onOpenChange={setShowRawJson}>

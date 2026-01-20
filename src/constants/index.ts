@@ -144,12 +144,12 @@ export const TEMPLATE_CATEGORIES: {
   key: TemplateCategory;
   label: string;
 }[] = [
-  { key: "settings", label: "Settings" },
-  { key: "commands", label: "Commands" },
-  { key: "mcps", label: "MCPs" },
-  { key: "skills", label: "Skills" },
-  { key: "hooks", label: "Hooks" },
-  { key: "agents", label: "Sub Agents" },
-  { key: "output-styles", label: "Output Styles" },
-  { key: "statuslines", label: "Status Line" },
-];
+    { key: "settings", label: "Settings" },
+    { key: "commands", label: "Commands" },
+    { key: "mcps", label: "MCPs" },
+    { key: "skills", label: "Skills" },
+    { key: "hooks", label: "Hooks" },
+    { key: "agents", label: "Sub Agents" },
+    { key: "output-styles", label: "Output Styles" },
+    { key: "statuslines", label: "Status Line" },
+  ];

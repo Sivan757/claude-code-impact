@@ -12,9 +12,6 @@ export default function SkillsPage() {
           const name = localPath.split("/").pop()?.replace(/\.md$/, "") || "";
           navigate(`/skills/${encodeURIComponent(name)}`);
         }}
-        onMarketplaceSelect={(template) => {
-          navigate(`/skills/${encodeURIComponent(template.name)}?source=marketplace`);
-        }}
       />
     </FeaturesLayout>
   );

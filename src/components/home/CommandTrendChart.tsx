@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import {
   LineChart,
@@ -54,6 +55,7 @@ const RANGE_WEEKS: Record<TimeRange, number | null> = {
 };
 
 export function CommandTrendChart({ data }: CommandTrendChartProps) {
+  const { t } = useTranslation();
   const [hoverData, setHoverData] = useState<HoverData | null>(null);
   const [mode, setMode] = useAtom(commandModeAtom);
   const [range, setRange] = useAtom(commandRangeAtom);
@@ -127,7 +129,7 @@ export function CommandTrendChart({ data }: CommandTrendChartProps) {
   if (commands.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        No command usage data
+        {t('charts.no_data')}
       </div>
     );
   }
@@ -137,7 +139,7 @@ export function CommandTrendChart({ data }: CommandTrendChartProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground uppercase tracking-wide">
-            Command Trends
+            {t('charts.title')}
           </span>
           {/* Time range toggle */}
           <div className="flex rounded-md border border-border/60 overflow-hidden">
@@ -145,13 +147,12 @@ export function CommandTrendChart({ data }: CommandTrendChartProps) {
               <button
                 key={r}
                 onClick={() => setRange(r)}
-                className={`px-2 py-0.5 text-[10px] transition-colors ${
-                  range === r
+                className={`px-2 py-0.5 text-[10px] transition-colors ${range === r
                     ? "bg-primary text-primary-foreground"
                     : "bg-transparent text-muted-foreground hover:bg-accent"
-                }`}
+                  }`}
               >
-                {r === "1m" ? "1M" : r === "3m" ? "3M" : "All"}
+                {r === "1m" ? t('charts.one_month') : r === "3m" ? t('charts.three_months') : t('charts.all')}
               </button>
             ))}
           </div>
@@ -159,28 +160,26 @@ export function CommandTrendChart({ data }: CommandTrendChartProps) {
           <div className="flex rounded-md border border-border/60 overflow-hidden">
             <button
               onClick={() => setMode("weekly")}
-              className={`px-2 py-0.5 text-[10px] transition-colors ${
-                mode === "weekly"
+              className={`px-2 py-0.5 text-[10px] transition-colors ${mode === "weekly"
                   ? "bg-primary text-primary-foreground"
                   : "bg-transparent text-muted-foreground hover:bg-accent"
-              }`}
+                }`}
             >
-              Weekly
+              {t('charts.weekly')}
             </button>
             <button
               onClick={() => setMode("cumulative")}
-              className={`px-2 py-0.5 text-[10px] transition-colors ${
-                mode === "cumulative"
+              className={`px-2 py-0.5 text-[10px] transition-colors ${mode === "cumulative"
                   ? "bg-primary text-primary-foreground"
                   : "bg-transparent text-muted-foreground hover:bg-accent"
-              }`}
+                }`}
             >
-              Cumulative
+              {t('charts.cumulative')}
             </button>
           </div>
         </div>
         <span className="text-xs text-muted-foreground">
-          Top {commands.length} of {totalCommands}
+          {t('charts.top_of', { shown: commands.length, total: totalCommands })}
         </span>
       </div>
 
@@ -259,7 +258,7 @@ export function CommandTrendChart({ data }: CommandTrendChartProps) {
           </div>
         ) : (
           <div className="text-xs text-muted-foreground italic">
-            Hover chart to see week details
+            {t('charts.hover_hint')}
           </div>
         )}
       </div>

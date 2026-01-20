@@ -12,7 +12,6 @@ import {
   ExternalLinkIcon,
 } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   LoadingState,
   SearchInput,
@@ -23,26 +22,32 @@ import {
 import { useAtom } from "jotai";
 import { routerTestStatusAtom, routerTestMessageAtom } from "../../store";
 import type { ClaudeSettings } from "../../types";
-import { trackProviderEvent, isAnalyticsEnabled, setAnalyticsEnabled } from "../../lib/analytics";
+import { trackProviderEvent } from "../../lib/analytics";
 
-export function LlmProviderView() {
-  const { t } = useTranslation();
-  const ResponsiveActions = ({
-    variant,
-    icon,
-    text,
-    className = "",
-  }: {
-    variant: "env" | "router";
-    icon: ReactNode;
-    text: ReactNode;
-    className?: string;
-  }) => (
+function ResponsiveActions({
+  variant,
+  icon,
+  text,
+  className = "",
+}: {
+  variant: "env" | "router";
+  icon: ReactNode;
+  text: ReactNode;
+  className?: string;
+}) {
+  return (
     <div className={`flex flex-nowrap items-center gap-2 whitespace-nowrap justify-end ${className}`}>
       <div className={`${variant}-actions--icon flex flex-nowrap items-center gap-2`}>{icon}</div>
       <div className={`${variant}-actions--text flex flex-nowrap items-center gap-2`}>{text}</div>
     </div>
   );
+}
+
+
+export function LlmProviderView() {
+  const { t } = useTranslation();
+
+
 
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
@@ -60,7 +65,7 @@ export function LlmProviderView() {
     univibe: "claude-sonnet-4-5-20250929",
     siliconflow: "moonshotai/Kimi-K2-Instruct-0905",
   });
-  const [analyticsEnabled, setAnalyticsEnabledState] = useState(isAnalyticsEnabled);
+
 
   useEffect(() => {
     if (!settings) return;
@@ -550,7 +555,10 @@ export function LlmProviderView() {
   const officialProviderKeys = new Set(["anthropic-subscription", "native"]);
   const officialPresets = filteredPresets.filter((preset) => officialProviderKeys.has(preset.key));
   const partnerPresets = filteredPresets.filter((preset) => !officialProviderKeys.has(preset.key));
-  const defaultProviderTab = officialPresets.length > 0 ? "official" : "partner";
+
+
+
+  const activePresets = [...officialPresets, ...partnerPresets];
 
   const renderPresetCard = (preset: {
     key: string;
@@ -571,7 +579,7 @@ export function LlmProviderView() {
     return (
       <div
         key={preset.key}
-        className={`rounded-lg border-2 p-3 flex flex-col gap-2 w-full overflow-hidden ${isActive
+        className={`rounded-lg border-2 p-3 flex flex-col gap-2 w-full ${isActive
           ? "border-primary bg-primary/10"
           : isTestSuccess
             ? "border-primary/60 bg-primary/5"
@@ -580,8 +588,8 @@ export function LlmProviderView() {
               : "border-border bg-card-alt"
           }`}
       >
-        <div className="flex w-full flex-nowrap items-start gap-3 overflow-hidden">
-          <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="flex w-full flex-nowrap items-center gap-3">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-ink truncate">{preset.label}</p>
               {isActive && (
@@ -591,7 +599,7 @@ export function LlmProviderView() {
               )}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-muted-foreground truncate">{preset.description}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{preset.description}</p>
               {preset.docsUrl && (
                 <button
                   className="text-muted-foreground hover:text-primary shrink-0"
@@ -800,56 +808,22 @@ export function LlmProviderView() {
         action={applyError && <p className="text-xs text-red-600">{applyError}</p>}
       />
 
-      <div className="flex-1 flex flex-col space-y-4">
+      <div className="flex-1 flex flex-col min-h-0 space-y-4">
         <SearchInput placeholder={t('llm.search_placeholder')} value={search} onChange={setSearch} />
 
         <p className="text-xs text-muted-foreground">
           {t('llm.subtitle')}
         </p>
 
-        <Tabs defaultValue={defaultProviderTab} className="flex-1">
-          <TabsList>
-            <TabsTrigger value="official">{t('llm.official')}</TabsTrigger>
-            <TabsTrigger value="partner">{t('llm.partner')}</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="official" className="mt-3 grid gap-3">
-            {officialPresets.length > 0 ? (
-              officialPresets.map((preset) => renderPresetCard(preset))
-            ) : (
-              <p className="text-xs text-muted-foreground">{t('llm.no_official_match')}</p>
-            )}
-          </TabsContent>
-
-          <TabsContent value="partner" className="mt-3 grid gap-3">
-            {partnerPresets.length > 0 ? (
-              partnerPresets.map((preset) => renderPresetCard(preset))
-            ) : (
-              <p className="text-xs text-muted-foreground">{t('llm.no_partner_match')}</p>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-          <div>
-            <p className="text-xs font-medium text-ink">{t('llm.analytics')}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {t('llm.analytics_desc')}
-            </p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={analyticsEnabled}
-              onChange={(e) => {
-                setAnalyticsEnabledState(e.target.checked);
-                setAnalyticsEnabled(e.target.checked);
-              }}
-              className="sr-only peer"
-            />
-            <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
-          </label>
+        <div className="flex-1 mt-3 flex flex-col gap-3 overflow-y-auto min-h-0">
+          {activePresets.length > 0 ? (
+            activePresets.map((preset) => renderPresetCard(preset))
+          ) : (
+            <p className="text-xs text-muted-foreground">{t('llm.no_match')}</p>
+          )}
         </div>
+
+
       </div>
     </ConfigPage>
   );

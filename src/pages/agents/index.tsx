@@ -9,9 +9,6 @@ export default function AgentsPage() {
     <FeaturesLayout feature="sub-agents">
       <SubAgentsView
         onSelect={(agent) => navigate(`/agents/${encodeURIComponent(agent.name)}`)}
-        onMarketplaceSelect={(template) => {
-          navigate(`/agents/${encodeURIComponent(template.name)}?source=marketplace`);
-        }}
       />
     </FeaturesLayout>
   );

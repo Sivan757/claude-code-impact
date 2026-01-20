@@ -10,8 +10,8 @@
  */
 
 // Default Lovstudio Cloud endpoint
-const DEFAULT_ANALYTICS_ENDPOINT = "https://nouchjcfeoobplxkwasg.supabase.co/rest/v1/lovcode_provider_analytics";
-const DEFAULT_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vdWNoamNmZW9vYnBseGt3YXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjI1OTMsImV4cCI6MjA4MTczODU5M30.P3A_AoAjp0EXIafeBBeqp972h_lO7oXjbKgu0OdMsjA";
+const DEFAULT_ANALYTICS_ENDPOINT = "";
+const DEFAULT_ANON_KEY = "";
 
 // Storage key for opt-out preference
 const ANALYTICS_ENABLED_KEY = "lovcode:analytics:enabled";

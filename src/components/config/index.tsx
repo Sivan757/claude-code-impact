@@ -234,11 +234,10 @@ export function DetailHeader({
             </button>
           )}
           {statusBadge && (
-            <span className={`text-xs px-2 py-0.5 rounded ${
-              statusBadge.variant === "success" ? "bg-green-500/20 text-green-600" :
-              statusBadge.variant === "warning" ? "bg-amber-500/20 text-amber-600" :
-              "bg-card-alt text-muted-foreground"
-            }`}>
+            <span className={`text-xs px-2 py-0.5 rounded ${statusBadge.variant === "success" ? "bg-green-500/20 text-green-600" :
+                statusBadge.variant === "warning" ? "bg-amber-500/20 text-amber-600" :
+                  "bg-card-alt text-muted-foreground"
+              }`}>
               {statusBadge.label}
             </span>
           )}
@@ -433,7 +432,7 @@ export function ContentCard({
 // ============================================================================
 
 export function ConfigPage({ children }: { children: ReactNode }) {
-  return <div className="px-6 py-8 config-page-container">{children}</div>;
+  return <div className="flex flex-col h-full px-6 py-8 config-page-container overflow-hidden">{children}</div>;
 }
 
 // ============================================================================

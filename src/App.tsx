@@ -308,14 +308,11 @@ function App() {
                   {view.type === "basic-version" && <ClaudeVersionView />}
                   {view.type === "basic-context" && <ContextFilesView />}
                   {view.type === "settings" && (
-                    <SettingsView
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "settings", fromFeature: "settings" })}
-                    />
+                    <SettingsView />
                   )}
                   {view.type === "commands" && (
                     <CommandsView
                       onSelect={(cmd, scrollToChangelog) => navigate({ type: "command-detail", command: cmd, scrollToChangelog })}
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "commands", fromFeature: "commands" })}
                     />
                   )}
                   {view.type === "command-detail" && (
@@ -332,37 +329,27 @@ function App() {
                     />
                   )}
                   {view.type === "mcp" && (
-                    <McpView
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "mcps", fromFeature: "mcp" })}
-                    />
+                    <McpView />
                   )}
                   {view.type === "skills" && (
                     <SkillsView
                       onSelectTemplate={(template, localPath) => navigate({ type: "feature-template-detail", template, category: "skills", fromFeature: "skills", localPath, isInstalled: true })}
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "skills", fromFeature: "skills" })}
                     />
                   )}
                   {view.type === "hooks" && (
-                    <HooksView
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "hooks", fromFeature: "hooks" })}
-                    />
+                    <HooksView />
                   )}
                   {view.type === "sub-agents" && (
                     <SubAgentsView
                       onSelect={(agent) => navigate({ type: "sub-agent-detail", agent })}
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "agents", fromFeature: "sub-agents" })}
                     />
                   )}
                   {view.type === "sub-agent-detail" && <SubAgentDetailView agent={view.agent} onBack={() => navigate({ type: "sub-agents" })} />}
                   {view.type === "output-styles" && (
-                    <OutputStylesView
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "output-styles", fromFeature: "output-styles" })}
-                    />
+                    <OutputStylesView />
                   )}
                   {view.type === "statusline" && (
-                    <StatuslineView
-                      onMarketplaceSelect={(template) => navigate({ type: "feature-template-detail", template, category: "statuslines", fromFeature: "statusline" })}
-                    />
+                    <StatuslineView />
                   )}
                   {view.type === "feature-template-detail" && (
                     <TemplateDetailView
@@ -482,8 +469,8 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 <button
                   onClick={() => setFeatureTabsLayout("horizontal")}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${featureTabsLayout === "horizontal"
-                      ? "bg-background text-ink shadow-sm"
-                      : "text-muted-foreground hover:text-ink"
+                    ? "bg-background text-ink shadow-sm"
+                    : "text-muted-foreground hover:text-ink"
                     }`}
                 >
                   Horizontal
@@ -491,8 +478,8 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 <button
                   onClick={() => setFeatureTabsLayout("vertical")}
                   className={`px-2.5 py-1 text-xs rounded-md transition-colors ${featureTabsLayout === "vertical"
-                      ? "bg-background text-ink shadow-sm"
-                      : "text-muted-foreground hover:text-ink"
+                    ? "bg-background text-ink shadow-sm"
+                    : "text-muted-foreground hover:text-ink"
                     }`}
                 >
                   Vertical
