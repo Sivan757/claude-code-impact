@@ -141,7 +141,7 @@ project: "${projectPath || projectId}"
 exported_at: ${exportDate}
 sessions: ${selected.length}
 total_messages: ${totalMessages}
-generator: "Lovcode"
+generator: "Claude Code Impact"
 ---`;
 
       const toAnchor = (s: string) =>
@@ -176,7 +176,7 @@ generator: "Lovcode"
 
 > This file contains exported Claude Code conversation sessions.
 > ${selected.length} sessions · ${totalMessages} messages`;
-      const footer = `\n\n---\n\n_Powered by [Lovcode](https://github.com/MarkShawn2020/lovcode) · Exported at ${new Date().toLocaleString()}_`;
+      const footer = `\n\n---\n\n_Powered by [Claude Code Impact](https://github.com/MarkShawn2020/claudecodeimpact) · Exported at ${new Date().toLocaleString()}_`;
       const content = `${frontmatter}\n\n${header}\n\n### Table of Contents\n\n${toc}\n\n---\n\n${body}${footer}`;
       const defaultName = (projectPath ? formatPath(projectPath) : projectId).replace(/[/\\?%*:|"<>]/g, "-");
       const path = await save({

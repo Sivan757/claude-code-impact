@@ -21,8 +21,6 @@ export default function HomePage() {
           "sub-agents": "/agents",
           "output-styles": "/output-styles",
           "statusline": "/statusline",
-          "kb-distill": "/knowledge/distill",
-          "kb-reference": "/knowledge/reference",
           "workspace": "/workspace",
           "features": "/features",
           "marketplace": "/marketplace",
@@ -33,7 +31,6 @@ export default function HomePage() {
       onProjectClick={(p) => navigate(`/chat/${encodeURIComponent(p.id)}`)}
       onSessionClick={(s) => navigate(`/chat/${encodeURIComponent(s.project_id)}/${encodeURIComponent(s.id)}`)}
       onSearch={() => navigate("/chat")}
-      onOpenAnnualReport={() => navigate("/annual-report-2025")}
     />
   );
 }

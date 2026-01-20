@@ -187,7 +187,7 @@ export function ReferenceView({
   const handleNavigate = async (index: number) => {
     if (!initialSource) return;
     // Save scroll position before navigating
-    const scrollKey = `lovcode:ref-scroll:${initialSource}:${initialDocIndex}`;
+    const scrollKey = `claudecodeimpact:ref-scroll:${initialSource}:${initialDocIndex}`;
     const scrollContainer = document.querySelector("[data-ref-scroll]");
     if (scrollContainer) {
       localStorage.setItem(scrollKey, String(scrollContainer.scrollTop));

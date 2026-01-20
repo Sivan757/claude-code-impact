@@ -178,7 +178,7 @@ export function ClaudeCodeVersionSection() {
   if (loading) {
     return (
       <CollapsibleCard
-        storageKey="lovcode:settings:ccVersionOpen"
+        storageKey="claudecodeimpact:settings:ccVersionOpen"
         title={t('claude_code.title')}
         subtitle={t('claude_code.loading')}
         bodyClassName="p-3"
@@ -223,7 +223,7 @@ export function ClaudeCodeVersionSection() {
 
   return (
     <CollapsibleCard
-      storageKey="lovcode:settings:ccVersionOpen"
+      storageKey="claudecodeimpact:settings:ccVersionOpen"
       title={t('claude_code.title')}
       subtitle={getSubtitle()}
       bodyClassName="p-3 space-y-3"

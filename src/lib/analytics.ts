@@ -14,11 +14,11 @@ const DEFAULT_ANALYTICS_ENDPOINT = "";
 const DEFAULT_ANON_KEY = "";
 
 // Storage key for opt-out preference
-const ANALYTICS_ENABLED_KEY = "lovcode:analytics:enabled";
+const ANALYTICS_ENABLED_KEY = "claudecodeimpact:analytics:enabled";
 
 // Get or generate a stable anonymous client ID
 function getClientId(): string {
-  const key = "lovcode:analytics:clientId";
+  const key = "claudecodeimpact:analytics:clientId";
   let clientId = localStorage.getItem(key);
   if (!clientId) {
     clientId = crypto.randomUUID();

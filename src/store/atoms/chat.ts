@@ -1,16 +1,16 @@
 import { atomWithStorage } from "jotai/utils";
 
 // MessageView
-export const originalChatAtom = atomWithStorage("lovcode:originalChat", true);
-export const markdownPreviewAtom = atomWithStorage("lovcode:markdownPreview", false);
+export const originalChatAtom = atomWithStorage("claudecodeimpact:originalChat", true);
+export const markdownPreviewAtom = atomWithStorage("claudecodeimpact:markdownPreview", false);
 
 // SessionList
-export const sessionContextTabAtom = atomWithStorage<"global" | "project">("lovcode:sessions:contextTab", "project");
-export const sessionSelectModeAtom = atomWithStorage("lovcode:sessionSelectMode", false);
-export const hideEmptySessionsAtom = atomWithStorage("lovcode-hide-empty-sessions", false);
-export const userPromptsOnlyAtom = atomWithStorage("lovcode:userPromptsOnly", false);
+export const sessionContextTabAtom = atomWithStorage<"global" | "project">("claudecodeimpact:sessions:contextTab", "project");
+export const sessionSelectModeAtom = atomWithStorage("claudecodeimpact:sessionSelectMode", false);
+export const hideEmptySessionsAtom = atomWithStorage("claudecodeimpact-hide-empty-sessions", false);
+export const userPromptsOnlyAtom = atomWithStorage("claudecodeimpact:userPromptsOnly", false);
 
 // ProjectList
-export const chatViewModeAtom = atomWithStorage<"projects" | "sessions" | "chats">("lovcode:chatViewMode", "projects");
-export const allProjectsSortByAtom = atomWithStorage<"name" | "recent" | "sessions">("lovcode:allProjects:sortBy", "recent");
-export const hideEmptySessionsAllAtom = atomWithStorage("lovcode-hide-empty-sessions-all", false);
+export const chatViewModeAtom = atomWithStorage<"projects" | "sessions" | "chats">("claudecodeimpact:chatViewMode", "projects");
+export const allProjectsSortByAtom = atomWithStorage<"name" | "recent" | "sessions">("claudecodeimpact:allProjects:sortBy", "recent");
+export const hideEmptySessionsAllAtom = atomWithStorage("claudecodeimpact-hide-empty-sessions-all", false);

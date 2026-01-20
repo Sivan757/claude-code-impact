@@ -6,7 +6,7 @@ export default function FeaturesPage() {
   const navigate = useNavigate();
 
   const handleFeatureClick = (feature: FeatureType) => {
-    const routes: Record<FeatureType, string> = {
+    const routes: Partial<Record<FeatureType, string>> = {
       "chat": "/chat",
       "basic-env": "/settings/env",
       "basic-llm": "/settings/llm",
@@ -20,8 +20,6 @@ export default function FeaturesPage() {
       "sub-agents": "/agents",
       "output-styles": "/output-styles",
       "statusline": "/statusline",
-      "kb-distill": "/knowledge/distill",
-      "kb-reference": "/knowledge/reference",
       "workspace": "/workspace",
       "features": "/features",
       "marketplace": "/marketplace",

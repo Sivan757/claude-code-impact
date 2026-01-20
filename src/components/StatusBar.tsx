@@ -177,7 +177,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
 
   // Build context for script
   const context = useMemo<StatusBarContext>(() => ({
-    app_name: "Lovcode",
+    app_name: "Claude Code Impact",
     version: VERSION,
     projects_count: projectCount,
     features_count: featCount,
@@ -302,7 +302,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
     <div className="h-6 bg-card border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground select-none">
       {/* Left: Product name & version */}
       <div className="flex items-center gap-4">
-        <span className="font-medium text-ink">Lovcode</span>
+        <span className="font-medium text-ink">Claude Code Impact</span>
         <span className="text-muted-foreground">v{VERSION}</span>
 
         {/* Stats */}

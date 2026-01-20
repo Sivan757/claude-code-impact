@@ -8,7 +8,7 @@ export function useNavigation(
   marketplaceCategory: TemplateCategory = "commands"
 ) {
   const [view, setView] = useState<View>(() => {
-    const saved = localStorage.getItem("lovcode-view");
+    const saved = localStorage.getItem("claudecodeimpact-view");
     if (saved) {
       try {
         return JSON.parse(saved) as View;
@@ -20,7 +20,7 @@ export function useNavigation(
   });
 
   const [viewHistory, setViewHistory] = useState<View[]>(() => {
-    const saved = localStorage.getItem("lovcode-view");
+    const saved = localStorage.getItem("claudecodeimpact-view");
     if (saved) {
       try {
         return [JSON.parse(saved) as View];
@@ -115,8 +115,8 @@ export function useNavigation(
   // Compute current feature from view
   const currentFeature: FeatureType | null =
     view.type === "chat-projects" ||
-    view.type === "chat-sessions" ||
-    view.type === "chat-messages"
+      view.type === "chat-sessions" ||
+      view.type === "chat-messages"
       ? "chat"
       : view.type === "workspace"
         ? "workspace"

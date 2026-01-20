@@ -1,7 +1,7 @@
 //! Workspace data persistence
 //!
 //! Stores workspace configuration including projects, features, and panel states.
-//! Data is persisted to ~/.lovstudio/lovcode/workspace.json
+//! Data is persisted to ~/.lovstudio/claudecodeimpact/workspace.json
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -12,7 +12,7 @@ fn get_workspace_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".lovstudio")
-        .join("lovcode")
+        .join("claudecodeimpact")
         .join("workspace.json")
 }
 
@@ -57,7 +57,9 @@ pub struct PanelState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum LayoutNode {
-    Panel { panelId: String },
+    Panel {
+        panelId: String,
+    },
     Split {
         direction: String,
         first: Box<LayoutNode>,
@@ -129,13 +131,17 @@ pub fn load_workspace() -> Result<WorkspaceData, String> {
         return Ok(WorkspaceData::default());
     }
 
-    let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read workspace: {}", e))?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read workspace: {}", e))?;
 
-    let mut data: WorkspaceData = serde_json::from_str(&content).map_err(|e| format!("Failed to parse workspace: {}", e))?;
+    let mut data: WorkspaceData =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse workspace: {}", e))?;
 
     // Migrate: initialize global feature_counter from max seq if not set
     if data.feature_counter.is_none() {
-        let max_seq = data.projects.iter()
+        let max_seq = data
+            .projects
+            .iter()
             .flat_map(|p| p.features.iter())
             .map(|f| f.seq)
             .max()
@@ -157,8 +163,8 @@ pub fn save_workspace(data: &WorkspaceData) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
-    let content =
-        serde_json::to_string_pretty(data).map_err(|e| format!("Failed to serialize workspace: {}", e))?;
+    let content = serde_json::to_string_pretty(data)
+        .map_err(|e| format!("Failed to serialize workspace: {}", e))?;
 
     fs::write(&path, content).map_err(|e| format!("Failed to write workspace: {}", e))?;
 
@@ -245,7 +251,11 @@ pub fn set_active_project(id: &str) -> Result<(), String> {
 }
 
 /// Create a new feature in a project
-pub fn create_feature(project_id: &str, name: String, description: Option<String>) -> Result<Feature, String> {
+pub fn create_feature(
+    project_id: &str,
+    name: String,
+    description: Option<String>,
+) -> Result<Feature, String> {
     let mut data = load_workspace()?;
 
     // Increment global feature counter
@@ -306,7 +316,11 @@ pub fn rename_feature(feature_id: &str, name: String) -> Result<(), String> {
 }
 
 /// Update a feature's status
-pub fn update_feature_status(project_id: &str, feature_id: &str, status: FeatureStatus) -> Result<(), String> {
+pub fn update_feature_status(
+    project_id: &str,
+    feature_id: &str,
+    status: FeatureStatus,
+) -> Result<(), String> {
     let mut data = load_workspace()?;
 
     let project = data
@@ -376,7 +390,11 @@ pub fn set_active_feature(project_id: &str, feature_id: &str) -> Result<(), Stri
 }
 
 /// Add a panel to a feature
-pub fn add_panel_to_feature(project_id: &str, feature_id: &str, panel: PanelState) -> Result<(), String> {
+pub fn add_panel_to_feature(
+    project_id: &str,
+    feature_id: &str,
+    panel: PanelState,
+) -> Result<(), String> {
     let mut data = load_workspace()?;
 
     let project = data
@@ -398,7 +416,11 @@ pub fn add_panel_to_feature(project_id: &str, feature_id: &str, panel: PanelStat
 }
 
 /// Remove a panel from a feature
-pub fn remove_panel_from_feature(project_id: &str, feature_id: &str, panel_id: &str) -> Result<(), String> {
+pub fn remove_panel_from_feature(
+    project_id: &str,
+    feature_id: &str,
+    panel_id: &str,
+) -> Result<(), String> {
     let mut data = load_workspace()?;
 
     let project = data

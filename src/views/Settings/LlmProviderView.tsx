@@ -81,12 +81,12 @@ export function LlmProviderView() {
   if (isLoading) return <LoadingState message={t('llm.loading')} />;
 
   const getActiveProvider = (value: ClaudeSettings | null | undefined): string | null => {
-    const lovcode =
+    const claudecodeimpact =
       value?.raw && typeof value.raw === "object"
-        ? (value.raw as Record<string, unknown>).lovcode
+        ? (value.raw as Record<string, unknown>).claudecodeimpact
         : null;
-    if (!lovcode || typeof lovcode !== "object") return null;
-    const activeProvider = (lovcode as Record<string, unknown>).activeProvider;
+    if (!claudecodeimpact || typeof claudecodeimpact !== "object") return null;
+    const activeProvider = (claudecodeimpact as Record<string, unknown>).activeProvider;
     return typeof activeProvider === "string" ? activeProvider : null;
   };
 
@@ -499,7 +499,7 @@ export function LlmProviderView() {
         }
       }
 
-      parsed.lovcode = { activeProvider: presetKey };
+      parsed.claudecodeimpact = { activeProvider: presetKey };
 
       await invoke("install_setting_template", { config: JSON.stringify(parsed, null, 2) });
       refreshSettings();

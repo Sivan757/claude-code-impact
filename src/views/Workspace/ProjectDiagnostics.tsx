@@ -139,7 +139,7 @@ function DiagnosticItem({
 }
 
 // 获取项目的忽略路径存储 key
-const getIgnoredPathsKey = (projectPath: string) => `lovcode:ignoredPaths:${projectPath}`;
+const getIgnoredPathsKey = (projectPath: string) => `claudecodeimpact:ignoredPaths:${projectPath}`;
 
 export function ProjectDiagnostics({ projectPath, embedded = false }: ProjectDiagnosticsProps) {
   const { t } = useTranslation();

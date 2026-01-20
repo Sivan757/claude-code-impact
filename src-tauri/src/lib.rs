@@ -117,14 +117,14 @@ struct SearchIndex {
 fn get_index_dir() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("lovcode")
+        .join("claudecodeimpact")
         .join("search-index")
 }
 
 fn get_command_stats_path() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("lovcode")
+        .join("claudecodeimpact")
         .join("command-stats.json")
 }
 
@@ -302,7 +302,7 @@ fn get_lovstudio_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".lovstudio")
-        .join("lovcode")
+        .join("claudecodeimpact")
 }
 
 fn get_disabled_env_path() -> PathBuf {
@@ -3281,7 +3281,7 @@ fn load_single_plugin(
     components
 }
 
-/// Load personal/installed statuslines from ~/.lovstudio/lovcode/statusline/
+/// Load personal/installed statuslines from ~/.lovstudio/claudecodeimpact/statusline/
 fn load_personal_statuslines() -> Vec<TemplateComponent> {
     let statusline_dir = get_lovstudio_dir().join("statusline");
     let mut components = Vec::new();
@@ -3766,7 +3766,7 @@ fn write_statusline_script(content: String) -> Result<String, String> {
     Ok(script_path.to_string_lossy().to_string())
 }
 
-/// Install statusline template to ~/.lovstudio/lovcode/statusline/{name}.sh
+/// Install statusline template to ~/.lovstudio/claudecodeimpact/statusline/{name}.sh
 #[tauri::command]
 fn install_statusline_template(name: String, content: String) -> Result<String, String> {
     let statusline_dir = get_lovstudio_dir().join("statusline");
@@ -3789,8 +3789,8 @@ fn install_statusline_template(name: String, content: String) -> Result<String, 
     Ok(script_path.to_string_lossy().to_string())
 }
 
-/// Apply statusline: copy from ~/.lovstudio/lovcode/statusline/{name}.sh to ~/.claude/statusline.sh
-/// If ~/.claude/statusline.sh exists and is not already installed, backup to ~/.lovstudio/lovcode/statusline/_previous.sh
+/// Apply statusline: copy from ~/.lovstudio/claudecodeimpact/statusline/{name}.sh to ~/.claude/statusline.sh
+/// If ~/.claude/statusline.sh exists and is not already installed, backup to ~/.lovstudio/claudecodeimpact/statusline/_previous.sh
 #[tauri::command]
 fn apply_statusline(name: String) -> Result<String, String> {
     let source_path = get_lovstudio_dir()
@@ -3870,7 +3870,7 @@ fn has_previous_statusline() -> bool {
         .exists()
 }
 
-/// Context passed to Lovcode statusbar script
+/// Context passed to Claude Code Impact statusbar script
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StatusBarContext {
     pub app_name: String,
@@ -3883,7 +3883,7 @@ pub struct StatusBarContext {
     pub home_dir: String,
 }
 
-/// Execute Lovcode's GUI statusbar script and return output
+/// Execute Claude Code Impact's GUI statusbar script and return output
 #[tauri::command]
 fn execute_statusbar_script(
     script_path: String,
@@ -3943,7 +3943,7 @@ fn execute_statusbar_script(
     Ok(first_line)
 }
 
-/// Get Lovcode statusbar settings from workspace.json
+/// Get Claude Code Impact statusbar settings from workspace.json
 #[tauri::command]
 fn get_statusbar_settings() -> Result<Option<serde_json::Value>, String> {
     let settings_path = get_lovstudio_dir().join("statusbar-settings.json");
@@ -3955,7 +3955,7 @@ fn get_statusbar_settings() -> Result<Option<serde_json::Value>, String> {
     Ok(Some(settings))
 }
 
-/// Save Lovcode statusbar settings
+/// Save Claude Code Impact statusbar settings
 #[tauri::command]
 fn save_statusbar_settings(settings: serde_json::Value) -> Result<(), String> {
     let settings_path = get_lovstudio_dir().join("statusbar-settings.json");
@@ -3963,9 +3963,12 @@ fn save_statusbar_settings(settings: serde_json::Value) -> Result<(), String> {
     fs::write(&settings_path, content).map_err(|e| e.to_string())
 }
 
-/// Write Lovcode statusbar script to ~/.lovstudio/lovcode/statusbar/
+/// Write Claude Code Impact statusbar script to ~/.lovstudio/claudecodeimpact/statusbar/
 #[tauri::command]
-fn write_lovcode_statusbar_script(name: String, content: String) -> Result<String, String> {
+fn write_claudecodeimpact_statusbar_script(
+    name: String,
+    content: String,
+) -> Result<String, String> {
     let statusbar_dir = get_lovstudio_dir().join("statusbar");
     fs::create_dir_all(&statusbar_dir).map_err(|e| e.to_string())?;
 
@@ -4700,21 +4703,21 @@ fn get_settings() -> Result<ClaudeSettings, String> {
         (Value::Null, None, None)
     };
 
-    // Overlay disabled env from ~/.lovstudio/lovcode (do not persist in settings.json)
+    // Overlay disabled env from ~/.lovstudio/claudecodeimpact (do not persist in settings.json)
     if let Ok(disabled_env) = load_disabled_env() {
         if !disabled_env.is_empty() {
             if let Some(obj) = raw.as_object_mut() {
                 obj.insert(
-                    "_lovcode_disabled_env".to_string(),
+                    "_claudecodeimpact_disabled_env".to_string(),
                     Value::Object(disabled_env),
                 );
             } else {
                 raw = serde_json::json!({
-                    "_lovcode_disabled_env": disabled_env
+                    "_claudecodeimpact_disabled_env": disabled_env
                 });
             }
         } else if let Some(obj) = raw.as_object_mut() {
-            obj.remove("_lovcode_disabled_env");
+            obj.remove("_claudecodeimpact_disabled_env");
         }
     }
 
@@ -5029,7 +5032,7 @@ fn get_today_coding_stats() -> Result<TodayCodingStats, String> {
 
     let workspace_path = dirs::data_local_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("lovcode")
+        .join("claudecodeimpact")
         .join("workspace.json");
 
     if !workspace_path.exists() {
@@ -5166,7 +5169,7 @@ fn update_settings_env(
     // Track custom env keys when is_new=true
     if is_new == Some(true) {
         let custom_keys = settings
-            .get("_lovcode_custom_env_keys")
+            .get("_claudecodeimpact_custom_env_keys")
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
@@ -5174,12 +5177,12 @@ fn update_settings_env(
         if !custom_keys.contains(&key_val) {
             let mut new_keys = custom_keys;
             new_keys.push(key_val);
-            settings["_lovcode_custom_env_keys"] = serde_json::Value::Array(new_keys);
+            settings["_claudecodeimpact_custom_env_keys"] = serde_json::Value::Array(new_keys);
         }
     }
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5204,7 +5207,7 @@ fn delete_settings_env(env_key: String) -> Result<(), String> {
 
     // Also remove from custom keys list
     if let Some(custom_keys) = settings
-        .get_mut("_lovcode_custom_env_keys")
+        .get_mut("_claudecodeimpact_custom_env_keys")
         .and_then(|v| v.as_array_mut())
     {
         custom_keys.retain(|v| v.as_str() != Some(&env_key));
@@ -5212,14 +5215,14 @@ fn delete_settings_env(env_key: String) -> Result<(), String> {
 
     // Also remove from disabled env if present
     if let Some(disabled) = settings
-        .get_mut("_lovcode_disabled_env")
+        .get_mut("_claudecodeimpact_disabled_env")
         .and_then(|v| v.as_object_mut())
     {
         disabled.remove(&env_key);
     }
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5256,7 +5259,7 @@ fn disable_settings_env(env_key: String) -> Result<(), String> {
     }
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5296,7 +5299,7 @@ fn enable_settings_env(env_key: String) -> Result<(), String> {
     settings["env"][&env_key] = serde_json::Value::String(disabled_value);
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5362,7 +5365,7 @@ fn update_settings_field(field: String, value: Value) -> Result<(), String> {
 
     if let Some(obj) = settings.as_object_mut() {
         obj.insert(field, value);
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5390,7 +5393,7 @@ fn update_settings_permission_field(field: String, value: Value) -> Result<(), S
     settings["permissions"][&field] = value;
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5430,7 +5433,7 @@ fn add_permission_directory(path: String) -> Result<(), String> {
     }
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5456,7 +5459,7 @@ fn remove_permission_directory(path: String) -> Result<(), String> {
     }
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -5484,7 +5487,7 @@ fn toggle_plugin(plugin_id: String, enabled: bool) -> Result<(), String> {
     settings["enabledPlugins"][&plugin_id] = Value::Bool(enabled);
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -6065,13 +6068,10 @@ fn parse_marketplace_entries(value: &Value) -> Vec<MarketplacePluginEntry> {
     entries
         .iter()
         .filter_map(|entry| {
-            let name =
-                get_string_field(entry, &["name", "id", "plugin", "slug", "directory"])?;
+            let name = get_string_field(entry, &["name", "id", "plugin", "slug", "directory"])?;
             let description = get_string_field(entry, &["description", "summary"]);
             let source_value = entry.get("source");
-            let remote_source = source_value
-                .map(is_remote_source_value)
-                .unwrap_or(false);
+            let remote_source = source_value.map(is_remote_source_value).unwrap_or(false);
             let source_path = source_value.and_then(extract_local_source_path);
             let path = get_string_field(entry, &["path", "dir", "location"]).or(source_path);
             let version = get_string_field(entry, &["version"]);
@@ -6104,10 +6104,7 @@ fn load_enabled_plugins(claude_dir: &Path, errors: &mut Vec<String>) -> HashMap<
     let content = match fs::read_to_string(&settings_path) {
         Ok(content) => content,
         Err(err) => {
-            errors.push(format!(
-                "Failed to read settings.json: {}",
-                err
-            ));
+            errors.push(format!("Failed to read settings.json: {}", err));
             return HashMap::new();
         }
     };
@@ -6135,9 +6132,7 @@ fn load_known_marketplaces(
     claude_dir: &Path,
     errors: &mut Vec<String>,
 ) -> HashMap<String, MarketplaceRecord> {
-    let path = claude_dir
-        .join("plugins")
-        .join("known_marketplaces.json");
+    let path = claude_dir.join("plugins").join("known_marketplaces.json");
     let mut records = HashMap::new();
     if !path.exists() {
         return records;
@@ -6145,20 +6140,14 @@ fn load_known_marketplaces(
     let content = match fs::read_to_string(&path) {
         Ok(content) => content,
         Err(err) => {
-            errors.push(format!(
-                "Failed to read known_marketplaces.json: {}",
-                err
-            ));
+            errors.push(format!("Failed to read known_marketplaces.json: {}", err));
             return records;
         }
     };
     let value: Value = match serde_json::from_str(&content) {
         Ok(value) => value,
         Err(err) => {
-            errors.push(format!(
-                "Failed to parse known_marketplaces.json: {}",
-                err
-            ));
+            errors.push(format!("Failed to parse known_marketplaces.json: {}", err));
             return records;
         }
     };
@@ -6204,10 +6193,8 @@ fn extract_install_records(value: &Value) -> Vec<InstalledPluginRecord> {
             }
         }
         Value::Object(_obj) => {
-            let path = get_string_field(
-                value,
-                &["path", "install_path", "installPath", "location"],
-            );
+            let path =
+                get_string_field(value, &["path", "install_path", "installPath", "location"]);
             let version = get_string_field(value, &["version"]);
             records.push(InstalledPluginRecord { path, version });
         }
@@ -6226,29 +6213,21 @@ fn load_installed_plugins(
     claude_dir: &Path,
     errors: &mut Vec<String>,
 ) -> HashMap<String, Vec<InstalledPluginRecord>> {
-    let path = claude_dir
-        .join("plugins")
-        .join("installed_plugins.json");
+    let path = claude_dir.join("plugins").join("installed_plugins.json");
     if !path.exists() {
         return HashMap::new();
     }
     let content = match fs::read_to_string(&path) {
         Ok(content) => content,
         Err(err) => {
-            errors.push(format!(
-                "Failed to read installed_plugins.json: {}",
-                err
-            ));
+            errors.push(format!("Failed to read installed_plugins.json: {}", err));
             return HashMap::new();
         }
     };
     let value: Value = match serde_json::from_str(&content) {
         Ok(value) => value,
         Err(err) => {
-            errors.push(format!(
-                "Failed to parse installed_plugins.json: {}",
-                err
-            ));
+            errors.push(format!("Failed to parse installed_plugins.json: {}", err));
             return HashMap::new();
         }
     };
@@ -6295,8 +6274,12 @@ fn collect_marketplace_locations(
 
     for record in locations.values_mut() {
         if record.install_location.is_none() {
-            record.install_location =
-                Some(marketplaces_dir.join(&record.id).to_string_lossy().to_string());
+            record.install_location = Some(
+                marketplaces_dir
+                    .join(&record.id)
+                    .to_string_lossy()
+                    .to_string(),
+            );
         }
     }
 
@@ -6358,11 +6341,7 @@ fn collect_marketplace_plugin_ids(claude_dir: &Path, marketplace: &str) -> Vec<S
     list
 }
 
-fn prune_enabled_plugins(
-    claude_dir: &Path,
-    marketplace: &str,
-    errors: &mut Vec<String>,
-) {
+fn prune_enabled_plugins(claude_dir: &Path, marketplace: &str, errors: &mut Vec<String>) {
     let settings_path = claude_dir.join("settings.json");
     if !settings_path.exists() {
         return;
@@ -6402,7 +6381,7 @@ fn prune_enabled_plugins(
 
     if removed {
         if let Some(obj) = settings.as_object_mut() {
-            obj.remove("_lovcode_disabled_env");
+            obj.remove("_claudecodeimpact_disabled_env");
         }
         let output = match serde_json::to_string_pretty(&settings) {
             Ok(output) => output,
@@ -6417,14 +6396,8 @@ fn prune_enabled_plugins(
     }
 }
 
-fn prune_installed_plugins_file(
-    claude_dir: &Path,
-    marketplace: &str,
-    errors: &mut Vec<String>,
-) {
-    let path = claude_dir
-        .join("plugins")
-        .join("installed_plugins.json");
+fn prune_installed_plugins_file(claude_dir: &Path, marketplace: &str, errors: &mut Vec<String>) {
+    let path = claude_dir.join("plugins").join("installed_plugins.json");
     if !path.exists() {
         return;
     }
@@ -6444,10 +6417,7 @@ fn prune_installed_plugins_file(
         }
     };
 
-    let map_opt = if let Some(map) = value
-        .get_mut("plugins")
-        .and_then(|v| v.as_object_mut())
-    {
+    let map_opt = if let Some(map) = value.get_mut("plugins").and_then(|v| v.as_object_mut()) {
         Some(map)
     } else {
         value.as_object_mut()
@@ -6525,9 +6495,7 @@ fn prune_plugin_records(claude_dir: &Path, plugin_id: &str, errors: &mut Vec<Str
         }
     }
 
-    let installed_path = claude_dir
-        .join("plugins")
-        .join("installed_plugins.json");
+    let installed_path = claude_dir.join("plugins").join("installed_plugins.json");
     if installed_path.exists() {
         let content = match fs::read_to_string(&installed_path) {
             Ok(content) => content,
@@ -6544,10 +6512,7 @@ fn prune_plugin_records(claude_dir: &Path, plugin_id: &str, errors: &mut Vec<Str
             }
         };
 
-        let map_opt = if let Some(map) = value
-            .get_mut("plugins")
-            .and_then(|v| v.as_object_mut())
-        {
+        let map_opt = if let Some(map) = value.get_mut("plugins").and_then(|v| v.as_object_mut()) {
             Some(map)
         } else {
             value.as_object_mut()
@@ -6586,14 +6551,8 @@ fn repair_orphaned_plugin_records(claude_dir: &Path, plugin_id: &str) -> Result<
     }
 }
 
-fn prune_known_marketplaces_file(
-    claude_dir: &Path,
-    marketplace: &str,
-    errors: &mut Vec<String>,
-) {
-    let path = claude_dir
-        .join("plugins")
-        .join("known_marketplaces.json");
+fn prune_known_marketplaces_file(claude_dir: &Path, marketplace: &str, errors: &mut Vec<String>) {
+    let path = claude_dir.join("plugins").join("known_marketplaces.json");
     if !path.exists() {
         return;
     }
@@ -6755,7 +6714,9 @@ fn scan_plugin_repository() -> PluginScanResult {
         };
 
         let marketplace_path = PathBuf::from(&install_location);
-        let manifest_path = marketplace_path.join(".claude-plugin").join("marketplace.json");
+        let manifest_path = marketplace_path
+            .join(".claude-plugin")
+            .join("marketplace.json");
         let manifest_value = read_json_value(&manifest_path);
 
         let (entries, marketplace_name) = if let Some(value) = manifest_value.as_ref() {
@@ -7055,7 +7016,7 @@ async fn fetch_marketplace_plugins(
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
-        .header("User-Agent", "lovcode")
+        .header("User-Agent", "claudecodeimpact")
         .header("Accept", "application/vnd.github.v3+json")
         .send()
         .await
@@ -7189,19 +7150,13 @@ async fn remove_extension_marketplace_safe(name: String) -> Result<String, Strin
 
     for plugin_id in &plugin_ids {
         if let Err(err) = uninstall_plugin_with_fallback(plugin_id).await {
-            errors.push(format!(
-                "Failed to uninstall plugin {}: {}",
-                plugin_id, err
-            ));
+            errors.push(format!("Failed to uninstall plugin {}: {}", plugin_id, err));
         }
     }
 
     if let Err(err) = remove_extension_marketplace(name.clone()).await {
         if !is_marketplace_missing_error(&err) {
-            errors.push(format!(
-                "Failed to remove marketplace {}: {}",
-                name, err
-            ));
+            errors.push(format!("Failed to remove marketplace {}: {}", name, err));
         }
     }
 
@@ -7433,7 +7388,7 @@ fn toggle_hook_item(
     }
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -7476,7 +7431,7 @@ fn delete_hook_item(
     hooks_arr.remove(hook_index);
 
     if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_lovcode_disabled_env");
+        obj.remove("_claudecodeimpact_disabled_env");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -8761,7 +8716,7 @@ fn git_get_note(project_path: String, commit_hash: String) -> Result<Option<Comm
             "-C",
             &project_path,
             "notes",
-            "--ref=lovcode",
+            "--ref=claudecodeimpact",
             "show",
             &commit_hash,
         ])
@@ -8794,7 +8749,7 @@ fn git_set_note(project_path: String, commit_hash: String, note: CommitNote) -> 
             "-C",
             &project_path,
             "notes",
-            "--ref=lovcode",
+            "--ref=claudecodeimpact",
             "add",
             "-f",
             "-m",
@@ -9052,7 +9007,7 @@ fn activate_and_focus_window(window: &tauri::WebviewWindow) {
         let _: () =
             msg_send![ns_win, performSelector:sel_make_main withObject:nil_ptr afterDelay:delay];
 
-        println!("[Lovcode] Window activation scheduled (50ms delay)");
+        println!("[Claude Code Impact] Window activation scheduled (50ms delay)");
     }
 }
 
@@ -9117,20 +9072,26 @@ pub fn run() {
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;
 
-            let app_menu = SubmenuBuilder::new(app, "Lovcode")
+            let app_menu = SubmenuBuilder::new(app, "Claude Code Impact")
                 .item(&PredefinedMenuItem::about(
                     app,
-                    Some("About Lovcode"),
+                    Some("About Claude Code Impact"),
                     None,
                 )?)
                 .separator()
                 .item(&settings)
                 .separator()
-                .item(&PredefinedMenuItem::hide(app, Some("Hide Lovcode"))?)
+                .item(&PredefinedMenuItem::hide(
+                    app,
+                    Some("Hide Claude Code Impact"),
+                )?)
                 .item(&PredefinedMenuItem::hide_others(app, Some("Hide Others"))?)
                 .item(&PredefinedMenuItem::show_all(app, Some("Show All"))?)
                 .separator()
-                .item(&PredefinedMenuItem::quit(app, Some("Quit Lovcode"))?)
+                .item(&PredefinedMenuItem::quit(
+                    app,
+                    Some("Quit Claude Code Impact"),
+                )?)
                 .build()?;
 
             let edit_menu = SubmenuBuilder::new(app, "Edit")
@@ -9194,7 +9155,7 @@ pub fn run() {
                         {
                             if let Ok(window) =
                                 WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                                    .title("Lovcode")
+                                    .title("Claude Code Impact")
                                     .inner_size(800.0, 600.0)
                                     .title_bar_style(tauri::TitleBarStyle::Overlay)
                                     .hidden_title(true)
@@ -9210,7 +9171,7 @@ pub fn run() {
                         #[cfg(not(target_os = "macos"))]
                         if let Ok(window) =
                             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                                .title("Lovcode")
+                                .title("Claude Code Impact")
                                 .inner_size(800.0, 600.0)
                                 .build()
                         {
@@ -9267,7 +9228,7 @@ pub fn run() {
             execute_statusbar_script,
             get_statusbar_settings,
             save_statusbar_settings,
-            write_lovcode_statusbar_script,
+            write_claudecodeimpact_statusbar_script,
             remove_statusline_template,
             open_in_editor,
             open_file_at_line,
@@ -9402,20 +9363,20 @@ pub fn run() {
                 } = _event
                 {
                     println!(
-                        "[Lovcode] Dock clicked! has_visible_windows: {}",
+                        "[Claude Code Impact] Dock clicked! has_visible_windows: {}",
                         has_visible_windows
                     );
 
                     // 无论是否有"可见窗口"，都尝试打开主窗口
                     // 因为 float 窗口可能被计入 has_visible_windows
                     if let Some(window) = _app.get_webview_window("main") {
-                        println!("[Lovcode] Main window exists, showing...");
+                        println!("[Claude Code Impact] Main window exists, showing...");
                         let _ = window.show();
                         activate_and_focus_window(&window);
                     } else {
-                        println!("[Lovcode] Main window gone, recreating...");
+                        println!("[Claude Code Impact] Main window gone, recreating...");
                         match WebviewWindowBuilder::new(_app, "main", WebviewUrl::default())
-                            .title("Lovcode")
+                            .title("Claude Code Impact")
                             .inner_size(800.0, 600.0)
                             .title_bar_style(tauri::TitleBarStyle::Overlay)
                             .hidden_title(true)
@@ -9425,12 +9386,12 @@ pub fn run() {
                             .build()
                         {
                             Ok(window) => {
-                                println!("[Lovcode] Window created successfully");
+                                println!("[Claude Code Impact] Window created successfully");
                                 let _ = window.show();
                                 activate_and_focus_window(&window);
                             }
                             Err(e) => {
-                                println!("[Lovcode] Failed to create window: {:?}", e);
+                                println!("[Claude Code Impact] Failed to create window: {:?}", e);
                             }
                         }
                     }

@@ -361,10 +361,10 @@ function toTitleCase(str: string): string {
 }
 
 // Helper to get short project name from path
-// Handles: "/Users/mark/projects/lovcode" or "-Users-mark-projects-lovcode"
+// Handles: "/Users/mark/projects/claudecodeimpact" or "-Users-mark-projects-claudecodeimpact"
 function getProjectName(path: string): string {
   let name: string;
-  // Handle dash-separated format (like "-Users-mark-projects-lovcode")
+  // Handle dash-separated format (like "-Users-mark-projects-claudecodeimpact")
   if (path.startsWith("-") || !path.includes("/")) {
     const parts = path.split("-").filter(Boolean);
     name = parts[parts.length - 1] || path;
@@ -685,16 +685,16 @@ function ShareableCard({ report }: { report: AnnualReportData }) {
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <img
               src="/logo.png"
-              alt="Lovcode"
+              alt="Claude Code Impact"
               style={{ width: 20, height: 20, borderRadius: 4 }}
             />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>Lovcode</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>Claude Code Impact</div>
               <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{t('report.share.tagline')}</div>
             </div>
           </div>
           <img
-            src="/lovcode-qrcode.png"
+            src="/claudecodeimpact-qrcode.png"
             alt="QR Code"
             style={{ width: 48, height: 48, borderRadius: 4, background: "#FFFFFF", padding: 2 }}
           />
@@ -804,7 +804,7 @@ export function AnnualReport2025({ onClose }: AnnualReport2025Props) {
 
       // Use Tauri save dialog
       const path = await save({
-        defaultPath: "lovcode-2025-report.png",
+        defaultPath: "claudecodeimpact-2025-report.png",
         filters: [{ name: t('report.share.png_image'), extensions: ["png"] }],
       });
 

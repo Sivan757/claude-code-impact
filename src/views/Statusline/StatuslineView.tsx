@@ -152,7 +152,7 @@ export function StatuslineView() {
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4 overflow-y-auto">
         <CollapsibleCard
-          storageKey="lovcode:statusline:configOpen"
+          storageKey="claudecodeimpact:statusline:configOpen"
           title={t('statusline_view.current_config')}
           subtitle={statusLine ? `${t('statusline_view.command')}: ${statusLine.command}` : t('statusline_view.not_configured')}
           bodyClassName="p-4 space-y-4"
@@ -254,7 +254,7 @@ export function StatuslineView() {
         </CollapsibleCard>
 
         <CollapsibleCard
-          storageKey="lovcode:statusline:helpOpen"
+          storageKey="claudecodeimpact:statusline:helpOpen"
           title={t('statusline_view.json_reference')}
           subtitle={t('statusline_view.json_reference_subtitle')}
           bodyClassName="p-4"

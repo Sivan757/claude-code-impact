@@ -33,7 +33,7 @@
         "config": "配置"
     },
     "home": {
-        "tagline": "你的 Vibe Coding 中心",
+        "tagline": "开启 Vibe Coding",
         "stats": {
             "workspaces": "工作区",
             "sessions": "会话",
@@ -495,7 +495,7 @@
         "exporting": "正在导出...",
         "export_count": "导出 {{count}} 个会话",
         "untitled": "未命名会话",
-        "export_description": "从 Lovcode 导出的 Claude Code 对话历史",
+        "export_description": "从 Claude Code Impact 导出的 Claude Code 对话历史",
         "tokens_tooltip": "总 Token 数（输入 + 输出）",
         "cost_tooltip": "预估成本"
     },
@@ -727,7 +727,7 @@
         "claude": "Claude Code",
         "diag_title": "无法启动 {{name}}",
         "diag_title_fallback": "无法启动 CLI",
-        "diag_desc_fallback": "Lovcode 无法启动 CLI 会话。请查看以下问题。",
+        "diag_desc_fallback": "Claude Code Impact 无法启动 CLI 会话。请查看以下问题。",
         "command_label": "指令",
         "detected_cli_label": "检测到的 CLI",
         "open_cc_version": "打开 CC 版本",
@@ -738,7 +738,7 @@
         "missing_credentials_title": "Claude 凭据未配置",
         "missing_credentials_detail": "请设置 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY 或启用 OAuth (CLAUDE_CODE_USE_OAUTH=1)。在中国，请在 LLM 提供商中配置代理。",
         "unable_read_settings_title": "无法读取 Claude 设置",
-        "unable_read_settings_detail": "请检查 ~/.claude/settings.json 并确保 Lovcode 有权访问它。",
+        "unable_read_settings_detail": "请检查 ~/.claude/settings.json 并确保 Claude Code Impact 有权访问它。",
         "command_failed_title": "启动 CLI 进程失败",
         "command_exited_title": "{{name}} 立即退出",
         "command_exited_detail": "CLI 进程在产生输出前结束。请检查登录、代理或网络设置。",

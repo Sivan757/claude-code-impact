@@ -13,21 +13,7 @@ export const FEATURES: FeatureConfig[] = [
     available: true,
     group: "history",
   },
-  // Knowledge (collapsible submenu)
-  {
-    type: "kb-reference",
-    label: "Reference",
-    description: "Platform docs",
-    available: true,
-    group: "knowledge",
-  },
-  {
-    type: "kb-distill",
-    label: "Distill (CC)",
-    description: "Experience summaries",
-    available: true,
-    group: "knowledge",
-  },
+
   // Basic settings (no marketplace) - grouped under "Basic"
   {
     type: "basic-env",

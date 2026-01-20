@@ -46,7 +46,7 @@ export function GlobalHeader({
   const showFeatureTabs = !!workspace && featureTabsLayout === "horizontal";
 
   // Main nav features - use primaryFeature for active state (not affected by profile menu clicks)
-  const mainNavFeatures = ["workspace", "chat", "kb-distill", "kb-reference"] as const;
+  const mainNavFeatures = ["workspace", "chat"] as const;
   const isMainNavFeature = (f: string | null) => f && (mainNavFeatures.includes(f as typeof mainNavFeatures[number]) || f.startsWith("kb-"));
 
   // Handle main nav click - updates primaryFeature
@@ -71,8 +71,8 @@ export function GlobalHeader({
             <NavButton
               isActive={primaryFeature === null}
               onClick={() => { setPrimaryFeature(null); onNavigate({ type: "home" }); }}
-              icon={<img src="/logo.svg" alt="Lovcode" className="w-4 h-4" />}
-              label="Lovcode"
+              icon={<img src="/logo.png" alt="Claude Code Impact" className="w-4 h-4" />}
+              label="Claude Code Impact"
             />
             <NavButton
               isActive={primaryFeature === "workspace"}

@@ -12,13 +12,13 @@ import { restoreSlashCommand } from "./utils";
 import type { ExportFormat, MarkdownStyle } from "./types";
 import type { Message } from "../../types";
 
-const exportFormatAtom = atomWithStorage<ExportFormat>("lovcode:exportFormat", "markdown");
-const exportMdStyleAtom = atomWithStorage<MarkdownStyle>("lovcode:exportMdStyle", "full");
-const exportTruncateAtom = atomWithStorage("lovcode:exportTruncate", false);
-const exportSeparatorAtom = atomWithStorage("lovcode:exportSeparator", true);
-const exportOriginalAtom = atomWithStorage("lovcode:exportOriginal", true);
-const exportWatermarkAtom = atomWithStorage("lovcode:exportWatermark", true);
-const exportJsonPrettyAtom = atomWithStorage("lovcode:exportJsonPretty", true);
+const exportFormatAtom = atomWithStorage<ExportFormat>("claudecodeimpact:exportFormat", "markdown");
+const exportMdStyleAtom = atomWithStorage<MarkdownStyle>("claudecodeimpact:exportMdStyle", "full");
+const exportTruncateAtom = atomWithStorage("claudecodeimpact:exportTruncate", false);
+const exportSeparatorAtom = atomWithStorage("claudecodeimpact:exportSeparator", true);
+const exportOriginalAtom = atomWithStorage("claudecodeimpact:exportOriginal", true);
+const exportWatermarkAtom = atomWithStorage("claudecodeimpact:exportWatermark", true);
+const exportJsonPrettyAtom = atomWithStorage("claudecodeimpact:exportJsonPretty", true);
 
 interface ExportDialogProps {
   open: boolean;
@@ -117,7 +117,7 @@ export function ExportDialog({
     }
     if (addWatermark) {
       output +=
-        "\n\n---\n\n*Exported with [Lovcode](https://github.com/MarkShawn2020/lovcode) - A desktop companion app for AI coding tools*";
+        "\n\n---\n\n*Exported with [Claude Code Impact](https://github.com/MarkShawn2020/claudecodeimpact) - A desktop companion app for AI coding tools*";
     }
     return output;
   };

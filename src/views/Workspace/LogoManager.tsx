@@ -68,7 +68,7 @@ export function LogoManager({ projectPath, embedded = false }: LogoManagerProps)
   const loadGeneratedLogos = useCallback(async () => {
     try {
       const result = await invoke<string>("exec_shell_command", {
-        command: `ls -t "$HOME/Library/Application Support/com.lovstudio.lovcode/generated-logos/"*.png 2>/dev/null | head -20`,
+        command: `ls -t "$HOME/Library/Application Support/com.lovstudio.claudecodeimpact/generated-logos/"*.png 2>/dev/null | head -20`,
         cwd: projectPath,
       });
       const files = result.trim().split('\n').filter(f => f);
@@ -130,7 +130,7 @@ export function LogoManager({ projectPath, embedded = false }: LogoManagerProps)
         const filename = `logo-${timestamp}-${index}.png`;
         // Get actual path from shell (expands $HOME)
         const result = await invoke<string>("exec_shell_command", {
-          command: `dir="$HOME/Library/Application Support/com.lovstudio.lovcode/generated-logos" && mkdir -p "$dir" && python3 ${scriptPath} '${escapedPrompt}' -o "$dir/${filename}" -q high --no-open && echo "$dir/${filename}"`,
+          command: `dir="$HOME/Library/Application Support/com.lovstudio.claudecodeimpact/generated-logos" && mkdir -p "$dir" && python3 ${scriptPath} '${escapedPrompt}' -o "$dir/${filename}" -q high --no-open && echo "$dir/${filename}"`,
           cwd: projectPath,
         });
         // Extract the echoed path (last line of output)

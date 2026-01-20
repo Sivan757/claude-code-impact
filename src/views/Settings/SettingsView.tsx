@@ -93,7 +93,7 @@ export function SettingsView() {
   ];
   const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
   const { data: settingsPath = "" } = useInvokeQuery<string>(["settingsPath"], "get_settings_path");
-  // Load disabled hooks from lovcode storage (must be before early return)
+  // Load disabled hooks from claudecodeimpact storage (must be before early return)
   const { data: disabledHooksData } = useInvokeQuery<Record<string, Array<{ matcher: string; hook: HookItem; key: string }>>>(
     ["disabledHooks"],
     "get_disabled_hooks"
@@ -180,7 +180,7 @@ export function SettingsView() {
     if (typeof raw.attribution === "string") {
       const mode = resolveAttributionMode(raw.attribution);
       didNormalizeAttribution.current = true;
-      updateAttribution(mode).catch(() => {});
+      updateAttribution(mode).catch(() => { });
     }
   }, [raw.attribution]);
 

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 /**
- * i18n Management Script for Lovcode
+ * i18n Management Script for Claude Code Impact
  * 
  * Features:
  * 1. Verify locale files consistency (keys present in all languages).
@@ -285,7 +285,7 @@ class I18nScanner {
 // --- Main execution ---
 
 async function run() {
-    console.log('🔍 Starting i18n analysis for Lovcode...');
+    console.log('🔍 Starting i18n analysis for Claude Code Impact...');
 
     const scanner = new I18nScanner();
     await scanner.scan();

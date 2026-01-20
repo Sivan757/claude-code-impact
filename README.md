@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/images/cover.png" alt="Lovcode Cover" width="100%">
+  <img src="docs/images/cover.png" alt="Claude Code Impact Cover" width="100%">
 </p>
 
 <h1 align="center">
   <img src="assets/logo.svg" width="32" height="32" alt="Logo" align="top">
-  Lovcode
+  Claude Code Impact
 </h1>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 <p align="center">
   <a href="#features">Features</a> •
-  <a href="#oh-my-lovcode">oh-my-lovcode</a> •
+  <a href="#oh-my-claudecodeimpact">oh-my-claudecodeimpact</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
   <a href="#tech-stack">Tech Stack</a> •
@@ -47,28 +47,28 @@
 - **Customizable Statusbar** — Personalize your statusbar display with scripts
 - **Session Prompt Preview** — Hover to preview prompts in session list
 
-## oh-my-lovcode
+## oh-my-claudecodeimpact
 
-Community configuration framework for Lovcode, inspired by oh-my-zsh.
+Community configuration framework for Claude Code Impact, inspired by oh-my-zsh.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MarkShawn2020/oh-my-lovcode/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MarkShawn2020/oh-my-claudecodeimpact/main/install.sh | bash
 ```
 
-Share and discover statusbar themes, keybindings, and more at [oh-my-lovcode](https://github.com/MarkShawn2020/oh-my-lovcode).
+Share and discover statusbar themes, keybindings, and more at [oh-my-claudecodeimpact](https://github.com/MarkShawn2020/oh-my-claudecodeimpact).
 
 ## Installation
 
 ### From Release
 
-Download the latest release for your platform from [Releases](https://github.com/markshawn2020/lovcode/releases).
+Download the latest release for your platform from [Releases](https://github.com/markshawn2020/claudecodeimpact/releases).
 
 ### From Source
 
 ```bash
 # Clone the repository (with submodules)
-git clone --recursive https://github.com/markshawn2020/lovcode.git
-cd lovcode
+git clone --recursive https://github.com/markshawn2020/claudecodeimpact.git
+cd claudecodeimpact
 
 # Install dependencies
 pnpm install
@@ -82,7 +82,7 @@ pnpm tauri build
 
 ## Usage
 
-1. Launch Lovcode
+1. Launch Claude Code Impact
 2. Select **Projects** to browse chat history from Claude Code sessions
 3. Use the **Configuration** section to manage commands, MCP servers, skills, and hooks
 4. Visit **Marketplace** to discover community templates
@@ -99,7 +99,7 @@ pnpm tauri build
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=markshawn2020/lovcode&type=Date)](https://star-history.com/#markshawn2020/lovcode&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=markshawn2020/claudecodeimpact&type=Date)](https://star-history.com/#markshawn2020/claudecodeimpact&Date)
 
 ## License
 

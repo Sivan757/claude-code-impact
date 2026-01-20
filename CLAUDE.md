@@ -28,7 +28,7 @@ Reference complete design guide: file:///Users/mark/@lovstudio/design/design-gui
 
 ## Project Overview
 
-Lovcode is a Vibe Coding assistant desktop app built with Tauri 2 + React 19 + TypeScript. Primary focus is supporting AI coding tool ecosystems (claude code, codex, etc.) with chat history viewer as the first feature.
+Claude Code Impact is a Vibe Coding assistant desktop app built with Tauri 2 + React 19 + TypeScript. Primary focus is supporting AI coding tool ecosystems (claude code, codex, etc.) with chat history viewer as the first feature.
 
 ## Commands
 

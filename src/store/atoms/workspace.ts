@@ -3,7 +3,7 @@ import { atomWithStorage } from "jotai/utils";
 import type { WorkspaceData } from "@/views/Workspace/types";
 
 // Primary feature for main nav (not affected by secondary nav like settings/marketplace from profile menu)
-export const primaryFeatureAtom = atomWithStorage<string | null>("lovcode:primaryFeature", null);
+export const primaryFeatureAtom = atomWithStorage<string | null>("claudecodeimpact:primaryFeature", null);
 
 // Workspace data (shared between App.tsx and WorkspaceView)
 export const workspaceDataAtom = atom<WorkspaceData | null>(null);

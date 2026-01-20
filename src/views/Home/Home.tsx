@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { FeatureType, Project, Session, LocalCommand } from "../../types";
 import { FEATURES } from "../../constants";
-import { ActivityHeatmap, RecentActivity, QuickActions, FeaturedCarousel } from "../../components/home";
+import { ActivityHeatmap, RecentActivity, QuickActions } from "../../components/home";
 import { useInvokeQuery } from "../../hooks";
 import { useTranslation } from "react-i18next";
 
@@ -10,7 +10,6 @@ interface HomeProps {
   onProjectClick: (project: Project) => void;
   onSessionClick: (session: Session) => void;
   onSearch: () => void;
-  onOpenAnnualReport: () => void;
 }
 
 interface ActivityStats {
@@ -19,7 +18,7 @@ interface ActivityStats {
   detailed: Record<string, number>;
 }
 
-export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch, onOpenAnnualReport }: HomeProps) {
+export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch }: HomeProps) {
   const { t } = useTranslation();
   const { data: projects } = useInvokeQuery<Project[]>(["projects"], "list_projects");
   const { data: sessions } = useInvokeQuery<Session[]>(["sessions"], "list_all_sessions");
@@ -54,16 +53,13 @@ export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch,
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="font-serif text-4xl font-bold text-primary mb-2 tracking-tight flex items-center justify-center gap-3">
-          <img src="/logo.png" alt="Lovcode" className="w-10 h-10" />
-          Lovcode
+          <img src="/logo.png" alt="Claude Code Impact" className="w-10 h-10" />
+          Claude Code Impact
         </h1>
         <p className="text-muted-foreground">{t('home.tagline')}</p>
       </div>
 
-      {/* Featured Carousel */}
-      <div className="max-w-xl mx-auto w-full mb-6">
-        <FeaturedCarousel onOpenAnnualReport={onOpenAnnualReport} />
-      </div>
+
 
       {/* Quick Actions */}
       <div className="flex justify-center mb-8">
@@ -130,8 +126,8 @@ export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch,
                   key={feature.type}
                   onClick={() => onFeatureClick(feature.type)}
                   className={`p-3 rounded-xl border transition-all duration-200 text-left ${feature.available
-                      ? "bg-background border-border/60 hover:border-primary hover:shadow-sm cursor-pointer"
-                      : "bg-muted/30 border-transparent cursor-default"
+                    ? "bg-background border-border/60 hover:border-primary hover:shadow-sm cursor-pointer"
+                    : "bg-muted/30 border-transparent cursor-default"
                     }`}
                   disabled={!feature.available}
                 >

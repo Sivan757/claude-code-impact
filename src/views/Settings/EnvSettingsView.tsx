@@ -59,7 +59,7 @@ export function EnvSettingsView() {
   const getCustomEnvKeysFromSettings = (value: ClaudeSettings | null | undefined): string[] => {
     const keys =
       value?.raw && typeof value.raw === "object"
-        ? (value.raw as Record<string, unknown>)._lovcode_custom_env_keys
+        ? (value.raw as Record<string, unknown>)._claudecodeimpact_custom_env_keys
         : null;
     if (!keys || !Array.isArray(keys)) return [];
     return keys.filter((k): k is string => typeof k === "string");
@@ -68,7 +68,7 @@ export function EnvSettingsView() {
   const getDisabledEnvFromSettings = (value: ClaudeSettings | null | undefined): Record<string, string> => {
     const disabled =
       value?.raw && typeof value.raw === "object"
-        ? (value.raw as Record<string, unknown>)._lovcode_disabled_env
+        ? (value.raw as Record<string, unknown>)._claudecodeimpact_disabled_env
         : null;
     if (!disabled || typeof disabled !== "object" || Array.isArray(disabled)) return {};
     return Object.fromEntries(

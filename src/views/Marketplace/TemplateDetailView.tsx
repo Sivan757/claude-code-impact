@@ -136,7 +136,7 @@ export function TemplateDetailView({
           await invoke("install_setting_template", { config: template.content });
           break;
         case "statuslines":
-          // Install to ~/.lovstudio/lovcode/statusline/{name}.sh
+          // Install to ~/.lovstudio/claudecodeimpact/statusline/{name}.sh
           await invoke("install_statusline_template", { name: template.name, content: template.content });
           break;
       }

@@ -181,7 +181,7 @@ export function PanelGrid({
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(activeProjectId);
   // Selected terminal type for empty state (persisted)
   const [selectedTerminalType, setSelectedTerminalType] = useState(() => {
-    const saved = localStorage.getItem("lovcode:terminalType");
+    const saved = localStorage.getItem("claudecodeimpact:terminalType");
     return TERMINAL_OPTIONS.find(o => o.type === saved) || TERMINAL_OPTIONS[0];
   });
   // Input command for empty state
@@ -278,7 +278,7 @@ export function PanelGrid({
             {selectedProject ? (
               <ProjectLogo projectPath={selectedProject.path} size="xl" />
             ) : (
-              <img src="/logo.svg" alt="Lovcode" className="w-12 h-12" />
+              <img src="/logo.svg" alt="Claude Code Impact" className="w-12 h-12" />
             )}
           </div>
 
@@ -337,7 +337,7 @@ export function PanelGrid({
                     key={opt.type}
                     onClick={() => {
                       setSelectedTerminalType(opt);
-                      localStorage.setItem("lovcode:terminalType", opt.type);
+                      localStorage.setItem("claudecodeimpact:terminalType", opt.type);
                       // Update menu state based on input
                       if (inputCommand.startsWith("/")) {
                         setShowSlashMenu(true);

@@ -266,7 +266,6 @@ function App() {
                 onProjectClick={(p) => navigate({ type: "chat-sessions", projectId: p.id, projectPath: p.path })}
                 onSessionClick={(s) => navigate({ type: "chat-messages", projectId: s.project_id, projectPath: s.project_path || '', sessionId: s.id, summary: s.summary })}
                 onSearch={() => navigate({ type: "chat-projects" })}
-                onOpenAnnualReport={() => navigate({ type: "annual-report-2025" })}
               />
             )}
             {view.type === "annual-report-2025" && (

@@ -746,7 +746,7 @@ export function DocumentReader({
     // Wait for content to be loaded
     if (loading || !content || scrollRestoredRef.current) return;
 
-    const scrollKey = `lovcode:ref-scroll:${sourceName}:${currentIndex}`;
+    const scrollKey = `claudecodeimpact:ref-scroll:${sourceName}:${currentIndex}`;
     const savedScroll = localStorage.getItem(scrollKey);
     if (!savedScroll) {
       scrollRestoredRef.current = true;
@@ -774,7 +774,7 @@ export function DocumentReader({
     const saveScroll = () => {
       // Don't save until restore is complete, to avoid overwriting saved position with 0
       if (!scrollRestoredRef.current) return;
-      const scrollKey = `lovcode:ref-scroll:${sourceName}:${currentIndex}`;
+      const scrollKey = `claudecodeimpact:ref-scroll:${sourceName}:${currentIndex}`;
       localStorage.setItem(scrollKey, String(container.scrollTop));
     };
 
