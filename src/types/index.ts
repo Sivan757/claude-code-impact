@@ -207,6 +207,7 @@ export interface SourceInfo {
 }
 
 export interface TemplatesCatalog {
+  context: TemplateComponent[];
   settings: TemplateComponent[];
   commands: TemplateComponent[];
   mcps: TemplateComponent[];

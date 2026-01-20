@@ -9,6 +9,7 @@ import { createHashRouter, RouterProvider } from "react-router-dom";
 import routes from "~react-pages";
 import { LoadingState } from "./components/config";
 import RootLayout from "./pages/_layout";
+import { RouteError } from "./components/RouteError";
 
 // ============================================================================
 // Router Configuration
@@ -19,6 +20,7 @@ const routesWithLayout = [
   {
     path: "/",
     element: <RootLayout />,
+    errorElement: <RouteError />,
     children: routes,
   },
 ];

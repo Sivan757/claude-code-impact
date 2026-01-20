@@ -62,11 +62,11 @@ export function MarketplaceView({ initialCategory, onSelectTemplate }: Marketpla
   const sourceFiltered =
     sourceFilter === "all"
       ? components
-      : components.filter((c) => c.source_id === sourceFilter);
+      : components.filter((c: TemplateComponent) => c.source_id === sourceFilter);
 
   // Apply search filter
   const filtered = sourceFiltered.filter(
-    (c) =>
+    (c: TemplateComponent) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.description?.toLowerCase().includes(search.toLowerCase()) ||
       c.category.toLowerCase().includes(search.toLowerCase())
@@ -90,7 +90,7 @@ export function MarketplaceView({ initialCategory, onSelectTemplate }: Marketpla
     count:
       sf.id === "all"
         ? components.length
-        : components.filter((c) => c.source_id === sf.id).length,
+        : components.filter((c: TemplateComponent) => c.source_id === sf.id).length,
   }));
 
   return (

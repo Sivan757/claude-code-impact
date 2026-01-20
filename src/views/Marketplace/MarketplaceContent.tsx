@@ -40,10 +40,10 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
   const sourceFiltered =
     sourceFilter === "all"
       ? components
-      : components.filter((c) => c.source_id === sourceFilter);
+      : components.filter((c: TemplateComponent) => c.source_id === sourceFilter);
 
   const filtered = sourceFiltered.filter(
-    (c) =>
+    (c: TemplateComponent) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.description?.toLowerCase().includes(search.toLowerCase()) ||
       c.category.toLowerCase().includes(search.toLowerCase())
@@ -82,7 +82,7 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
     count:
       sf.id === "all"
         ? components.length
-        : components.filter((c) => c.source_id === sf.id).length,
+        : components.filter((c: TemplateComponent) => c.source_id === sf.id).length,
   }));
 
   return (
@@ -95,8 +95,8 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
             onClick={() => setSourceFilter(sf.id as SourceFilterId)}
             title={getSourceTooltip(sf.id)}
             className={`px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1.5 ${sourceFilter === sf.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-card border border-border text-muted-foreground hover:text-ink hover:border-primary/50"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card border border-border text-muted-foreground hover:text-ink hover:border-primary/50"
               }`}
           >
             <span>{getSourceLabel(sf.id)}</span>
@@ -133,10 +133,10 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
                 <p className="font-medium text-ink truncate">{template.name}</p>
                 <span
                   className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${template.source_id === "anthropic"
-                      ? "bg-amber-500/10 text-amber-600"
-                      : template.source_id === "lovstudio"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground"
+                    ? "bg-amber-500/10 text-amber-600"
+                    : template.source_id === "lovstudio"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
                     }`}
                   title={getSourceTooltip(template.source_id || "community")}
                 >
