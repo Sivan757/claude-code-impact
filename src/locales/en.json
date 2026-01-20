@@ -20,6 +20,7 @@
         "description": "Description",
         "write": "Write",
         "preview": "Preview",
+        "copy": "Copy",
         "loading": "Loading",
         "marketplace": "Marketplace",
         "browse_marketplace": "Browse marketplace",

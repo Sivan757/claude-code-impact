@@ -20,6 +20,7 @@
         "description": "描述",
         "write": "编辑",
         "preview": "预览",
+        "copy": "复制",
         "loading": "加载中",
         "marketplace": "市场",
         "browse_marketplace": "浏览市场",

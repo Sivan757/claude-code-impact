@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "claudecodeimpact",
+  "productName": "Claude Code Impact",
   "version": "../package.json",
   "identifier": "app.lovpen.code",
   "build": {
