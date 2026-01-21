@@ -78,8 +78,6 @@ export function LlmProviderView() {
     }
   }, [settings]);
 
-  if (isLoading) return <LoadingState message={t('llm.loading')} />;
-
   const getActiveProvider = (value: ClaudeSettings | null | undefined): string | null => {
     const claudecodeimpact =
       value?.raw && typeof value.raw === "object"
@@ -189,7 +187,16 @@ export function LlmProviderView() {
       path: "fallback/anthropic-native-endpoint.json",
       description: t('llm.providers.native_desc'),
       downloads: null,
-      content: JSON.stringify({ env: { ANTHROPIC_API_KEY: "your_anthropic_api_key_here" } }, null, 2),
+      content: JSON.stringify(
+        {
+          env: {
+            ANTHROPIC_API_KEY: "your_anthropic_api_key_here",
+            ANTHROPIC_BASE_URL: "https://api.anthropic.com",
+          },
+        },
+        null,
+        2
+      ),
     },
     zenmux: {
       name: "zenmux-anthropic-proxy",
@@ -265,7 +272,13 @@ export function LlmProviderView() {
           ? (parsed.env as Record<string, unknown>)
           : {};
       const previewEnv = Object.fromEntries(
-        Object.keys(templateEnv).map((key) => [key, rawEnv[key] || ""])
+        Object.keys(templateEnv).map((key) => {
+          const rawValue = rawEnv[key] || "";
+          if (!rawValue && key === "ANTHROPIC_BASE_URL") {
+            return [key, String((templateEnv as Record<string, unknown>)[key] ?? "")];
+          }
+          return [key, rawValue];
+        })
       );
       return { env: previewEnv, note: null };
     } catch {
@@ -799,6 +812,8 @@ export function LlmProviderView() {
       </div>
     );
   };
+
+  if (isLoading) return <LoadingState message={t('llm.loading')} />;
 
   return (
     <ConfigPage>

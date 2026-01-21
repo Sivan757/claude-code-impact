@@ -115,6 +115,24 @@ export default function RootLayout() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Restore last visited path on load
+  useEffect(() => {
+    const LAST_PATH_KEY = "claudecodeimpact:lastPath";
+    // Only attempt restore if we are at root (fresh load default)
+    if (location.pathname === "/") {
+      const saved = localStorage.getItem(LAST_PATH_KEY);
+      if (saved && saved !== "/") {
+        navigate(saved, { replace: true });
+      }
+    }
+  }, []); // Run once on mount
+
+  // Save current path on change
+  useEffect(() => {
+    const LAST_PATH_KEY = "claudecodeimpact:lastPath";
+    localStorage.setItem(LAST_PATH_KEY, location.pathname + location.search);
+  }, [location]);
+
   const formatPath = useCallback((path: string) => {
     if (shortenPaths && homeDir && path.startsWith(homeDir)) {
       return "~" + path.slice(homeDir.length);
