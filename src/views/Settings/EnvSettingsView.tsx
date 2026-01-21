@@ -6,8 +6,6 @@ import {
   CheckIcon,
   Cross1Icon,
   Pencil1Icon,
-  EyeOpenIcon,
-  EyeClosedIcon,
   PlusCircledIcon,
   MinusCircledIcon,
   TrashIcon,
@@ -39,7 +37,7 @@ export function EnvSettingsView() {
   const [envEditValue, setEnvEditValue] = useState("");
   const [newEnvKey, setNewEnvKey] = useState("");
   const [newEnvValue, setNewEnvValue] = useState("");
-  const [revealedEnvKeys, setRevealedEnvKeys] = useState<Record<string, boolean>>({});
+
   const [editingEnvIsDisabled, setEditingEnvIsDisabled] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
@@ -137,9 +135,7 @@ export function EnvSettingsView() {
     setNewEnvValue("");
   };
 
-  const toggleEnvReveal = (key: string) => {
-    setRevealedEnvKeys((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+
 
   const filteredSuggestions = !newEnvKey
     ? ENV_VAR_SUGGESTIONS
@@ -163,45 +159,47 @@ export function EnvSettingsView() {
         <SearchInput placeholder={t('env.search_placeholder')} value={search} onChange={setSearch} />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center p-3 rounded-lg border border-border bg-card">
-          <div className="flex-1 relative group">
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen} className="flex-1 relative group">
             <input
               className="text-xs px-2 py-1 pr-8 rounded bg-canvas border border-border text-ink w-full"
               placeholder={t('env.key')}
               value={newEnvKey}
-              onChange={(e) => setNewEnvKey(e.target.value)}
+              onChange={(e) => {
+                setNewEnvKey(e.target.value);
+                setPopoverOpen(true);
+              }}
+              onFocus={() => setPopoverOpen(true)}
               onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
             />
             <div className="absolute right-0 top-0 bottom-0 flex items-center pr-1">
-              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger className="p-1 hover:bg-accent rounded text-muted-foreground transition-colors">
-                  <ChevronDownIcon className="w-3.5 h-3.5" />
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-[300px] p-0 overflow-hidden mt-1 shadow-xl border-border/50">
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {filteredSuggestions.length > 0 ? (
-                      filteredSuggestions.map((item) => (
-                        <button
-                          key={item.key}
-                          className="w-full text-left px-3 py-2 hover:bg-accent transition-colors border-b border-border/40 last:border-0 flex flex-col gap-0.5"
-                          onClick={() => {
-                            setNewEnvKey(item.key);
-                            setPopoverOpen(false);
-                          }}
-                        >
-                          <span className="text-xs font-mono text-primary font-medium">{item.key}</span>
-                          <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed italic">{item.desc}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                        {t('env.no_suggestions', '未找到匹配的建议')}
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <PopoverTrigger className="p-1 hover:bg-accent rounded text-muted-foreground transition-colors">
+                <ChevronDownIcon className="w-3.5 h-3.5" />
+              </PopoverTrigger>
             </div>
-          </div>
+            <PopoverContent align="start" className="w-full p-0 overflow-hidden mt-1 shadow-xl border-border/50">
+              <div className="max-h-[300px] overflow-y-auto">
+                {filteredSuggestions.length > 0 ? (
+                  filteredSuggestions.map((item) => (
+                    <button
+                      key={item.key}
+                      className="w-full text-left px-3 py-2 hover:bg-accent transition-colors border-b border-border/40 last:border-0 flex flex-col gap-0.5"
+                      onClick={() => {
+                        setNewEnvKey(item.key);
+                        setPopoverOpen(false);
+                      }}
+                    >
+                      <span className="text-xs font-mono text-primary font-medium">{item.key}</span>
+                      <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed italic">{item.desc}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                    {t('env.no_suggestions', '未找到匹配的建议')}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           <input
             className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink flex-1"
             placeholder={t('env.value')}
@@ -238,7 +236,6 @@ export function EnvSettingsView() {
               </thead>
               <tbody>
                 {filteredEnvEntries.map(([key, value, isDisabled]) => {
-                  const isRevealed = !!revealedEnvKeys[key];
                   const isCustom = customEnvKeys.includes(key);
                   return (
                     <tr
@@ -265,21 +262,8 @@ export function EnvSettingsView() {
                             }}
                           />
                         ) : (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground font-mono">
-                              {isRevealed ? value || t('env.empty') : "••••••"}
-                            </span>
-                            <button
-                              onClick={() => toggleEnvReveal(key)}
-                              className="text-muted-foreground hover:text-foreground p-0.5"
-                              title={isRevealed ? t('env.hide') : t('env.view')}
-                            >
-                              {isRevealed ? (
-                                <EyeClosedIcon className="w-3.5 h-3.5" />
-                              ) : (
-                                <EyeOpenIcon className="w-3.5 h-3.5" />
-                              )}
-                            </button>
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {value || t('env.empty')}
                           </span>
                         )}
                       </td>
@@ -347,8 +331,9 @@ export function EnvSettingsView() {
           <div className="p-4 rounded-lg border border-border bg-card text-center">
             <p className="text-sm text-muted-foreground">{t('env.no_env')}</p>
           </div>
-        )}
-      </div>
-    </ConfigPage>
+        )
+        }
+      </div >
+    </ConfigPage >
   );
 }

@@ -8,11 +8,14 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
-use crate::{hook_watcher, pty_manager, workspace_store};
-use crate::infra::{get_claude_dir, get_claude_json_path, get_lovstudio_dir, load_disabled_env, save_disabled_env};
+use crate::infra::{
+    get_claude_dir, get_claude_json_path, get_lovstudio_dir, load_custom_keys, load_disabled_env,
+    save_custom_keys, save_disabled_env,
+};
 use crate::services::claude_format::{HistoryEntry, RawLine};
 use crate::services::message_content::extract_content_with_meta;
 use crate::services::project_paths::{decode_project_path, encode_project_path};
+use crate::{hook_watcher, pty_manager, workspace_store};
 
 include!("sections/core/00_prelude.rs");
 include!("sections/settings/projects_sessions.rs");

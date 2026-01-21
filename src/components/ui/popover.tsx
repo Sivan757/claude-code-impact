@@ -12,9 +12,10 @@ interface PopoverProps {
   children: ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  className?: string;
 }
 
-export function Popover({ children, open: controlledOpen, onOpenChange }: PopoverProps) {
+export function Popover({ children, open: controlledOpen, onOpenChange, className = "" }: PopoverProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -26,7 +27,7 @@ export function Popover({ children, open: controlledOpen, onOpenChange }: Popove
 
   return (
     <PopoverContext.Provider value={{ open, setOpen, triggerRef }}>
-      <div className="relative inline-block">
+      <div className={`relative inline-block ${className}`}>
         {children}
       </div>
     </PopoverContext.Provider>

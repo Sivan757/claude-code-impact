@@ -34,6 +34,44 @@ fn get_settings() -> Result<ClaudeSettings, String> {
         }
     }
 
+    // Overlay custom env keys from ~/.lovstudio/claudecodeimpact (do not persist in settings.json)
+    let mut custom_keys = load_custom_keys().unwrap_or_default();
+
+    // Merge legacy keys from settings if present
+    if let Some(legacy_keys) = raw
+        .get("_claudecodeimpact_custom_env_keys")
+        .and_then(|v| v.as_array())
+    {
+        for k in legacy_keys {
+            if let Some(s) = k.as_str() {
+                if !custom_keys.contains(&s.to_string()) {
+                    custom_keys.push(s.to_string());
+                }
+            }
+        }
+        // We will save merged keys to new storage if we write, but here we just ensure frontend gets the full list.
+        // If we wanted to migrate immediately, we could save_custom_keys here, but let's avoid side effects in get_settings unless necessary.
+        // Actually, let's just make sure the frontend gets the complete list.
+    }
+
+    if !custom_keys.is_empty() {
+        if let Some(obj) = raw.as_object_mut() {
+            obj.insert(
+                "_claudecodeimpact_custom_env_keys".to_string(),
+                serde_json::Value::Array(
+                    custom_keys
+                        .iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
+            );
+        } else if raw.is_null() {
+            raw = serde_json::json!({
+                "_claudecodeimpact_custom_env_keys": custom_keys
+            });
+        }
+    }
+
     // Read ~/.claude.json for MCP servers
     let mut mcp_servers = Vec::new();
     if claude_json_path.exists() {
@@ -460,6 +498,36 @@ fn update_mcp_env(server_name: String, env_key: String, env_value: String) -> Re
     Ok(())
 }
 
+fn migrate_and_cleanup_custom_keys(settings: &mut serde_json::Value) -> Result<(), String> {
+    if settings.get("_claudecodeimpact_custom_env_keys").is_some() {
+        let mut custom_keys = load_custom_keys().unwrap_or_default();
+        let mut changed = false;
+
+        if let Some(legacy_keys) = settings
+            .get("_claudecodeimpact_custom_env_keys")
+            .and_then(|v| v.as_array())
+        {
+            for k in legacy_keys {
+                if let Some(s) = k.as_str() {
+                    if !custom_keys.contains(&s.to_string()) {
+                        custom_keys.push(s.to_string());
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        if changed {
+            save_custom_keys(&custom_keys)?;
+        }
+
+        if let Some(obj) = settings.as_object_mut() {
+            obj.remove("_claudecodeimpact_custom_env_keys");
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn update_settings_env(
     env_key: String,
@@ -474,6 +542,8 @@ fn update_settings_env(
         serde_json::json!({})
     };
 
+    migrate_and_cleanup_custom_keys(&mut settings)?;
+
     if !settings.get("env").and_then(|v| v.as_object()).is_some() {
         settings["env"] = serde_json::json!({});
     }
@@ -481,21 +551,16 @@ fn update_settings_env(
 
     // Track custom env keys when is_new=true
     if is_new == Some(true) {
-        let custom_keys = settings
-            .get("_claudecodeimpact_custom_env_keys")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
-        let key_val = serde_json::Value::String(env_key.clone());
-        if !custom_keys.contains(&key_val) {
-            let mut new_keys = custom_keys;
-            new_keys.push(key_val);
-            settings["_claudecodeimpact_custom_env_keys"] = serde_json::Value::Array(new_keys);
+        let mut custom_keys = load_custom_keys()?;
+        if !custom_keys.contains(&env_key) {
+            custom_keys.push(env_key.clone());
+            save_custom_keys(&custom_keys)?;
         }
     }
 
     if let Some(obj) = settings.as_object_mut() {
         obj.remove("_claudecodeimpact_disabled_env");
+        obj.remove("_claudecodeimpact_custom_env_keys");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -514,16 +579,18 @@ fn delete_settings_env(env_key: String) -> Result<(), String> {
         serde_json::json!({})
     };
 
+    migrate_and_cleanup_custom_keys(&mut settings)?;
+
     if let Some(env) = settings.get_mut("env").and_then(|v| v.as_object_mut()) {
         env.remove(&env_key);
     }
 
     // Also remove from custom keys list
-    if let Some(custom_keys) = settings
-        .get_mut("_claudecodeimpact_custom_env_keys")
-        .and_then(|v| v.as_array_mut())
-    {
-        custom_keys.retain(|v| v.as_str() != Some(&env_key));
+    let mut custom_keys = load_custom_keys().unwrap_or_default();
+    if custom_keys.contains(&env_key) {
+        custom_keys.retain(|v| v != &env_key);
+        // ignore save error
+        let _ = save_custom_keys(&custom_keys);
     }
 
     // Also remove from disabled env if present
@@ -536,6 +603,7 @@ fn delete_settings_env(env_key: String) -> Result<(), String> {
 
     if let Some(obj) = settings.as_object_mut() {
         obj.remove("_claudecodeimpact_disabled_env");
+        obj.remove("_claudecodeimpact_custom_env_keys");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -558,6 +626,8 @@ fn disable_settings_env(env_key: String) -> Result<(), String> {
     let mut settings: serde_json::Value =
         serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
+    migrate_and_cleanup_custom_keys(&mut settings)?;
+
     // Get current value before removing
     let current_value = settings
         .get("env")
@@ -573,6 +643,7 @@ fn disable_settings_env(env_key: String) -> Result<(), String> {
 
     if let Some(obj) = settings.as_object_mut() {
         obj.remove("_claudecodeimpact_disabled_env");
+        obj.remove("_claudecodeimpact_custom_env_keys");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -595,6 +666,8 @@ fn enable_settings_env(env_key: String) -> Result<(), String> {
         serde_json::json!({})
     };
 
+    migrate_and_cleanup_custom_keys(&mut settings)?;
+
     // Get value from disabled env
     let mut disabled_env = load_disabled_env()?;
     let disabled_value = disabled_env
@@ -613,6 +686,7 @@ fn enable_settings_env(env_key: String) -> Result<(), String> {
 
     if let Some(obj) = settings.as_object_mut() {
         obj.remove("_claudecodeimpact_disabled_env");
+        obj.remove("_claudecodeimpact_custom_env_keys");
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
@@ -629,4 +703,3 @@ fn update_disabled_settings_env(env_key: String, env_value: String) -> Result<()
 
     Ok(())
 }
-

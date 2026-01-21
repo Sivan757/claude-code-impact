@@ -49,6 +49,40 @@ pub(crate) fn save_disabled_env(disabled: &serde_json::Map<String, Value>) -> Re
     Ok(())
 }
 
+fn get_custom_keys_path() -> PathBuf {
+    get_lovstudio_dir().join("custom_env_keys.json")
+}
+
+pub(crate) fn load_custom_keys() -> Result<Vec<String>, String> {
+    let path = get_custom_keys_path();
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let value: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    if let Some(arr) = value.as_array() {
+        Ok(arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+pub(crate) fn save_custom_keys(keys: &[String]) -> Result<(), String> {
+    let path = get_custom_keys_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let output = serde_json::to_string_pretty(&Value::Array(
+        keys.iter().map(|s| Value::String(s.clone())).collect(),
+    ))
+    .map_err(|e| e.to_string())?;
+    fs::write(&path, output).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub(crate) async fn exec_shell_command(command: String, cwd: String) -> Result<String, String> {
     use tokio::process::Command;
 
