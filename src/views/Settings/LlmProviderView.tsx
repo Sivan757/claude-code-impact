@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { useInvokeQuery, useQueryClient } from "../../hooks";
 import { PlusIcon, EyeOpenIcon, EyeNoneIcon, Pencil1Icon, TrashIcon, CopyIcon, PlayIcon, DragHandleDots2Icon } from "@radix-ui/react-icons";
+import { Reorder, useDragControls } from "framer-motion";
 import { Button } from "../../components/ui/button";
 import {
   Dialog,
@@ -41,6 +42,108 @@ interface SavedProvider {
   updatedAt: number;
 }
 
+interface ProviderItemProps {
+  provider: SavedProvider;
+  isActive: boolean;
+  applyState: "idle" | "loading" | "success" | "error";
+  preset: { label: string; description: string };
+  onApply: (p: SavedProvider, e?: React.MouseEvent) => void;
+  onEdit: (p: SavedProvider) => void;
+  onDuplicate: (p: SavedProvider, e: React.MouseEvent) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+  t: any;
+  isDraggable: boolean;
+}
+
+const ProviderItem = ({ provider, isActive, applyState, preset, onApply, onEdit, onDuplicate, onDelete, t, isDraggable }: ProviderItemProps) => {
+  const controls = useDragControls();
+  const displayUrl = Object.entries(provider.env).find(([k, v]) => k.includes("URL") && v.startsWith("http"))?.[1] || preset.description;
+
+  return (
+    <Reorder.Item
+      value={provider}
+      dragListener={false}
+      dragControls={controls}
+      className={`group relative rounded-xl border p-3 flex items-center justify-between transition-colors duration-200 select-none
+            ${isActive
+          ? "border-primary bg-primary/5"
+          : "border-transparent bg-card/40 hover:bg-card hover:border-primary hover:shadow-sm"}`}
+    >
+      <div className="flex items-center gap-4 overflow-hidden">
+        {/* Reorder Handle */}
+        <div
+          className={`text-muted-foreground/30 ${isDraggable ? "cursor-grab hover:text-muted-foreground active:cursor-grabbing touch-none" : "opacity-0 pointer-events-none"}`}
+          onPointerDown={(e) => isDraggable && controls.start(e)}
+        >
+          <DragHandleDots2Icon className="w-5 h-5" />
+        </div>
+
+        {/* Avatar / Icon */}
+        <div className="w-10 h-10 shrink-0 rounded-full bg-secondary/80 flex items-center justify-center font-bold text-muted-foreground/80 border border-white/5 select-none">
+          {provider.name[0]?.toUpperCase() || "P"}
+        </div>
+
+        {/* Info */}
+        <div className="flex flex-col min-w-0 pr-4">
+          <h3 className="font-medium text-sm truncate text-foreground/90">{provider.name}</h3>
+          <p className="text-xs text-blue-500/80 truncate font-mono mt-0.5" title={displayUrl}>
+            {displayUrl || preset.label}
+          </p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        {isActive ? (
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-md select-none flex items-center gap-1.5 border border-primary/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+              {t('llm.active_status') || "Active"}
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => { e.stopPropagation(); onEdit(provider); }} title={t('llm.edit')}>
+                <Pencil1Icon className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => onDuplicate(provider, e)} title="Duplicate">
+                <CopyIcon className="w-4 h-4" />
+              </Button>
+
+              <div className="w-px h-4 bg-border/50 mx-1"></div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-red-500 hover:bg-red-500/10" onClick={(e) => onDelete(provider.id, e)} title={t('llm.delete')}>
+                <TrashIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              size="sm"
+              className="rounded-lg h-8 px-3 mr-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+              onClick={(e) => onApply(provider, e)}
+              disabled={applyState === 'loading'}
+            >
+              {applyState === 'loading' ? <span className="animate-spin mr-1">⟳</span> : <PlayIcon className="w-3.5 h-3.5 mr-1" />}
+              {t('llm.apply') || "Apply"}
+            </Button>
+            <div className="flex items-center gap-1 text-muted-foreground/60">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => { e.stopPropagation(); onEdit(provider); }} title={t('llm.edit')}>
+                <Pencil1Icon className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => onDuplicate(provider, e)} title="Duplicate">
+                <CopyIcon className="w-4 h-4" />
+              </Button>
+              <div className="w-px h-4 bg-border/50 mx-1"></div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-red-500 hover:bg-red-500/10" onClick={(e) => onDelete(provider.id, e)} title={t('llm.delete')}>
+                <TrashIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Reorder.Item>
+  );
+};
+
 
 export function LlmProviderView() {
   const { t } = useTranslation();
@@ -71,22 +174,6 @@ export function LlmProviderView() {
   const [activeProviderId, setActiveProviderId] = useState<string | null>(() => {
     return localStorage.getItem("lovcode_active_provider_id");
   });
-
-  const dragItem = useRef<number | null>(null);
-  const dragOverItem = useRef<number | null>(null);
-
-  const handleSort = () => {
-    if (dragItem.current === null || dragOverItem.current === null) return;
-
-    const _savedProviders = [...savedProviders];
-    const draggedItemContent = _savedProviders[dragItem.current];
-    _savedProviders.splice(dragItem.current, 1);
-    _savedProviders.splice(dragOverItem.current, 0, draggedItemContent);
-
-    dragItem.current = null;
-    dragOverItem.current = null;
-    setSavedProviders(_savedProviders);
-  };
 
   useEffect(() => {
     localStorage.setItem("lovcode_llm_providers", JSON.stringify(savedProviders));
@@ -501,105 +588,9 @@ export function LlmProviderView() {
 
 
 
-  const renderProviderCard = (provider: SavedProvider, index: number) => {
-    const preset = proxyPresets.find(p => p.key === provider.type) || { label: provider.type, description: "" };
-    const isActive = isProviderActive(provider);
-    const applyState = applyStatus[provider.id];
-
-    // Attempt to find a URL to display
-    const displayUrl = Object.entries(provider.env).find(([k, v]) => k.includes("URL") && v.startsWith("http"))?.[1] || preset.description;
-
-    return (
-      <div
-        key={provider.id}
-        draggable
-        onDragStart={(e) => {
-          dragItem.current = index;
-          e.dataTransfer.effectAllowed = "move";
-          // Optional: set ghost image
-        }}
-        onDragEnter={(e) => {
-          dragOverItem.current = index;
-          e.preventDefault();
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragEnd={handleSort}
-        className={`group rounded-xl border p-3 flex items-center justify-between transition-all duration-200 
-            ${isActive
-            ? "border-primary bg-primary/5"
-            : "border-transparent bg-card/40 hover:bg-card hover:border-primary hover:shadow-sm"}`}
-      >
-        <div className="flex items-center gap-4 overflow-hidden">
-          {/* Reorder Handle */}
-          <div className="cursor-grab text-muted-foreground/30 hover:text-muted-foreground active:cursor-grabbing">
-            <DragHandleDots2Icon className="w-5 h-5" />
-          </div>
-
-          {/* Avatar / Icon */}
-          <div className="w-10 h-10 shrink-0 rounded-full bg-secondary/80 flex items-center justify-center font-bold text-muted-foreground/80 border border-white/5 select-none">
-            {provider.name[0]?.toUpperCase() || "P"}
-          </div>
-
-          {/* Info */}
-          <div className="flex flex-col min-w-0 pr-4">
-            <h3 className="font-medium text-sm truncate text-foreground/90">{provider.name}</h3>
-            <p className="text-xs text-blue-500/80 truncate font-mono mt-0.5" title={displayUrl}>
-              {displayUrl || preset.label}
-            </p>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          {isActive ? (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-md select-none flex items-center gap-1.5 border border-primary/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                {t('llm.active_status') || "Active"}
-              </div>
-              <div className="flex items-center gap-1 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => { e.stopPropagation(); handleOpenEdit(provider); }} title={t('llm.edit')}>
-                  <Pencil1Icon className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => handleDuplicateProvider(provider, e)} title="Duplicate">
-                  <CopyIcon className="w-4 h-4" />
-                </Button>
-
-                <div className="w-px h-4 bg-border/50 mx-1"></div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-red-500 hover:bg-red-500/10" onClick={(e) => handleDeleteProvider(provider.id, e)} title={t('llm.delete')}>
-                  <TrashIcon className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                size="sm"
-                className="rounded-lg h-8 px-3 mr-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                onClick={(e) => handleApplyProvider(provider, e)}
-                disabled={applyState === 'loading'}
-              >
-                {applyState === 'loading' ? <span className="animate-spin mr-1">⟳</span> : <PlayIcon className="w-3.5 h-3.5 mr-1" />}
-                {t('llm.apply') || "Apply"}
-              </Button>
-              <div className="flex items-center gap-1 text-muted-foreground/60">
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => { e.stopPropagation(); handleOpenEdit(provider); }} title={t('llm.edit')}>
-                  <Pencil1Icon className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50" onClick={(e) => handleDuplicateProvider(provider, e)} title="Duplicate">
-                  <CopyIcon className="w-4 h-4" />
-                </Button>
-                <div className="w-px h-4 bg-border/50 mx-1"></div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-red-500 hover:bg-red-500/10" onClick={(e) => handleDeleteProvider(provider.id, e)} title={t('llm.delete')}>
-                  <TrashIcon className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div >
-    );
-  };
+  const filteredProviders = useMemo(() => {
+    return savedProviders.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.type.toLowerCase().includes(search.toLowerCase()));
+  }, [savedProviders, search]);
 
   if (isLoading) return <LoadingState message={t('llm.loading')} />;
 
@@ -634,9 +625,43 @@ export function LlmProviderView() {
 
         <div className="flex-1 mt-3 flex flex-col gap-3 overflow-y-auto min-h-0">
           {savedProviders.length > 0 ? (
-            savedProviders
-              .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.type.toLowerCase().includes(search.toLowerCase()))
-              .map((provider, index) => renderProviderCard(provider, index))
+            search ? (
+              <div className="flex flex-col gap-3">
+                {filteredProviders.map(provider => (
+                  <ProviderItem
+                    key={provider.id}
+                    provider={provider}
+                    isActive={isProviderActive(provider)}
+                    applyState={applyStatus[provider.id]}
+                    preset={proxyPresets.find(p => p.key === provider.type) || { label: provider.type, description: "" }}
+                    onApply={handleApplyProvider}
+                    onEdit={handleOpenEdit}
+                    onDuplicate={handleDuplicateProvider}
+                    onDelete={handleDeleteProvider}
+                    t={t}
+                    isDraggable={false}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Reorder.Group axis="y" values={savedProviders} onReorder={setSavedProviders} className="flex flex-col gap-3">
+                {savedProviders.map(provider => (
+                  <ProviderItem
+                    key={provider.id}
+                    provider={provider}
+                    isActive={isProviderActive(provider)}
+                    applyState={applyStatus[provider.id]}
+                    preset={proxyPresets.find(p => p.key === provider.type) || { label: provider.type, description: "" }}
+                    onApply={handleApplyProvider}
+                    onEdit={handleOpenEdit}
+                    onDuplicate={handleDuplicateProvider}
+                    onDelete={handleDeleteProvider}
+                    t={t}
+                    isDraggable={true}
+                  />
+                ))}
+              </Reorder.Group>
+            )
           ) : (
             <p className="text-center text-muted-foreground p-8">{t('llm.no_providers') || "No providers saved. Click + to add one."}</p>
           )}

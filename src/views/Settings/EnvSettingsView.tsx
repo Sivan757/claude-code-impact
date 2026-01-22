@@ -9,6 +9,7 @@ import {
   PlusCircledIcon,
   MinusCircledIcon,
   TrashIcon,
+  ReloadIcon,
   ChevronDownIcon,
 } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
@@ -156,7 +157,17 @@ export function EnvSettingsView() {
       <PageHeader title={t('env.title')} subtitle={t('env.subtitle')} />
 
       <div className="flex-1 flex flex-col space-y-4">
-        <SearchInput placeholder={t('env.search_placeholder')} value={search} onChange={setSearch} />
+        <div className="flex items-center gap-2 mb-6">
+          <SearchInput
+            placeholder={t('env.search_placeholder')}
+            value={search}
+            onChange={setSearch}
+            className="flex-1 max-w-md px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+          />
+          <Button variant="ghost" size="icon" className="rounded-full w-8 h-8" onClick={refreshSettings} title={t('env.refresh')}>
+            <ReloadIcon className="w-4 h-4" />
+          </Button>
+        </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center p-3 rounded-lg border border-border bg-card">
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen} className="flex-1 relative group">
