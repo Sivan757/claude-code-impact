@@ -165,18 +165,18 @@ export function LlmProviderView() {
   // Local Storage State
   const [savedProviders, setSavedProviders] = useState<SavedProvider[]>(() => {
     try {
-      const stored = localStorage.getItem("lovcode_llm_providers");
+      const stored = localStorage.getItem("claudecodeimpact_llm_providers");
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
   });
 
   // Track active provider by ID to handle duplicates correctly
   const [activeProviderId, setActiveProviderId] = useState<string | null>(() => {
-    return localStorage.getItem("lovcode_active_provider_id");
+    return localStorage.getItem("claudecodeimpact_active_provider_id");
   });
 
   useEffect(() => {
-    localStorage.setItem("lovcode_llm_providers", JSON.stringify(savedProviders));
+    localStorage.setItem("claudecodeimpact_llm_providers", JSON.stringify(savedProviders));
   }, [savedProviders]);
 
   // Editor State
@@ -185,7 +185,7 @@ export function LlmProviderView() {
   const [editorId, setEditorId] = useState<string | null>(null); // null = create
   const [editorName, setEditorName] = useState("");
   const [editorEnv, setEditorEnv] = useState<Record<string, string>>({});
-  const [editorLoading, setEditorLoading] = useState(false);
+  const [editorLoading] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
 
 
@@ -243,7 +243,7 @@ export function LlmProviderView() {
       content: JSON.stringify(
         {
           env: {
-            ANTHROPIC_API_KEY: "your_anthropic_api_key_here",
+            ANTHROPIC_AUTH_TOKEN: "your_anthropic_api_key_here",
             ANTHROPIC_BASE_URL: "https://api.anthropic.com",
           },
         },
@@ -481,7 +481,7 @@ export function LlmProviderView() {
       setApplyStatus((prev) => ({ ...prev, [provider.id]: "success" }));
       trackProviderEvent({ action: "apply", provider: provider.type, success: true });
       setActiveProviderId(provider.id);
-      localStorage.setItem("lovcode_active_provider_id", provider.id);
+      localStorage.setItem("claudecodeimpact_active_provider_id", provider.id);
 
       setTimeout(() => {
         setApplyStatus((prev) => ({ ...prev, [provider.id]: "idle" }));

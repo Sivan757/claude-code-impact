@@ -1,5 +1,7 @@
 // ============================================================================
 
+use uuid::Uuid;
+
 #[tauri::command]
 fn get_settings() -> Result<ClaudeSettings, String> {
     let settings_path = get_claude_dir().join("settings.json");
@@ -145,6 +147,81 @@ fn get_settings() -> Result<ClaudeSettings, String> {
         hooks,
         mcp_servers,
     })
+}
+
+#[derive(Debug, Deserialize)]
+struct LaunchSettingsProvider {
+    provider_type: String,
+    env: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LaunchSettingsRequest {
+    provider: Option<LaunchSettingsProvider>,
+    enabled_plugins: Option<Vec<String>>,
+}
+
+#[tauri::command]
+fn create_launch_settings(request: LaunchSettingsRequest) -> Result<String, String> {
+    let settings_path = get_claude_dir().join("settings.json");
+    let mut settings: Value = if settings_path.exists() {
+        let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        serde_json::json!({})
+    };
+
+    if !settings.is_object() {
+        settings = serde_json::json!({});
+    }
+
+    if let Some(obj) = settings.as_object_mut() {
+        obj.remove("_claudecodeimpact_disabled_env");
+        obj.remove("_claudecodeimpact_custom_env_keys");
+
+        if let Some(provider) = request.provider {
+            let mut env_obj = obj
+                .get("env")
+                .and_then(|v| v.as_object())
+                .cloned()
+                .unwrap_or_default();
+
+            for (key, value) in provider.env {
+                env_obj.insert(key, Value::String(value));
+            }
+
+            obj.insert("env".to_string(), Value::Object(env_obj));
+
+            let mut cci_obj = obj
+                .get("claudecodeimpact")
+                .and_then(|v| v.as_object())
+                .cloned()
+                .unwrap_or_default();
+
+            cci_obj.insert(
+                "activeProvider".to_string(),
+                Value::String(provider.provider_type),
+            );
+            obj.insert("claudecodeimpact".to_string(), Value::Object(cci_obj));
+        }
+
+        if let Some(enabled_plugins) = request.enabled_plugins {
+            let mut plugins_obj = serde_json::Map::new();
+            for plugin_id in enabled_plugins {
+                plugins_obj.insert(plugin_id, Value::Bool(true));
+            }
+            obj.insert("enabledPlugins".to_string(), Value::Object(plugins_obj));
+        }
+    }
+
+    let launch_dir = get_lovstudio_dir().join("launch-settings");
+    fs::create_dir_all(&launch_dir).map_err(|e| e.to_string())?;
+
+    let file_path = launch_dir.join(format!("settings-{}.json", Uuid::new_v4()));
+    let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    fs::write(&file_path, output).map_err(|e| e.to_string())?;
+
+    Ok(file_path.to_string_lossy().to_string())
 }
 
 fn get_session_path(project_id: &str, session_id: &str) -> PathBuf {

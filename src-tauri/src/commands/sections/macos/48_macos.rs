@@ -240,6 +240,7 @@ pub fn run() {
             get_context_files,
             get_project_context,
             get_settings,
+            create_launch_settings,
             get_command_stats,
             get_command_weekly_stats,
             get_activity_stats,
@@ -325,9 +326,9 @@ pub fn run() {
             list_reference_sources,
             list_reference_docs,
             get_claude_code_version_info,
+            get_claude_code_available_versions,
             install_claude_code_version,
             cancel_claude_code_install,
-            set_claude_code_autoupdater,
             // PTY commands
             pty_create,
             pty_write,
@@ -386,7 +387,13 @@ pub fn run() {
             diagnostics_detect_stack,
             diagnostics_check_env,
             diagnostics_add_missing_keys,
-            diagnostics_scan_file_lines
+            diagnostics_scan_file_lines,
+            // LSP commands
+            list_lsp_servers,
+            get_lsp_config_path_cmd,
+            add_lsp_server,
+            remove_lsp_server,
+            update_lsp_server_env
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

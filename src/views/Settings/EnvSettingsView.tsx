@@ -13,7 +13,7 @@ import {
   ChevronDownIcon,
 } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
+
 import {
   Popover,
   PopoverContent,
@@ -55,14 +55,7 @@ export function EnvSettingsView() {
     );
   };
 
-  const getCustomEnvKeysFromSettings = (value: ClaudeSettings | null | undefined): string[] => {
-    const keys =
-      value?.raw && typeof value.raw === "object"
-        ? (value.raw as Record<string, unknown>)._claudecodeimpact_custom_env_keys
-        : null;
-    if (!keys || !Array.isArray(keys)) return [];
-    return keys.filter((k): k is string => typeof k === "string");
-  };
+
 
   const getDisabledEnvFromSettings = (value: ClaudeSettings | null | undefined): Record<string, string> => {
     const disabled =
@@ -76,7 +69,6 @@ export function EnvSettingsView() {
   };
 
   const rawEnv = getRawEnvFromSettings(settings);
-  const customEnvKeys = getCustomEnvKeysFromSettings(settings);
   const disabledEnv = getDisabledEnvFromSettings(settings);
 
   const allEnvEntries: Array<[string, string, boolean]> = [
@@ -142,15 +134,7 @@ export function EnvSettingsView() {
     ? ENV_VAR_SUGGESTIONS
     : ENV_VAR_SUGGESTIONS.filter(item => item.key.toLowerCase().includes(newEnvKey.toLowerCase()));
 
-  const handleApplyCorporateProxy = async () => {
-    const content = JSON.stringify({ env: { HTTP_PROXY: "http://proxy.example.com:8080", HTTPS_PROXY: "http://proxy.example.com:8080" } }, null, 2);
-    try {
-      await invoke("install_setting_template", { config: content });
-      refreshSettings();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+
 
   return (
     <ConfigPage>
@@ -223,20 +207,10 @@ export function EnvSettingsView() {
           </Button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-dashed border-border bg-card-alt">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-ink">{t('env.corporate_proxy')}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {t('env.corporate_proxy_desc')}
-            </p>
-          </div>
-          <Button size="sm" variant="outline" onClick={handleApplyCorporateProxy}>
-            {t('env.apply')}
-          </Button>
-        </div>
+
 
         {filteredEnvEntries.length > 0 ? (
-          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <div className="overflow-x-hidden rounded-lg border border-border bg-card">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground border-b border-border">
@@ -247,7 +221,6 @@ export function EnvSettingsView() {
               </thead>
               <tbody>
                 {filteredEnvEntries.map(([key, value, isDisabled]) => {
-                  const isCustom = customEnvKeys.includes(key);
                   return (
                     <tr
                       key={key}
@@ -296,18 +269,9 @@ export function EnvSettingsView() {
                             <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleEnvEnable(key)} title={t('env.enable')}>
                               <PlusCircledIcon />
                             </Button>
-                            <TooltipProvider delayDuration={1000}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-40 disabled:pointer-events-none" onClick={() => handleEnvDelete(key)} disabled={!isCustom} title={t('env.delete')}>
-                                      <TrashIcon />
-                                    </Button>
-                                  </span>
-                                </TooltipTrigger>
-                                {!isCustom && <TooltipContent>{t('env.only_custom_delete')}</TooltipContent>}
-                              </Tooltip>
-                            </TooltipProvider>
+                            <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
+                              <TrashIcon />
+                            </Button>
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1">
@@ -317,18 +281,9 @@ export function EnvSettingsView() {
                             <Button size="icon" variant="outline" className="h-7 w-7 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => handleEnvDisable(key)} title={t('env.disable')}>
                               <MinusCircledIcon />
                             </Button>
-                            <TooltipProvider delayDuration={1000}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-40 disabled:pointer-events-none" onClick={() => handleEnvDelete(key)} disabled={!isCustom} title={t('env.delete')}>
-                                      <TrashIcon />
-                                    </Button>
-                                  </span>
-                                </TooltipTrigger>
-                                {!isCustom && <TooltipContent>{t('env.only_custom_delete')}</TooltipContent>}
-                              </Tooltip>
-                            </TooltipProvider>
+                            <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
+                              <TrashIcon />
+                            </Button>
                           </div>
                         )}
                       </td>

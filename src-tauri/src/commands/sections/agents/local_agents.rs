@@ -12,7 +12,7 @@ pub struct LocalAgent {
 
 #[tauri::command]
 fn list_local_agents() -> Result<Vec<LocalAgent>, String> {
-    let commands_dir = get_claude_dir().join("commands");
+    let commands_dir = get_claude_dir().join("agents");
 
     if !commands_dir.exists() {
         return Ok(vec![]);
@@ -40,26 +40,22 @@ fn collect_agents(
             let content = fs::read_to_string(&path).unwrap_or_default();
             let (frontmatter, _, body) = parse_frontmatter(&content);
 
-            // Only include if it has a 'model' field (agents have model, commands don't)
-            if frontmatter.contains_key("model") {
-                let relative = path.strip_prefix(base_dir).unwrap_or(&path);
-                let name = relative
-                    .to_string_lossy()
-                    .trim_end_matches(".md")
-                    .replace("\\", "/")
-                    .to_string();
+            let relative = path.strip_prefix(base_dir).unwrap_or(&path);
+            let name = relative
+                .to_string_lossy()
+                .trim_end_matches(".md")
+                .replace("\\", "/")
+                .to_string();
 
-                agents.push(LocalAgent {
-                    name,
-                    path: path.to_string_lossy().to_string(),
-                    description: frontmatter.get("description").cloned(),
-                    model: frontmatter.get("model").cloned(),
-                    tools: frontmatter.get("tools").cloned(),
-                    content: body,
-                });
-            }
+            agents.push(LocalAgent {
+                name,
+                path: path.to_string_lossy().to_string(),
+                description: frontmatter.get("description").cloned(),
+                model: frontmatter.get("model").cloned(),
+                tools: frontmatter.get("tools").cloned(),
+                content: body,
+            });
         }
     }
     Ok(())
 }
-

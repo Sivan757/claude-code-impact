@@ -1,22 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
-import { ChevronLeftIcon, ChevronRightIcon, DrawingPinFilledIcon, ChevronDownIcon, FileIcon, DesktopIcon } from "@radix-ui/react-icons";
+import { invoke } from "@tauri-apps/api/core";
+import { ChevronLeftIcon, ChevronRightIcon, DrawingPinFilledIcon, ChevronDownIcon, FileIcon, DesktopIcon, GearIcon } from "@radix-ui/react-icons";
 import { SessionPanel } from "./SessionPanel";
 import { ProjectLogo } from "../../views/Workspace/ProjectLogo";
 import type { LayoutNode } from "../../views/Workspace/types";
 import { TERMINAL_OPTIONS, type ProjectOption } from "../ui/new-terminal-button";
 import { SlashCommandMenu, type CommandItem } from "../ui/slash-command-menu";
 import { useInvokeQuery } from "../../hooks";
-import type { LocalCommand, CodexCommand } from "../../types";
+import type { LocalCommand, CodexCommand, InstalledPlugin } from "../../types";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
 } from "../ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 export interface SessionState {
   id: string;
@@ -61,6 +71,14 @@ export interface PanelGridProps {
   onSelectProject?: (project: ProjectOption, command?: string, initialInput?: string) => void;
   /** Called when user wants to add a new folder */
   onAddFolder?: () => void;
+}
+
+interface SavedProvider {
+  id: string;
+  type: string;
+  name: string;
+  env: Record<string, string>;
+  updatedAt: number;
 }
 
 /** Recursively render layout tree */
@@ -194,6 +212,17 @@ export function PanelGrid({
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
+  const [savedProviders] = useState<SavedProvider[]>(() => {
+    try {
+      const stored = localStorage.getItem("claudecodeimpact_llm_providers");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("global");
+  const [selectedPlugins, setSelectedPlugins] = useState<Set<string>>(new Set());
+  const [pluginSelectionInitialized, setPluginSelectionInitialized] = useState(false);
 
   // Fetch commands for autocomplete
   const { data: localCommands = [] } = useInvokeQuery<LocalCommand[]>(
@@ -204,11 +233,34 @@ export function PanelGrid({
     ["codexCommands"],
     "list_codex_commands"
   );
+  const { data: installedPlugins = [] } = useInvokeQuery<InstalledPlugin[]>(
+    ["installedPlugins"],
+    "list_installed_plugins"
+  );
 
   // Get commands based on terminal type (both use / trigger)
   const commandItems: CommandItem[] = selectedTerminalType.type === "codex"
     ? codexCommands.map(c => ({ name: c.name, description: c.description, path: c.path || c.name }))
     : localCommands.filter(c => c.status === "active").map(c => ({ name: c.name, description: c.description, path: c.path }));
+
+  const sortedPlugins = useMemo(
+    () => [...installedPlugins].sort((a, b) => a.name.localeCompare(b.name)),
+    [installedPlugins]
+  );
+
+  useEffect(() => {
+    if (pluginSelectionInitialized || installedPlugins.length === 0) return;
+    const enabled = installedPlugins.filter((plugin) => plugin.enabled).map((plugin) => plugin.id);
+    setSelectedPlugins(new Set(enabled));
+    setPluginSelectionInitialized(true);
+  }, [installedPlugins, pluginSelectionInitialized]);
+
+  useEffect(() => {
+    if (selectedProviderId === "global") return;
+    if (!savedProviders.some((provider) => provider.id === selectedProviderId)) {
+      setSelectedProviderId("global");
+    }
+  }, [savedProviders, selectedProviderId]);
 
   // Sync with activeProjectId when it changes
   useEffect(() => {
@@ -244,11 +296,34 @@ export function PanelGrid({
     const hasProjects = projects && projects.length > 0;
     const selectedProject = projects?.find((p) => p.id === selectedProjectId) || projects?.[0];
 
-    const handleCreate = (userInput?: string) => {
+    const handleCreate = async (userInput?: string) => {
       // For claude/codex, append user input as argument to command
       // For plain terminal, use initialInput to send after PTY is ready (interactive)
       let command = selectedTerminalType.command;
       let initialInput: string | undefined;
+
+      if (command?.startsWith("claude")) {
+        const selectedProvider =
+          selectedProviderId === "global"
+            ? null
+            : savedProviders.find((provider) => provider.id === selectedProviderId) ?? null;
+        const shouldOverridePlugins = pluginSelectionInitialized || selectedPlugins.size > 0;
+        const enabledPlugins = shouldOverridePlugins ? Array.from(selectedPlugins) : null;
+
+        if (selectedProvider || enabledPlugins) {
+          try {
+            const settingsPath = await invoke<string>("create_launch_settings", {
+              provider: selectedProvider
+                ? { providerType: selectedProvider.type, env: selectedProvider.env }
+                : null,
+              enabledPlugins,
+            });
+            command = `${command} --settings "${settingsPath}"`;
+          } catch (error) {
+            console.error("Failed to create launch settings:", error);
+          }
+        }
+      }
 
       if (userInput) {
         if (command) {
@@ -429,7 +504,7 @@ export function PanelGrid({
 
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleCreate(inputCommand || undefined);
+                    void handleCreate(inputCommand || undefined);
                   }
                 }}
               />
@@ -454,7 +529,7 @@ export function PanelGrid({
               ) : (
                 <div className="flex items-center justify-end px-3 py-2.5 border-t border-border bg-muted/30">
                   <button
-                    onClick={() => handleCreate(inputCommand || undefined)}
+                    onClick={() => void handleCreate(inputCommand || undefined)}
                     className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
                   >
                     {t('workspace.empty_state.start')}
@@ -463,6 +538,109 @@ export function PanelGrid({
               )}
             </div>
           </div>
+
+          {selectedTerminalType.type === "claude" && (
+            <div className="w-full max-w-md">
+              <Collapsible>
+                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-2.5 text-xs border border-border bg-card hover:bg-card-alt rounded-xl transition-colors">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <GearIcon className="w-3.5 h-3.5" />
+                    <span>{t('workspace.empty_state.launch_options')}</span>
+                  </div>
+                  <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 border border-border rounded-xl bg-card px-4 py-3">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {t('workspace.empty_state.launch_provider')}
+                      </span>
+                      <Select value={selectedProviderId} onValueChange={setSelectedProviderId}>
+                        <SelectTrigger size="sm" className="min-w-[160px]">
+                          <SelectValue placeholder={t('workspace.empty_state.launch_provider_placeholder')} />
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          <SelectItem value="global">
+                            {t('workspace.empty_state.launch_provider_global')}
+                          </SelectItem>
+                          {savedProviders.map((provider) => (
+                            <SelectItem key={provider.id} value={provider.id}>
+                              {provider.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {t('workspace.empty_state.launch_plugins')}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="inline-flex items-center justify-between gap-2 px-3 py-1.5 text-xs border border-border bg-card-alt hover:bg-muted rounded-lg transition-colors min-w-[160px]">
+                            <span className="truncate">
+                              {selectedPlugins.size > 0
+                                ? t('workspace.empty_state.launch_plugins_selected', { count: selectedPlugins.size })
+                                : t('workspace.empty_state.launch_plugins_none')}
+                            </span>
+                            <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-60 max-h-64 overflow-y-auto">
+                          {sortedPlugins.length === 0 ? (
+                            <DropdownMenuItem disabled>
+                              {t('workspace.empty_state.launch_plugins_empty')}
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedPlugins(new Set(sortedPlugins.map((plugin) => plugin.id)));
+                                  setPluginSelectionInitialized(true);
+                                }}
+                              >
+                                {t('workspace.empty_state.launch_plugins_select_all')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedPlugins(new Set());
+                                  setPluginSelectionInitialized(true);
+                                }}
+                              >
+                                {t('workspace.empty_state.launch_plugins_clear')}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {sortedPlugins.map((plugin) => (
+                                <DropdownMenuCheckboxItem
+                                  key={plugin.id}
+                                  checked={selectedPlugins.has(plugin.id)}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedPlugins((prev) => {
+                                      const next = new Set(prev);
+                                      if (checked) {
+                                        next.add(plugin.id);
+                                      } else {
+                                        next.delete(plugin.id);
+                                      }
+                                      return next;
+                                    });
+                                    setPluginSelectionInitialized(true);
+                                  }}
+                                >
+                                  <span className="truncate">{plugin.name}</span>
+                                </DropdownMenuCheckboxItem>
+                              ))}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
         </div>
       </div>
     );

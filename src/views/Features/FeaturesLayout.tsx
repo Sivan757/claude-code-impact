@@ -6,17 +6,19 @@ import { TEMPLATE_CATEGORIES } from "@/constants";
 import type { FeatureType, TemplateCategory } from "@/types";
 import { useTranslation } from "react-i18next";
 
-type SidebarKey = TemplateCategory | "basic-env" | "basic-llm" | "basic-version" | "context" | "extensions";
+type SidebarKey = TemplateCategory | "basic-env" | "basic-llm" | "basic-version" | "basic-settings" | "extensions";
 
 // Map sidebar key to route path
 const KEY_TO_ROUTE: Record<SidebarKey, string> = {
   "basic-env": "/settings/env",
   "basic-llm": "/settings/llm",
   "basic-version": "/settings/version",
-  "context": "/settings/context",
+  "basic-settings": "/settings",
+  context: "/context",
   settings: "/settings",
   commands: "/commands",
   mcps: "/mcp",
+  lsps: "/lsp",
   skills: "/skills",
   hooks: "/hooks",
   agents: "/agents",
@@ -30,10 +32,11 @@ const FEATURE_TO_KEY: Partial<Record<FeatureType, SidebarKey>> = {
   "basic-env": "basic-env",
   "basic-llm": "basic-llm",
   "basic-version": "basic-version",
-  "context": "context",
-  settings: "settings",
+  settings: "basic-settings",
+  context: "context",
   commands: "commands",
   mcp: "mcps",
+  lsp: "lsps",
   skills: "skills",
   hooks: "hooks",
   "sub-agents": "agents",
@@ -70,7 +73,7 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
           key: c.key,
           label: t(`features.${c.key === 'mcps' ? 'mcp' : c.key === 'agents' ? 'sub-agents' : c.key === 'statuslines' ? 'statusline' : c.key}`)
         })),
-        { key: "extensions", label: t('features.extensions') },
+        { key: "extensions", label: t('features.plugins') },
       ],
     },
   ], [t]);

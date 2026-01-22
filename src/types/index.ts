@@ -14,6 +14,7 @@ export type FeatureType =
   | "statusline"
   | "commands"
   | "mcp"
+  | "lsp"
   | "skills"
   | "hooks"
   | "sub-agents"
@@ -351,7 +352,6 @@ export interface ClaudeCodeVersionInfo {
   install_type: ClaudeCodeInstallType;
   current_version: string | null;
   available_versions: VersionWithDownloads[];
-  autoupdater_disabled: boolean;
 }
 
 // ============================================================================

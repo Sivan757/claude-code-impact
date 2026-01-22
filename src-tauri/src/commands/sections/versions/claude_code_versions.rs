@@ -19,7 +19,6 @@ struct ClaudeCodeVersionInfo {
     install_type: ClaudeCodeInstallType,
     current_version: Option<String>,
     available_versions: Vec<VersionWithDownloads>,
-    autoupdater_disabled: bool,
 }
 
 /// Run a command in user's interactive login shell (to get proper PATH with nvm, etc.)
@@ -43,7 +42,7 @@ fn run_shell_command(cmd: &str) -> std::io::Result<std::process::Output> {
 }
 
 /// Detect Claude Code installation type
-/// Prioritizes native install (~/.local/bin/claude) over npm when both exist
+/// Prioritizes checking checking common paths first for speed, then falling back to shell PATH
 fn detect_claude_code_install_type() -> (ClaudeCodeInstallType, Option<String>) {
     // Helper to get version from a specific claude binary path
     let get_version = |path: &str| -> Option<String> {
@@ -60,27 +59,79 @@ fn detect_claude_code_install_type() -> (ClaudeCodeInstallType, Option<String>) 
         None
     };
 
-    // Check native install first (preferred) - ~/.local/bin/claude
-    let native_path = dirs::home_dir()
-        .map(|h| h.join(".local/bin/claude"))
-        .filter(|p| p.exists());
+    // 1. Fast Path: Check common installation locations first
+    // This avoids the overhead of spawning a login shell (zsh -ilc) which can take 1-3s
+    let common_paths = vec![
+        // Native / Standard paths
+        ".local/bin/claude",
+        "/usr/local/bin/claude",
+        "/opt/homebrew/bin/claude",
+        // Common NPM global paths
+        ".npm-global/bin/claude",
+    ];
 
-    if let Some(ref path) = native_path {
-        if let Some(version) = get_version(path.to_str().unwrap_or("")) {
-            return (ClaudeCodeInstallType::Native, Some(version));
+    // Add absolute paths that don't depend on home dir
+    let mut absolute_candidates = vec![];
+
+    if let Some(home) = dirs::home_dir() {
+        for p in common_paths {
+            if p.starts_with("/") {
+                absolute_candidates.push(std::path::PathBuf::from(p));
+            } else {
+                absolute_candidates.push(home.join(p));
+            }
+        }
+    } else {
+        // No home dir, just check absolute paths
+        for p in common_paths {
+            if p.starts_with("/") {
+                absolute_candidates.push(std::path::PathBuf::from(p));
+            }
         }
     }
 
-    // Check npm install via `which claude` in user's shell
+    // Check candidates
+    for path in absolute_candidates {
+        if path.exists() {
+            if let Some(version) = get_version(path.to_str().unwrap_or("")) {
+                let path_str = path.to_string_lossy();
+                // Heuristic detection based on path
+                let is_npm_path = path_str.contains("node_modules")
+                    || path_str.contains("/npm/")
+                    || path_str.contains("/nvm/")
+                    || path_str.contains(".npm-global");
+
+                if is_npm_path {
+                    return (ClaudeCodeInstallType::Npm, Some(version));
+                } else {
+                    return (ClaudeCodeInstallType::Native, Some(version));
+                }
+            }
+        }
+    }
+
+    // 2. Slow Path: Try to find 'claude' in the user's PATH via shell
+    // This allows for NVM, custom setups, etc.
     if let Ok(which_output) = run_shell_command("which claude 2>/dev/null") {
         if which_output.status.success() {
-            let claude_path = String::from_utf8_lossy(&which_output.stdout);
-            let claude_path = claude_path.trim();
+            let claude_path_raw = String::from_utf8_lossy(&which_output.stdout);
+            let claude_path = claude_path_raw.trim().to_string();
 
-            // Skip if it's the native path we already checked
-            if !claude_path.contains(".local/bin/claude") && !claude_path.is_empty() {
-                if let Some(version) = get_version(claude_path) {
-                    return (ClaudeCodeInstallType::Npm, Some(version));
+            if !claude_path.is_empty() {
+                if let Some(version) = get_version(&claude_path) {
+                    // Start Heuristic detection of Install Type based on path
+                    // If path contains node_modules, npm, nvm, usage of 'node' -> NPM
+                    let is_npm_path = claude_path.contains("node_modules")
+                        || claude_path.contains("/npm/")
+                        || claude_path.contains("/nvm/")
+                        || claude_path.contains(".npm-global");
+
+                    if is_npm_path {
+                        return (ClaudeCodeInstallType::Npm, Some(version));
+                    } else {
+                        // Assume Native/Standalone for other paths (e.g. /usr/local/bin, ~/.local/bin, /opt/homebrew/bin)
+                        return (ClaudeCodeInstallType::Native, Some(version));
+                    }
                 }
             }
         }
@@ -91,67 +142,84 @@ fn detect_claude_code_install_type() -> (ClaudeCodeInstallType, Option<String>) 
 
 #[tauri::command]
 async fn get_claude_code_version_info() -> Result<ClaudeCodeVersionInfo, String> {
-    // Detect installation type and current version
-    let (install_type, current_version) =
-        tauri::async_runtime::spawn_blocking(detect_claude_code_install_type)
-            .await
-            .map_err(|e| e.to_string())?;
+    // For local version check, execute detect task only
+    let detect_task = tauri::async_runtime::spawn_blocking(detect_claude_code_install_type);
+    let (install_type, current_version) = detect_task.await.map_err(|e| e.to_string())?;
 
-    // Fetch available versions from npm registry API (no local npm needed)
+    // Return partial result (available_versions empty)
+    Ok(ClaudeCodeVersionInfo {
+        install_type,
+        current_version,
+        available_versions: vec![],
+    })
+}
+
+#[tauri::command]
+async fn get_claude_code_available_versions() -> Result<Vec<VersionWithDownloads>, String> {
+    // Shared client
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(5))
         .build()
         .unwrap_or_default();
 
-    // Get versions list from npm registry
-    let versions: Vec<String> = match client
-        .get("https://registry.npmjs.org/@anthropic-ai/claude-code")
-        .send()
-        .await
-    {
-        Ok(resp) => resp
-            .json::<serde_json::Value>()
+    // Task 1: Fetch available versions (Network)
+    let client_v = client.clone();
+    let versions_task = async move {
+        match client_v
+            .get("https://registry.npmjs.org/@anthropic-ai/claude-code")
+            .send()
             .await
-            .ok()
-            .and_then(|json| {
-                json.get("versions")?.as_object().map(|obj| {
-                    let mut versions: Vec<String> = obj.keys().cloned().collect();
-                    // Sort by semver (simple string sort works for most cases)
-                    versions.sort_by(|a, b| {
-                        let parse = |s: &str| -> Vec<u32> {
-                            s.split('.').filter_map(|p| p.parse().ok()).collect()
-                        };
-                        parse(b).cmp(&parse(a))
-                    });
-                    versions.into_iter().take(20).collect()
+        {
+            Ok(resp) => resp
+                .json::<serde_json::Value>()
+                .await
+                .ok()
+                .and_then(|json| {
+                    json.get("versions")?.as_object().map(|obj| {
+                        let mut versions: Vec<String> = obj.keys().cloned().collect();
+                        // Sort by semver (simple string sort works for most cases)
+                        versions.sort_by(|a, b| {
+                            let parse = |s: &str| -> Vec<u32> {
+                                s.split('.').filter_map(|p| p.parse().ok()).collect()
+                            };
+                            parse(b).cmp(&parse(a))
+                        });
+                        versions.into_iter().take(20).collect::<Vec<String>>()
+                    })
                 })
-            })
-            .unwrap_or_default(),
-        Err(_) => vec![],
+                .unwrap_or_default(),
+            Err(_) => vec![],
+        }
     };
 
-    // Fetch download counts from npm API
-    let downloads_map: std::collections::HashMap<String, u64> = match client
-        .get("https://api.npmjs.org/versions/@anthropic-ai%2Fclaude-code/last-week")
-        .send()
-        .await
-    {
-        Ok(resp) => resp
-            .json::<serde_json::Value>()
+    // Task 2: Fetch downloads (Network)
+    let client_d = client.clone();
+    let downloads_task = async move {
+        match client_d
+            .get("https://api.npmjs.org/versions/@anthropic-ai%2Fclaude-code/last-week")
+            .send()
             .await
-            .ok()
-            .and_then(|json| {
-                json.get("downloads")?.as_object().map(|obj| {
-                    obj.iter()
-                        .filter_map(|(k, v)| Some((k.clone(), v.as_u64()?)))
-                        .collect()
+        {
+            Ok(resp) => resp
+                .json::<serde_json::Value>()
+                .await
+                .ok()
+                .and_then(|json| {
+                    json.get("downloads")?.as_object().map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| Some((k.clone(), v.as_u64()?)))
+                            .collect::<std::collections::HashMap<String, u64>>()
+                    })
                 })
-            })
-            .unwrap_or_default(),
-        Err(_) => std::collections::HashMap::new(),
+                .unwrap_or_default(),
+            Err(_) => std::collections::HashMap::new(),
+        }
     };
 
-    // Combine versions with download counts
+    // Execute in parallel
+    let (versions, downloads_map) = tokio::join!(versions_task, downloads_task);
+
+    // Combine data
     let available_versions: Vec<VersionWithDownloads> = versions
         .into_iter()
         .map(|v| {
@@ -163,25 +231,7 @@ async fn get_claude_code_version_info() -> Result<ClaudeCodeVersionInfo, String>
         })
         .collect();
 
-    // Check autoupdater setting
-    let settings_path = get_claude_dir().join("settings.json");
-    let autoupdater_disabled = fs::read_to_string(&settings_path)
-        .ok()
-        .and_then(|content| {
-            let json: serde_json::Value = serde_json::from_str(&content).ok()?;
-            json.get("env")?
-                .get("DISABLE_AUTOUPDATER")?
-                .as_str()
-                .map(|s| s == "true" || s == "1")
-        })
-        .unwrap_or(false);
-
-    Ok(ClaudeCodeVersionInfo {
-        install_type,
-        current_version,
-        available_versions,
-        autoupdater_disabled,
-    })
+    Ok(available_versions)
 }
 
 #[tauri::command]
@@ -190,7 +240,6 @@ async fn install_claude_code_version(
     version: String,
     install_type: Option<String>,
 ) -> Result<String, String> {
-    use std::io::{BufRead, BufReader};
     use std::process::{Command, Stdio};
 
     let is_specific_version = version != "latest";
@@ -372,7 +421,7 @@ async fn install_claude_code_version(
     .map_err(|e| e.to_string())??;
 
     if is_specific_version {
-        let _ = set_claude_code_autoupdater(true);
+        // Auto-updater logic removed
     }
 
     Ok(result)
@@ -409,35 +458,3 @@ fn cancel_claude_code_install() -> Result<(), String> {
     CC_INSTALL_PID.store(0, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }
-
-#[tauri::command]
-fn set_claude_code_autoupdater(disabled: bool) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
-
-    // Read existing settings or create empty object
-    let mut settings: serde_json::Value = if settings_path.exists() {
-        let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
-    } else {
-        serde_json::json!({})
-    };
-
-    // Ensure env object exists
-    if !settings.get("env").is_some() {
-        settings["env"] = serde_json::json!({});
-    }
-
-    // Set DISABLE_AUTOUPDATER
-    settings["env"]["DISABLE_AUTOUPDATER"] = serde_json::Value::String(if disabled {
-        "true".to_string()
-    } else {
-        "false".to_string()
-    });
-
-    // Write back
-    let content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    fs::write(&settings_path, content).map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-

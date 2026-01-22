@@ -41,4 +41,5 @@ include!("sections/files/project_logo.rs");
 include!("sections/files/filesystem.rs");
 include!("sections/git/git_commands.rs");
 include!("sections/diagnostics/diagnostics_commands.rs");
+include!("sections/lsp/lsp_commands.rs");
 include!("sections/macos/48_macos.rs");

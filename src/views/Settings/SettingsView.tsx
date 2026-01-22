@@ -102,7 +102,7 @@ export function SettingsView() {
   const [showRawJson, setShowRawJson] = useState(false);
   const [expandedHookEvents, setExpandedHookEvents] = useState<Set<string>>(new Set());
 
-  if (isLoading) return <LoadingState message={t('settings.loading')} />;
+
 
   const raw = (settings?.raw as Record<string, unknown>) || {};
   const model = (raw.model as ModelType) || "sonnet";
@@ -183,6 +183,8 @@ export function SettingsView() {
       updateAttribution(mode).catch(() => { });
     }
   }, [raw.attribution]);
+
+  if (isLoading) return <LoadingState message={t('settings.loading')} />;
 
   const updatePermissionField = async (field: string, value: unknown) => {
     await invoke("update_settings_permission_field", { field, value });

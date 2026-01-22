@@ -42,7 +42,7 @@ export function ClaudeCodeVersionSection() {
   const installGenRef = useRef(0); // Track install generation to filter stale events
 
   const loadVersionInfo = async () => {
-    setLoading(true);
+    // Stage 1: Fast local detection
     setError(null);
     try {
       const info = await invoke<ClaudeCodeVersionInfo>("get_claude_code_version_info");
@@ -50,13 +50,22 @@ export function ClaudeCodeVersionSection() {
       if (info.current_version) {
         setSelectedVersion(info.current_version);
       }
-      // Set install type from detected type
       if (info.install_type !== "none") {
         setSelectedInstallType(info.install_type);
       }
+      // UI is ready to show local state
+      setLoading(false);
+
+      // Stage 2: Fetch available versions (async)
+      try {
+        const versions = await invoke<any[]>("get_claude_code_available_versions");
+        setVersionInfo(prev => prev ? { ...prev, available_versions: versions } : null);
+      } catch (e) {
+        console.warn("Failed to fetch remote versions:", e);
+      }
+
     } catch (e) {
       setError(String(e));
-    } finally {
       setLoading(false);
     }
   };
@@ -165,15 +174,7 @@ export function ClaudeCodeVersionSection() {
     }
   };
 
-  const handleToggleAutoupdater = async () => {
-    if (!versionInfo) return;
-    try {
-      await invoke("set_claude_code_autoupdater", { disabled: !versionInfo.autoupdater_disabled });
-      setVersionInfo({ ...versionInfo, autoupdater_disabled: !versionInfo.autoupdater_disabled });
-    } catch (e) {
-      setError(String(e));
-    }
-  };
+
 
   if (loading) {
     return (
@@ -330,26 +331,7 @@ export function ClaudeCodeVersionSection() {
         </div>
       )}
 
-      {/* Auto-updater toggle */}
-      {!isNotInstalled && (
-        <div className="flex items-center justify-between gap-3 p-2 rounded-lg border border-border bg-card-alt">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-ink">{t('claude_code.autoupdater')}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {versionInfo?.autoupdater_disabled
-                ? t('claude_code.autoupdater_disabled')
-                : t('claude_code.autoupdater_enabled')}
-            </p>
-          </div>
-          <Button
-            size="sm"
-            variant={versionInfo?.autoupdater_disabled ? "default" : "outline"}
-            onClick={handleToggleAutoupdater}
-          >
-            {versionInfo?.autoupdater_disabled ? t('claude_code.enable') : t('claude_code.disable')}
-          </Button>
-        </div>
-      )}
+
 
       {/* Error/Success messages */}
       {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2">{error}</p>}
