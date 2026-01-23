@@ -1,7 +1,7 @@
 //! Workspace data persistence
 //!
 //! Stores workspace configuration including projects, features, and panel states.
-//! Data is persisted to ~/.lovstudio/claudecodeimpact/workspace.json
+//! Data is persisted to ~/.claudecodeimpact/claudecodeimpact/workspace.json
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 fn get_workspace_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".lovstudio")
+        .join(".claudecodeimpact")
         .join("claudecodeimpact")
         .join("workspace.json")
 }

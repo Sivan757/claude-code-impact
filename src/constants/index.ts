@@ -117,8 +117,6 @@ export const FEATURES: FeatureConfig[] = [
 export const SOURCE_FILTERS = [
   { id: "all", label: "All", tooltip: "All sources" },
   { id: "anthropic", label: "Anthropic", tooltip: "github.com/anthropics/claude-plugins-official" },
-  { id: "lovstudio", label: "Lovstudio", tooltip: "github.com/markshawn2020/lovstudio-plugins-official" },
-  { id: "community", label: "CCT", tooltip: "github.com/davila7/claude-code-templates" },
 ] as const;
 
 export type SourceFilterId = (typeof SOURCE_FILTERS)[number]["id"];

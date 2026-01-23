@@ -7,6 +7,8 @@ export interface SessionState {
   pty_id: string;
   title: string;
   command?: string;
+  /** Shell to use (e.g., bash, zsh, fish) */
+  shell?: string;
   /** Text to send to terminal after it's ready (for interactive input) */
   initial_input?: string;
 }
@@ -80,10 +82,6 @@ export interface WorkspaceData {
   feature_counter?: number;
 }
 
-// ============================================================================
-// Git Types
-// ============================================================================
-
 /** Git commit info */
 export interface CommitInfo {
   hash: string;
@@ -92,45 +90,4 @@ export interface CommitInfo {
   timestamp: number;
   author: string;
   feat_name?: string;
-}
-
-/** Git note for commit association */
-export interface CommitNote {
-  feat_id: string;
-  feat_name?: string;
-  override_assoc?: boolean;
-}
-
-// ============================================================================
-// Diagnostics Types
-// ============================================================================
-
-/** Detected tech stack */
-export interface TechStack {
-  runtime: string; // node, python, rust, unknown
-  package_manager?: string;
-  orm?: string;
-  frameworks: string[];
-}
-
-/** Leaked secret info */
-export interface LeakedSecret {
-  file: string;
-  line: number;
-  key_name: string;
-  preview: string;
-}
-
-/** Environment check result */
-export interface EnvCheckResult {
-  missing_keys: string[];
-  leaked_secrets: LeakedSecret[];
-  env_example_exists: boolean;
-  env_exists: boolean;
-}
-
-/** File line count */
-export interface FileLineCount {
-  file: string;
-  lines: number;
 }

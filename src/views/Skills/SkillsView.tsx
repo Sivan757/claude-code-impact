@@ -67,13 +67,13 @@ export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
                             {hasMarketplaceInfo && (
                               <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${meta?.source_id === "anthropic"
                                 ? "bg-amber-500/10 text-amber-600"
-                                : meta?.source_id === "lovstudio"
+                                : meta?.source_id === "claudecodeimpact"
                                   ? "bg-primary/10 text-primary"
                                   : "bg-muted text-muted-foreground"
                                 }`}>
                                 {meta?.source_id === "anthropic" ? (
                                   <StarFilledIcon className="w-3 h-3 inline mr-1" />
-                                ) : meta?.source_id === "lovstudio" ? (
+                                ) : meta?.source_id === "claudecodeimpact" ? (
                                   <HeartFilledIcon className="w-3 h-3 inline mr-1" />
                                 ) : (
                                   <GlobeIcon className="w-3 h-3 inline mr-1" />

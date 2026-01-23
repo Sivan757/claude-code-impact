@@ -50,7 +50,7 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
   );
 
   const sorted = [...filtered].sort((a, b) => {
-    const priorityMap: Record<string, number> = { anthropic: 1, lovstudio: 2, community: 3 };
+    const priorityMap: Record<string, number> = { anthropic: 1, claudecodeimpact: 2, community: 3 };
     const aPriority = priorityMap[a.source_id || "community"] || 3;
     const bPriority = priorityMap[b.source_id || "community"] || 3;
     if (aPriority !== bPriority) return aPriority - bPriority;
@@ -61,7 +61,7 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
     switch (id) {
       case "all": return t('marketplace.all');
       case "anthropic": return t('marketplace.anthropic');
-      case "lovstudio": return t('marketplace.lovstudio');
+      case "claudecodeimpact": return t('marketplace.claudecodeimpact');
       case "community": return t('marketplace.community');
       default: return id;
     }
@@ -71,7 +71,7 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
     switch (id) {
       case "all": return t('marketplace.all_tooltip');
       case "anthropic": return t('marketplace.official_tooltip');
-      case "lovstudio": return t('marketplace.lovstudio_tooltip');
+      case "claudecodeimpact": return t('marketplace.claudecodeimpact_tooltip');
       case "community": return t('marketplace.community_tooltip');
       default: return "";
     }
@@ -134,7 +134,7 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
                 <span
                   className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${template.source_id === "anthropic"
                     ? "bg-amber-500/10 text-amber-600"
-                    : template.source_id === "lovstudio"
+                    : template.source_id === "claudecodeimpact"
                       ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground"
                     }`}

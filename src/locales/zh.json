@@ -243,7 +243,7 @@
             "history": "历史记录",
             "generate": "生成图标",
             "auto_info_prefix": "自动生成",
-            "style_lovinsp": "Lovstudio 品牌风格",
+            "style_lovinsp": "claudecodeimpact 品牌风格",
             "logo_for": "图标用于",
             "hide_custom": "▼ 隐藏自定义提示词",
             "show_custom": "▶ 自定义提示词 (可选)",
@@ -284,10 +284,14 @@
             "launch_plugins_empty": "未安装插件",
             "launch_plugins_select_all": "全选",
             "launch_plugins_clear": "清空选择",
+            "launch_no_options": "终端无额外配置项",
+            "launch_shell": "Shell",
+            "launch_shell_placeholder": "选择 Shell",
+            "launch_shell_default": "默认 Shell",
             "add_folder": "添加文件夹...",
             "select_folder": "选择文件夹",
             "slash_no_commands": "未找到命令",
-            "slash_disabled_hint": "斜杠命令仅在 Claude Code 或 Codex 模式下可用"
+            "slash_disabled_hint": "斜杠命令仅在 Claude Code 模式下可用"
         }
     },
     "panel": {
@@ -600,7 +604,7 @@
         "docs_count": "{{count}} 个文档",
         "no_docs": "暂无文档",
         "no_sources": "暂无参考资料",
-        "no_sources_hint": "在 ~/.lovstudio/docs/reference/ 中添加文档符号链接",
+        "no_sources_hint": "在 ~/.claudecodeimpact/docs/reference/ 中添加文档符号链接",
         "group_count": "({{count}})"
     },
     "distill": {
@@ -911,11 +915,11 @@
         "no_templates": "未找到模板",
         "all": "全部",
         "anthropic": "Anthropic",
-        "lovstudio": "Lovstudio",
+        "claudecodeimpact": "claudecodeimpact",
         "community": "社区",
         "from": "来自 {{name}}",
         "official_tooltip": "官方 Claude Code 插件",
-        "lovstudio_tooltip": "官方 Lovstudio 插件",
+        "claudecodeimpact_tooltip": "官方 claudecodeimpact 插件",
         "community_tooltip": "社区贡献的模板",
         "all_tooltip": "所有来源",
         "content_preview": "内容预览"

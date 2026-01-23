@@ -14,13 +14,13 @@ pub struct DistillDocument {
 pub(super) fn get_distill_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".lovstudio/docs/distill")
+        .join(".claudecodeimpact/docs/distill")
 }
 
 fn get_reference_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".lovstudio/docs/reference")
+        .join(".claudecodeimpact/docs/reference")
 }
 
 #[derive(Debug, Serialize, Deserialize)]

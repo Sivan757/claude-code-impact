@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Design System
 
-This project uses **Lovstudio Warm Academic Style (暖学术风格)**
+This project uses **claudecodeimpact Warm Academic Style (暖学术风格)**
 
-Reference complete design guide: file:///Users/mark/@lovstudio/design/design-guide.md
+Reference complete design guide: file:///Users/mark/@claudecodeimpact/design/design-guide.md
 
 ### Quick Rules
 1. **禁止硬编码颜色**：必须使用 semantic 类名（如 `bg-primary`、`text-muted-foreground`）

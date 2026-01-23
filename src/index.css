@@ -7,7 +7,7 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  /* Lovstudio Warm Academic Theme */
+  /* claudecodeimpact Warm Academic Theme */
   /* Warm Academic Color Palette */
   --color-canvas: #F9F9F7;
   --color-canvas-alt: #F0EEE6;
@@ -128,7 +128,7 @@ input, button, a, select, textarea {
 }
 
 :root {
-  /* Lovstudio Warm Academic Theme - Light Mode */
+  /* claudecodeimpact Warm Academic Theme - Light Mode */
   --radius: 1rem;
 
   /* #F9F9F7 暖米色 (Warm Beige) */
@@ -168,7 +168,7 @@ input, button, a, select, textarea {
 }
 
 .dark {
-  /* Lovstudio Warm Academic Theme - Dark Mode */
+  /* claudecodeimpact Warm Academic Theme - Dark Mode */
   --background: oklch(0.18 0.01 35);
   --foreground: oklch(0.95 0.005 85);
   --card: oklch(0.22 0.01 35);

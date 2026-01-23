@@ -329,7 +329,7 @@ fn rename_command(
         return Err("Can only rename .md commands".to_string());
     }
 
-    // Parse new_name as a command path (e.g., /lovstudio/repo/takeover)
+    // Parse new_name as a command path (e.g., /claudecodeimpact/repo/takeover)
     let name = new_name.trim().trim_start_matches('/');
     if name.is_empty() {
         return Err("New name cannot be empty".to_string());

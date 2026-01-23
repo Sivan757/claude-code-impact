@@ -20,18 +20,18 @@ const PLUGIN_SOURCES: &[PluginSource] = &[
         path: "third-parties/claude-plugins-official",
     },
     PluginSource {
-        id: "lovstudio",
-        name: "Lovstudio",
+        id: "claudecodeimpact",
+        name: "claudecodeimpact",
         icon: "💜",
         priority: 2,
-        path: "marketplace/lovstudio",
+        path: "marketplace/claudecodeimpact",
     },
     PluginSource {
-        id: "lovstudio-plugins",
-        name: "Lovstudio Plugins",
+        id: "claudecodeimpact-plugins",
+        name: "claudecodeimpact Plugins",
         icon: "💜",
         priority: 3,
-        path: "../lovstudio-plugins-official",
+        path: "../claudecodeimpact-plugins-official",
     },
     PluginSource {
         id: "community",
@@ -397,7 +397,7 @@ fn load_plugin_directory(
     components
 }
 
-/// Load a single plugin (lovstudio-plugins-official style)
+/// Load a single plugin (claudecodeimpact-plugins-official style)
 fn load_single_plugin(
     app_handle: Option<&tauri::AppHandle>,
     source: &PluginSource,
@@ -561,9 +561,9 @@ fn load_single_plugin(
     components
 }
 
-/// Load personal/installed statuslines from ~/.lovstudio/claudecodeimpact/statusline/
+/// Load personal/installed statuslines from ~/.claudecodeimpact/claudecodeimpact/statusline/
 fn load_personal_statuslines() -> Vec<TemplateComponent> {
-    let statusline_dir = get_lovstudio_dir().join("statusline");
+    let statusline_dir = get_claudecodeimpact_dir().join("statusline");
     let mut components = Vec::new();
 
     if !statusline_dir.exists() {
@@ -623,7 +623,7 @@ fn get_templates_catalog(app_handle: tauri::AppHandle) -> Result<TemplatesCatalo
         let components = if source.path.ends_with(".json") {
             // Community catalog (JSON file)
             load_community_catalog(Some(&app_handle), source)
-        } else if source.id == "lovstudio" {
+        } else if source.id == "claudecodeimpact" {
             // Single plugin directory
             load_single_plugin(Some(&app_handle), source)
         } else {
@@ -1046,10 +1046,10 @@ fn write_statusline_script(content: String) -> Result<String, String> {
     Ok(script_path.to_string_lossy().to_string())
 }
 
-/// Install statusline template to ~/.lovstudio/claudecodeimpact/statusline/{name}.sh
+/// Install statusline template to ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh
 #[tauri::command]
 fn install_statusline_template(name: String, content: String) -> Result<String, String> {
-    let statusline_dir = get_lovstudio_dir().join("statusline");
+    let statusline_dir = get_claudecodeimpact_dir().join("statusline");
     fs::create_dir_all(&statusline_dir).map_err(|e| e.to_string())?;
 
     let script_path = statusline_dir.join(format!("{}.sh", name));
@@ -1069,11 +1069,11 @@ fn install_statusline_template(name: String, content: String) -> Result<String, 
     Ok(script_path.to_string_lossy().to_string())
 }
 
-/// Apply statusline: copy from ~/.lovstudio/claudecodeimpact/statusline/{name}.sh to ~/.claude/statusline.sh
-/// If ~/.claude/statusline.sh exists and is not already installed, backup to ~/.lovstudio/claudecodeimpact/statusline/_previous.sh
+/// Apply statusline: copy from ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh to ~/.claude/statusline.sh
+/// If ~/.claude/statusline.sh exists and is not already installed, backup to ~/.claudecodeimpact/claudecodeimpact/statusline/_previous.sh
 #[tauri::command]
 fn apply_statusline(name: String) -> Result<String, String> {
-    let source_path = get_lovstudio_dir()
+    let source_path = get_claudecodeimpact_dir()
         .join("statusline")
         .join(format!("{}.sh", name));
     if !source_path.exists() {
@@ -1081,7 +1081,7 @@ fn apply_statusline(name: String) -> Result<String, String> {
     }
 
     let target_path = get_claude_dir().join("statusline.sh");
-    let backup_dir = get_lovstudio_dir().join("statusline");
+    let backup_dir = get_claudecodeimpact_dir().join("statusline");
     fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
 
     // Backup existing statusline.sh if it exists and differs from source
@@ -1115,7 +1115,7 @@ fn apply_statusline(name: String) -> Result<String, String> {
 /// Restore previous statusline from backup
 #[tauri::command]
 fn restore_previous_statusline() -> Result<String, String> {
-    let backup_path = get_lovstudio_dir().join("statusline").join("_previous.sh");
+    let backup_path = get_claudecodeimpact_dir().join("statusline").join("_previous.sh");
     if !backup_path.exists() {
         return Err("No previous statusline to restore".to_string());
     }
@@ -1144,7 +1144,7 @@ fn restore_previous_statusline() -> Result<String, String> {
 /// Check if previous statusline backup exists
 #[tauri::command]
 fn has_previous_statusline() -> bool {
-    get_lovstudio_dir()
+    get_claudecodeimpact_dir()
         .join("statusline")
         .join("_previous.sh")
         .exists()
@@ -1226,7 +1226,7 @@ fn execute_statusbar_script(
 /// Get Claude Code Impact statusbar settings from workspace.json
 #[tauri::command]
 fn get_statusbar_settings() -> Result<Option<serde_json::Value>, String> {
-    let settings_path = get_lovstudio_dir().join("statusbar-settings.json");
+    let settings_path = get_claudecodeimpact_dir().join("statusbar-settings.json");
     if !settings_path.exists() {
         return Ok(None);
     }
@@ -1238,18 +1238,18 @@ fn get_statusbar_settings() -> Result<Option<serde_json::Value>, String> {
 /// Save Claude Code Impact statusbar settings
 #[tauri::command]
 fn save_statusbar_settings(settings: serde_json::Value) -> Result<(), String> {
-    let settings_path = get_lovstudio_dir().join("statusbar-settings.json");
+    let settings_path = get_claudecodeimpact_dir().join("statusbar-settings.json");
     let content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, content).map_err(|e| e.to_string())
 }
 
-/// Write Claude Code Impact statusbar script to ~/.lovstudio/claudecodeimpact/statusbar/
+/// Write Claude Code Impact statusbar script to ~/.claudecodeimpact/claudecodeimpact/statusbar/
 #[tauri::command]
 fn write_claudecodeimpact_statusbar_script(
     name: String,
     content: String,
 ) -> Result<String, String> {
-    let statusbar_dir = get_lovstudio_dir().join("statusbar");
+    let statusbar_dir = get_claudecodeimpact_dir().join("statusbar");
     fs::create_dir_all(&statusbar_dir).map_err(|e| e.to_string())?;
 
     let script_path = statusbar_dir.join(format!("{}.sh", name));
@@ -1272,7 +1272,7 @@ fn write_claudecodeimpact_statusbar_script(
 /// Remove installed statusline template
 #[tauri::command]
 fn remove_statusline_template(name: String) -> Result<(), String> {
-    let script_path = get_lovstudio_dir()
+    let script_path = get_claudecodeimpact_dir()
         .join("statusline")
         .join(format!("{}.sh", name));
     if script_path.exists() {

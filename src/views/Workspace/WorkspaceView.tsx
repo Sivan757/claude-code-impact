@@ -267,18 +267,18 @@ export function WorkspaceView() {
   );
 
   // Create initial panel (when project has no panels)
-  const handleInitialPanelCreate = useCallback((command?: string, initialInput?: string) => {
+  const handleInitialPanelCreate = useCallback((command?: string, initialInput?: string, shell?: string) => {
     if (!activeProject) return;
 
     const panelId = crypto.randomUUID();
     const sessionId = crypto.randomUUID();
     const ptyId = crypto.randomUUID();
     const projectId = activeProject.id;
-    const title = command?.startsWith("claude") ? "Claude Code" : command?.startsWith("codex") ? "Codex" : t('common.terminal');
+    const title = command?.startsWith("claude") ? "Claude Code" : t('common.terminal');
 
     const newPanel: StoredPanelState = {
       id: panelId,
-      sessions: [{ id: sessionId, pty_id: ptyId, title, command, initial_input: initialInput }],
+      sessions: [{ id: sessionId, pty_id: ptyId, title, command, shell, initial_input: initialInput }],
       active_session_id: sessionId,
       is_shared: false,
       cwd: activeProject.path,
@@ -297,15 +297,15 @@ export function WorkspaceView() {
   }, [activeProject, saveWorkspace, setActivePanelId]);
 
   // Create panel in a specific project (for project selection in empty state)
-  const handleSelectProject = useCallback((project: ProjectOption, command?: string, initialInput?: string) => {
+  const handleSelectProject = useCallback((project: ProjectOption, command?: string, initialInput?: string, shell?: string) => {
     const panelId = crypto.randomUUID();
     const sessionId = crypto.randomUUID();
     const ptyId = crypto.randomUUID();
-    const title = command?.startsWith("claude") ? "Claude Code" : command?.startsWith("codex") ? "Codex" : t('common.terminal');
+    const title = command?.startsWith("claude") ? "Claude Code" : t('common.terminal');
 
     const newPanel: StoredPanelState = {
       id: panelId,
-      sessions: [{ id: sessionId, pty_id: ptyId, title, command, initial_input: initialInput }],
+      sessions: [{ id: sessionId, pty_id: ptyId, title, command, shell, initial_input: initialInput }],
       active_session_id: sessionId,
       is_shared: false,
       cwd: project.path,

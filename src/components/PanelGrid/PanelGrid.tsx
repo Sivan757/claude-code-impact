@@ -10,7 +10,7 @@ import type { LayoutNode } from "../../views/Workspace/types";
 import { TERMINAL_OPTIONS, type ProjectOption } from "../ui/new-terminal-button";
 import { SlashCommandMenu, type CommandItem } from "../ui/slash-command-menu";
 import { useInvokeQuery } from "../../hooks";
-import type { LocalCommand, CodexCommand, InstalledPlugin } from "../../types";
+import type { LocalCommand, InstalledPlugin } from "../../types";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -229,19 +229,15 @@ export function PanelGrid({
     ["commands"],
     "list_local_commands"
   );
-  const { data: codexCommands = [] } = useInvokeQuery<CodexCommand[]>(
-    ["codexCommands"],
-    "list_codex_commands"
-  );
   const { data: installedPlugins = [] } = useInvokeQuery<InstalledPlugin[]>(
     ["installedPlugins"],
     "list_installed_plugins"
   );
 
-  // Get commands based on terminal type (both use / trigger)
-  const commandItems: CommandItem[] = selectedTerminalType.type === "codex"
-    ? codexCommands.map(c => ({ name: c.name, description: c.description, path: c.path || c.name }))
-    : localCommands.filter(c => c.status === "active").map(c => ({ name: c.name, description: c.description, path: c.path }));
+  // Get commands for autocomplete
+  const commandItems: CommandItem[] = localCommands
+    .filter(c => c.status === "active")
+    .map(c => ({ name: c.name, description: c.description, path: c.path }));
 
   const sortedPlugins = useMemo(
     () => [...installedPlugins].sort((a, b) => a.name.localeCompare(b.name)),
@@ -297,7 +293,7 @@ export function PanelGrid({
     const selectedProject = projects?.find((p) => p.id === selectedProjectId) || projects?.[0];
 
     const handleCreate = async (userInput?: string) => {
-      // For claude/codex, append user input as argument to command
+      // For claude, append user input as argument to command
       // For plain terminal, use initialInput to send after PTY is ready (interactive)
       let command = selectedTerminalType.command;
       let initialInput: string | undefined;
@@ -310,15 +306,31 @@ export function PanelGrid({
         const shouldOverridePlugins = pluginSelectionInitialized || selectedPlugins.size > 0;
         const enabledPlugins = shouldOverridePlugins ? Array.from(selectedPlugins) : null;
 
+        // Debug: log provider and plugin selection state
+        console.log("[Launch Debug]", {
+          selectedProviderId,
+          savedProviders: savedProviders.map(p => ({ id: p.id, name: p.name })),
+          selectedProvider,
+          pluginSelectionInitialized,
+          selectedPluginsSize: selectedPlugins.size,
+          selectedPlugins: Array.from(selectedPlugins),
+          shouldOverridePlugins,
+          enabledPlugins,
+        });
+
         if (selectedProvider || enabledPlugins) {
           try {
-            const settingsPath = await invoke<string>("create_launch_settings", {
-              provider: selectedProvider
-                ? { providerType: selectedProvider.type, env: selectedProvider.env }
-                : null,
-              enabledPlugins,
+            // Get merged settings as JSON string (global settings + provider + plugins)
+            const settingsJson = await invoke<string>("create_launch_settings", {
+              request: {
+                provider: selectedProvider
+                  ? { provider_type: selectedProvider.type, env: selectedProvider.env }
+                  : null,
+                enabled_plugins: enabledPlugins,
+              },
             });
-            command = `${command} --settings "${settingsPath}"`;
+            // Pass settings as inline JSON (single quotes to avoid shell escaping issues)
+            command = `${command} --settings '${settingsJson}'`;
           } catch (error) {
             console.error("Failed to create launch settings:", error);
           }
@@ -327,12 +339,17 @@ export function PanelGrid({
 
       if (userInput) {
         if (command) {
-          // Claude/Codex: pass user input as argument
+          // Claude: pass user input as argument
           command = `${command} "${userInput}"`;
         } else {
           // Plain terminal: send as interactive input after PTY ready
           initialInput = userInput;
         }
+      }
+
+      // Log the startup command for debugging
+      if (command) {
+        console.log("[Launch Command]", command);
       }
 
       if (selectedProject && onSelectProject) {
@@ -451,7 +468,7 @@ export function PanelGrid({
                   }
                 }}
                 placeholder={
-                  selectedTerminalType.type === "claude" || selectedTerminalType.type === "codex"
+                  selectedTerminalType.type === "claude"
                     ? t('workspace.empty_state.placeholder_ai')
                     : t('workspace.empty_state.placeholder_shell')
                 }
@@ -539,17 +556,17 @@ export function PanelGrid({
             </div>
           </div>
 
-          {selectedTerminalType.type === "claude" && (
-            <div className="w-full max-w-md">
-              <Collapsible>
-                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-2.5 text-xs border border-border bg-card hover:bg-card-alt rounded-xl transition-colors">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <GearIcon className="w-3.5 h-3.5" />
-                    <span>{t('workspace.empty_state.launch_options')}</span>
-                  </div>
-                  <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2 border border-border rounded-xl bg-card px-4 py-3">
+          <div className="w-full max-w-md">
+            <Collapsible>
+              <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-2.5 text-xs border border-border bg-card hover:bg-card-alt rounded-xl transition-colors">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <GearIcon className="w-3.5 h-3.5" />
+                  <span>{t('workspace.empty_state.launch_options')}</span>
+                </div>
+                <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 border border-border rounded-xl bg-card px-4 py-3">
+                {selectedTerminalType.type === "claude" ? (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs text-muted-foreground">
@@ -637,10 +654,14 @@ export function PanelGrid({
                       </DropdownMenu>
                     </div>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          )}
+                ) : (
+                  <div className="text-xs text-muted-foreground text-center py-2">
+                    {t('workspace.empty_state.launch_no_options')}
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
       </div>
     );

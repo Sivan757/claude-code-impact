@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
 } from "./dropdown-menu";
 
-export type TerminalType = "terminal" | "claude" | "codex";
+export type TerminalType = "terminal" | "claude";
 
 export interface TerminalOption {
   type: TerminalType;
@@ -18,7 +18,6 @@ export interface TerminalOption {
 export const TERMINAL_OPTIONS: TerminalOption[] = [
   { type: "terminal", label_key: "terminal.default" },
   { type: "claude", label_key: "terminal.claude", command: "claude" },
-  { type: "codex", label_key: "Codex", command: "codex" }, // Keeping Codex as is if it's a name
 ];
 
 export interface ProjectOption {

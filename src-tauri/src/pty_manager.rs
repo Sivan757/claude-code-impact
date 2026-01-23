@@ -28,7 +28,7 @@ static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 fn get_scrollback_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".lovstudio")
+        .join(".claudecodeimpact")
         .join("claudecodeimpact")
         .join("scrollback")
 }

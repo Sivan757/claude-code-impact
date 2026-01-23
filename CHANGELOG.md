@@ -369,7 +369,7 @@
   ### Style
 
   - style(sidebar): 优化 Knowledge 子菜单选中状态的视觉层次
-  - style(theme): 集成 Lovstudio 暖学术设计系统
+  - style(theme): 集成 claudecodeimpact 暖学术设计系统
 
   ### Refactor
 

@@ -243,7 +243,7 @@
             "history": "History",
             "generate": "Generate Logo",
             "auto_info_prefix": "Auto-generates a",
-            "style_lovinsp": "Lovstudio brand-style",
+            "style_lovinsp": "claudecodeimpact brand-style",
             "logo_for": "logo for",
             "hide_custom": "▼ Hide custom prompt",
             "show_custom": "▶ Customize prompt (optional)",
@@ -284,10 +284,14 @@
             "launch_plugins_empty": "No plugins installed",
             "launch_plugins_select_all": "Select all",
             "launch_plugins_clear": "Clear selection",
+            "launch_no_options": "No additional options for terminal",
+            "launch_shell": "Shell",
+            "launch_shell_placeholder": "Select shell",
+            "launch_shell_default": "Default shell",
             "add_folder": "Add folder...",
             "select_folder": "Select folder",
             "slash_no_commands": "No commands found",
-            "slash_disabled_hint": "Slash commands are only available in Claude Code or Codex mode"
+            "slash_disabled_hint": "Slash commands are only available in Claude Code mode"
         }
     },
     "panel": {
@@ -599,7 +603,7 @@
         "docs_count": "{{count}} docs",
         "no_docs": "No documents",
         "no_sources": "No reference sources",
-        "no_sources_hint": "Add documentation symlinks to ~/.lovstudio/docs/reference/",
+        "no_sources_hint": "Add documentation symlinks to ~/.claudecodeimpact/docs/reference/",
         "group_count": "({{count}})"
     },
     "distill": {
@@ -910,11 +914,11 @@
         "no_templates": "No templates found",
         "all": "All",
         "anthropic": "Anthropic",
-        "lovstudio": "Lovstudio",
+        "claudecodeimpact": "claudecodeimpact",
         "community": "CCT",
         "from": "from {{name}}",
         "official_tooltip": "Official Claude Code plugins",
-        "lovstudio_tooltip": "Official Lovstudio plugins",
+        "claudecodeimpact_tooltip": "Official claudecodeimpact plugins",
         "community_tooltip": "Community-contributed templates",
         "all_tooltip": "All sources",
         "content_preview": "Content Preview"

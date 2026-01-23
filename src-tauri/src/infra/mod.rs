@@ -10,10 +10,10 @@ pub(crate) fn get_claude_json_path() -> PathBuf {
     dirs::home_dir().unwrap().join(".claude.json")
 }
 
-pub(crate) fn get_lovstudio_dir() -> PathBuf {
+pub(crate) fn get_claudecodeimpact_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".lovstudio")
+        .join(".claudecodeimpact")
         .join("claudecodeimpact")
 }
 
@@ -25,7 +25,7 @@ pub(crate) fn get_command_stats_path() -> PathBuf {
 }
 
 fn get_disabled_env_path() -> PathBuf {
-    get_lovstudio_dir().join("disabled_env.json")
+    get_claudecodeimpact_dir().join("disabled_env.json")
 }
 
 pub(crate) fn load_disabled_env() -> Result<serde_json::Map<String, Value>, String> {
@@ -50,7 +50,7 @@ pub(crate) fn save_disabled_env(disabled: &serde_json::Map<String, Value>) -> Re
 }
 
 fn get_custom_keys_path() -> PathBuf {
-    get_lovstudio_dir().join("custom_env_keys.json")
+    get_claudecodeimpact_dir().join("custom_env_keys.json")
 }
 
 pub(crate) fn load_custom_keys() -> Result<Vec<String>, String> {

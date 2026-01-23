@@ -9,7 +9,7 @@
  * Fork users can configure their own analytics endpoint.
  */
 
-// Default Lovstudio Cloud endpoint
+// Default claudecodeimpact Cloud endpoint
 const DEFAULT_ANALYTICS_ENDPOINT = "";
 const DEFAULT_ANON_KEY = "";
 

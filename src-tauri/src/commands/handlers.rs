@@ -9,8 +9,8 @@ use std::time::Duration;
 use tauri::{Emitter, Manager};
 
 use crate::infra::{
-    get_claude_dir, get_claude_json_path, get_lovstudio_dir, load_custom_keys, load_disabled_env,
-    save_custom_keys, save_disabled_env,
+    get_claude_dir, get_claude_json_path, get_claudecodeimpact_dir, load_custom_keys,
+    load_disabled_env, save_custom_keys, save_disabled_env,
 };
 use crate::services::claude_format::{HistoryEntry, RawLine};
 use crate::services::message_content::extract_content_with_meta;

@@ -10,7 +10,7 @@
   - Reads `~/.claude/settings.json` (or `{}` if missing).
   - Overrides `env` and `claudecodeimpact.activeProvider` when a provider is selected.
   - Replaces `enabledPlugins` with the selected plugin IDs.
-  - Writes a copy to `~/.lovstudio/claudecodeimpact/launch-settings/settings-<uuid>.json`.
+  - Writes a copy to `~/.claudecodeimpact/claudecodeimpact/launch-settings/settings-<uuid>.json`.
 - Append `--settings "<path>"` to the `claude` command before any prompt text.
 
 ## Data Flow

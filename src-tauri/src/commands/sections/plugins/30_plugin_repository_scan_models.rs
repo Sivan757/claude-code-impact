@@ -1763,7 +1763,7 @@ async fn update_plugin(plugin_id: String) -> Result<String, String> {
 
 // Disabled hooks storage path
 fn get_disabled_hooks_path() -> std::path::PathBuf {
-    get_lovstudio_dir().join("disabled_hooks.json")
+    get_claudecodeimpact_dir().join("disabled_hooks.json")
 }
 
 fn load_disabled_hooks() -> Result<Value, String> {

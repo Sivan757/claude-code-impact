@@ -158,7 +158,7 @@ export function ProjectDashboard({ project }: ProjectDashboardProps) {
 
       const panels = currentProject.panels || [];
       const panelId = panels[0]?.id;
-      const title = command === "claude" ? "Claude Code" : command === "codex" ? "Codex" : t('common.terminal');
+      const title = command === "claude" ? "Claude Code" : t('common.terminal');
 
       if (!panelId) {
         const newPanelId = crypto.randomUUID();

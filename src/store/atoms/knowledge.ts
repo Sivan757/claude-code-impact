@@ -10,8 +10,3 @@ export const referenceExpandedSourceAtom = atomWithStorage<string | null>(
   "claudecodeimpact:reference:expandedSource",
   null
 );
-
-export const referenceScrollPositionAtom = atomWithStorage<Record<string, number>>(
-  "claudecodeimpact:reference:scrollPosition",
-  {}
-);

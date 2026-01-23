@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/pages/**/*.tsx"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": [
+    "src-tauri/**",
+    "scripts/**",
+    "dist/**",
+    "node_modules/**",
+    "*.config.{js,ts}",
+    "vite.config.ts",
+    "tailwind.config.js",
+    "postcss.config.js"
+  ],
+  "ignoreDependencies": [
+    "@tauri-apps/cli",
+    "tailwindcss",
+    "autoprefixer",
+    "postcss",
+    "vite-plugin-pages",
+    "@tailwindcss/vite",
+    "@tailwindcss/typography",
+    "tw-animate-css",
+    "lovinsp"
+  ],
+  "compilers": {
+    "tsx": "tsx"
+  }
+}

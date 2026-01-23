@@ -235,7 +235,7 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const [autoCopy, setAutoCopy] = useState(getAutoCopyOnSelect);
   const [featureTabsLayout, setFeatureTabsLayout] = useAtom(featureTabsLayoutAtom);
   const [statusBarEnabled, setStatusBarEnabled] = useState(false);
-  const [statusBarScript, setStatusBarScript] = useState("~/.lovstudio/claudecodeimpact/statusbar/default.sh");
+  const [statusBarScript, setStatusBarScript] = useState("~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh");
   const [activeSection, setActiveSection] = useState<SettingsSection>("display");
 
   // Load statusbar settings on open
@@ -244,7 +244,7 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
     invoke<StatusBarSettings | null>("get_statusbar_settings").then((settings) => {
       if (settings) {
         setStatusBarEnabled(settings.enabled);
-        setStatusBarScript(settings.scriptPath || "~/.lovstudio/claudecodeimpact/statusbar/default.sh");
+        setStatusBarScript(settings.scriptPath || "~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh");
       }
     }).catch(() => { });
   }, [open]);
@@ -366,7 +366,7 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                     <label className="text-xs font-medium text-ink">{t('settings_dialog.statusbar.script_path')}</label>
                     <Input
                       className="text-xs font-mono"
-                      placeholder="~/.lovstudio/claudecodeimpact/statusbar/default.sh"
+                      placeholder="~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh"
                       value={statusBarScript}
                       onChange={(e) => handleStatusBarScriptChange(e.target.value)}
                     />

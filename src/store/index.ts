@@ -2,10 +2,7 @@
 export { sidebarCollapsedAtom, marketplaceCategoryAtom, shortenPathsAtom, profileAtom, featureTabsLayoutAtom, verticalTabsSidebarWidthAtom, type FeatureTabsLayout } from "./atoms/app";
 
 // UI atoms
-export { selectedFileAtom, fileViewModeAtom, activePanelIdAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom } from "./atoms/ui";
-
-// FileTree atoms
-export { expandedPathsAtom } from "./atoms/fileTree";
+export { activePanelIdAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom } from "./atoms/ui";
 
 // Chat atoms
 export {
@@ -13,9 +10,6 @@ export {
   sessionContextTabAtom, sessionSelectModeAtom, hideEmptySessionsAtom, userPromptsOnlyAtom,
   chatViewModeAtom, allProjectsSortByAtom, hideEmptySessionsAllAtom,
 } from "./atoms/chat";
-
-// Settings atoms
-export { routerTestStatusAtom, routerTestMessageAtom } from "./atoms/settings";
 
 // Commands atoms
 export {
@@ -25,16 +19,14 @@ export {
 
 // Knowledge atoms
 export {
-  referenceCollapsedGroupsAtom, referenceExpandedSourceAtom, referenceScrollPositionAtom,
+  referenceCollapsedGroupsAtom, referenceExpandedSourceAtom,
 } from "./atoms/knowledge";
 
 // Workspace atoms
 export {
   primaryFeatureAtom,
   workspaceDataAtom, workspaceLoadingAtom, collapsedProjectGroupsAtom,
-  featureSidebarExpandedPanelsAtom, featureSidebarPinnedExpandedAtom, featureSidebarFilesExpandedAtom,
-  sidebarModeAtom, dashboardSessionsVisibleAtom,
-  type SidebarMode,
+  dashboardSessionsVisibleAtom,
 } from "./atoms/workspace";
 
 // Component atoms

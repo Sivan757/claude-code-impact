@@ -28,7 +28,7 @@ export function DistillDetailView({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const path = `${homeDir}/.lovstudio/docs/distill/${document.file}`;
+    const path = `${homeDir}/.claudecodeimpact/docs/distill/${document.file}`;
     invoke<string>("read_file", { path })
       .then(setContent)
       .finally(() => setLoading(false));
@@ -46,7 +46,7 @@ export function DistillDetailView({
 
   if (loading) return <LoadingState message={t('distill.loading_doc')} />;
 
-  const distillPath = `~/.lovstudio/docs/distill/${document.file}`;
+  const distillPath = `~/.claudecodeimpact/docs/distill/${document.file}`;
 
   return (
     <ConfigPage>

@@ -1,7 +1,5 @@
 // ============================================================================
 
-use uuid::Uuid;
-
 #[tauri::command]
 fn get_settings() -> Result<ClaudeSettings, String> {
     let settings_path = get_claude_dir().join("settings.json");
@@ -18,7 +16,7 @@ fn get_settings() -> Result<ClaudeSettings, String> {
         (Value::Null, None, None)
     };
 
-    // Overlay disabled env from ~/.lovstudio/claudecodeimpact (do not persist in settings.json)
+    // Overlay disabled env from ~/.claudecodeimpact/claudecodeimpact (do not persist in settings.json)
     if let Ok(disabled_env) = load_disabled_env() {
         if !disabled_env.is_empty() {
             if let Some(obj) = raw.as_object_mut() {
@@ -36,7 +34,7 @@ fn get_settings() -> Result<ClaudeSettings, String> {
         }
     }
 
-    // Overlay custom env keys from ~/.lovstudio/claudecodeimpact (do not persist in settings.json)
+    // Overlay custom env keys from ~/.claudecodeimpact/claudecodeimpact (do not persist in settings.json)
     let mut custom_keys = load_custom_keys().unwrap_or_default();
 
     // Merge legacy keys from settings if present
@@ -214,14 +212,9 @@ fn create_launch_settings(request: LaunchSettingsRequest) -> Result<String, Stri
         }
     }
 
-    let launch_dir = get_lovstudio_dir().join("launch-settings");
-    fs::create_dir_all(&launch_dir).map_err(|e| e.to_string())?;
-
-    let file_path = launch_dir.join(format!("settings-{}.json", Uuid::new_v4()));
-    let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    fs::write(&file_path, output).map_err(|e| e.to_string())?;
-
-    Ok(file_path.to_string_lossy().to_string())
+    // Return JSON string directly for inline --settings argument
+    let output = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
+    Ok(output)
 }
 
 fn get_session_path(project_id: &str, session_id: &str) -> PathBuf {

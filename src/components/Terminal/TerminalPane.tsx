@@ -38,7 +38,7 @@ interface PtyExitEvent {
   id: string;
 }
 
-type CommandKind = "claude" | "codex";
+type CommandKind = "claude";
 type DiagnosticSeverity = "error" | "warning" | "info";
 type DiagnosticIssueCode = "cli-not-found" | "missing-credentials" | "command-exited" | "command-failed";
 
@@ -68,11 +68,11 @@ const getCommandKind = (command?: string): CommandKind | null => {
   if (!trimmed) return null;
   const firstToken = trimmed.split(/\s+/)[0]?.replace(/^['"]|['"]$/g, "");
   const base = firstToken?.split("/").pop();
-  if (base === "claude" || base === "codex") return base;
+  if (base === "claude") return base;
   return null;
 };
 
-const getCommandLabel = (kind: CommandKind) => (kind === "claude" ? "Claude Code" : "Codex");
+const getCommandLabel = (_kind: CommandKind) => "Claude Code";
 
 const getEnvFromSettings = (settings: ClaudeSettings | null | undefined): Record<string, string> => {
   const raw = settings?.raw;
@@ -175,6 +175,8 @@ export interface TerminalPaneProps {
   cwd: string;
   /** Optional command to run instead of shell */
   command?: string;
+  /** Shell to use (e.g., bash, zsh, fish) */
+  shell?: string;
   /** Text to send to terminal after it's ready (for interactive input) */
   initialInput?: string;
   /** Whether this terminal is visible (active tab) - controls WebGL loading */
@@ -624,7 +626,7 @@ export function TerminalPane({
         ptyReadySessions.delete(sessionId);
         sessionState.exited = true;
 
-        // For command sessions (claude/codex), fall back to shell automatically
+        // For command sessions (claude), fall back to shell automatically
         if (commandRef.current) {
           if (!commandExitHandledRef.current) {
             const commandText = commandRef.current.trim();

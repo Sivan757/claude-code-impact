@@ -227,6 +227,7 @@ export const SessionPanel = memo(function SessionPanel({
                 ptyId={session.ptyId}
                 cwd={panel.cwd}
                 command={session.command}
+                shell={session.shell}
                 initialInput={session.initialInput}
                 visible={session.id === panel.activeSessionId}
                 autoFocus={session.id === panel.activeSessionId && isActive}

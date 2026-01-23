@@ -78,7 +78,7 @@ export function DistillMenu({ watchEnabled, onWatchToggle, onRefresh }: DistillM
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() =>
-              invoke("open_in_editor", { path: `${homeDir}/.lovstudio/docs/distill` })
+              invoke("open_in_editor", { path: `${homeDir}/.claudecodeimpact/docs/distill` })
             }
           >
             <FolderOpen className="w-4 h-4 mr-2" />
@@ -113,11 +113,11 @@ export function DistillMenu({ watchEnabled, onWatchToggle, onRefresh }: DistillM
               </p>
               <div className="flex items-center gap-2">
                 <code className="text-xs bg-card-alt px-2 py-1 rounded">
-                  ~/.lovstudio/docs/distill/
+                  ~/.claudecodeimpact/docs/distill/
                 </code>
                 <button
                   onClick={() =>
-                    invoke("open_in_editor", { path: `${homeDir}/.lovstudio/docs/distill` })
+                    invoke("open_in_editor", { path: `${homeDir}/.claudecodeimpact/docs/distill` })
                   }
                   className="p-1.5 rounded text-muted-foreground hover:text-ink hover:bg-card-alt transition-colors"
                   title={t('distill.open_directory')}
