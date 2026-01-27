@@ -1,5 +1,9 @@
 // App atoms
-export { sidebarCollapsedAtom, marketplaceCategoryAtom, shortenPathsAtom, profileAtom, featureTabsLayoutAtom, verticalTabsSidebarWidthAtom, type FeatureTabsLayout } from "./atoms/app";
+// App atoms (updated)
+export {
+  sidebarCollapsedAtom, marketplaceCategoryAtom, shortenPathsAtom, profileAtom,
+  primaryFeatureAtom
+} from "./atoms/app";
 
 // UI atoms
 export { activePanelIdAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom } from "./atoms/ui";
@@ -22,12 +26,7 @@ export {
   referenceCollapsedGroupsAtom, referenceExpandedSourceAtom,
 } from "./atoms/knowledge";
 
-// Workspace atoms
-export {
-  primaryFeatureAtom,
-  workspaceDataAtom, workspaceLoadingAtom, collapsedProjectGroupsAtom,
-  dashboardSessionsVisibleAtom,
-} from "./atoms/workspace";
+
 
 // Component atoms
 export { collapsibleStatesAtom, docReaderCollapsedGroupsAtom } from "./atoms/components";

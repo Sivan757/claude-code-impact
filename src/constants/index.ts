@@ -5,14 +5,7 @@ import type { FeatureConfig, TemplateCategory } from "../types";
 // ============================================================================
 
 export const FEATURES: FeatureConfig[] = [
-  // Workspace (parallel vibe coding)
-  {
-    type: "workspace",
-    label: "Workspace",
-    description: "Parallel vibe coding workspace",
-    available: true,
-    group: "history",
-  },
+
 
   // Basic settings (no marketplace) - grouped under "Basic"
   {

@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAtom } from "jotai";
-import { profileAtom, workspaceDataAtom } from "../store";
+import { profileAtom } from "../store";
 import { invoke } from "@tauri-apps/api/core";
 import {
   FolderIcon,
@@ -119,7 +119,6 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ onOpenSettings }: StatusBarProps) {
-  const [workspace] = useAtom(workspaceDataAtom);
   const [profile] = useAtom(profileAtom);
   const { t, i18n } = useTranslation();
   const [time, setTime] = useState(new Date());
@@ -153,12 +152,9 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
     return () => clearInterval(timer);
   }, []);
 
-  // Calculate stats from workspace
-  const projectCount = workspace?.projects?.length ?? 0;
-  const featCount = workspace?.projects?.reduce(
-    (sum, p) => sum + (p.features?.length ?? 0),
-    0
-  ) ?? 0;
+  // Placeholder stats
+  const projectCount = 0;
+  const featCount = 0;
 
   // Fetch today's coding stats
   useEffect(() => {

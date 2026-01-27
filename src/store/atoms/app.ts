@@ -13,9 +13,7 @@ export const shortenPathsAtom = atomWithStorage("claudecodeimpact:shortenPaths",
 // 用户档案
 export const profileAtom = atomWithStorage<UserProfile>("claudecodeimpact:profile", { nickname: "", avatarUrl: "" });
 
-// Feature Tabs 布局模式
-export type FeatureTabsLayout = "horizontal" | "vertical";
-export const featureTabsLayoutAtom = atomWithStorage<FeatureTabsLayout>("claudecodeimpact:featureTabsLayout", "vertical");
 
-// 纵向 sidebar 宽度
-export const verticalTabsSidebarWidthAtom = atomWithStorage<number>("claudecodeimpact:verticalTabsSidebarWidth", 220);
+
+// Primary feature for main nav (not affected by secondary nav like settings/marketplace from profile menu)
+export const primaryFeatureAtom = atomWithStorage<string | null>("claudecodeimpact:primaryFeature", null);

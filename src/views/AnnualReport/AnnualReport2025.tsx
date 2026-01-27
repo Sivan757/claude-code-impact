@@ -846,7 +846,7 @@ export function AnnualReport2025({ onClose }: AnnualReport2025Props) {
             onClick={onClose}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
           >
-            {t('workspace.back')}
+            {t('common.go_back')}
           </button>
         </div>
       </div>

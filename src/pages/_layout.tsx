@@ -6,8 +6,8 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { PersonIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import { GlobalHeader, VerticalFeatureTabs } from "../components/GlobalHeader";
+import { PersonIcon } from "@radix-ui/react-icons";
+import { GlobalHeader } from "../components/GlobalHeader";
 import { StatusBar } from "../components/StatusBar";
 import { setAutoCopyOnSelect, getAutoCopyOnSelect } from "../components/Terminal";
 import { Switch } from "../components/ui/switch";
@@ -20,7 +20,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
-import { shortenPathsAtom, profileAtom, featureTabsLayoutAtom, workspaceDataAtom, dashboardSessionsVisibleAtom } from "../store";
+import { shortenPathsAtom, profileAtom } from "../store";
 import { AppConfigContext, useAppConfig, type AppConfig } from "../context";
 import type { FeatureType, UserProfile } from "../types";
 
@@ -34,8 +34,6 @@ function getFeatureFromPath(pathname: string): FeatureType | null {
 
   const featureMap: Record<string, FeatureType> = {
     "": null as unknown as FeatureType,
-    "workspace": "workspace",
-    "features": "features",
     "chat": "chat",
     "skills": "skills",
     "commands": "commands",
@@ -82,17 +80,14 @@ export default function RootLayout() {
   const currentFeature = getFeatureFromPath(location.pathname);
 
   // App state (non-routing)
-  const [featureTabsLayout] = useAtom(featureTabsLayoutAtom);
-  const [workspace] = useAtom(workspaceDataAtom);
-  const [dashboardSidebarVisible, setDashboardSidebarVisible] = useAtom(dashboardSessionsVisibleAtom);
+
   const [homeDir, setHomeDir] = useState("");
   const [shortenPaths, setShortenPaths] = useAtom(shortenPathsAtom);
   const [showSettings, setShowSettings] = useState(false);
   const [profile, setProfile] = useAtom(profileAtom);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
 
-  // Check if currently in workspace (Dashboard) view
-  const isInWorkspace = location.pathname === "/workspace";
+
 
   useEffect(() => {
     invoke<string>("get_home_dir").then(setHomeDir).catch(() => { });
@@ -161,7 +156,6 @@ export default function RootLayout() {
       "statusline": "/statusline",
       "kb-distill": "/knowledge/distill",
       "kb-reference": "/knowledge/reference",
-      "workspace": "/workspace",
       "features": "/features",
       "marketplace": "/marketplace",
       "extensions": "/extensions",
@@ -189,17 +183,6 @@ export default function RootLayout() {
           onShowSettings={() => setShowSettings(true)}
         />
         <div className="flex-1 flex overflow-hidden">
-          {featureTabsLayout === "vertical" && workspace && isInWorkspace && dashboardSidebarVisible && <VerticalFeatureTabs />}
-          {/* Show expand button when sidebar is hidden in workspace */}
-          {featureTabsLayout === "vertical" && isInWorkspace && !dashboardSidebarVisible && (
-            <button
-              onClick={() => setDashboardSidebarVisible(true)}
-              className="shrink-0 w-6 flex items-center justify-center border-r border-border bg-card hover:bg-muted transition-colors"
-              title={t('layout.show_sidebar')}
-            >
-              <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
-            </button>
-          )}
           <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
@@ -233,7 +216,6 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const { t } = useTranslation();
   const { shortenPaths, setShortenPaths } = useAppConfig();
   const [autoCopy, setAutoCopy] = useState(getAutoCopyOnSelect);
-  const [featureTabsLayout, setFeatureTabsLayout] = useAtom(featureTabsLayoutAtom);
   const [statusBarEnabled, setStatusBarEnabled] = useState(false);
   const [statusBarScript, setStatusBarScript] = useState("~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh");
   const [activeSection, setActiveSection] = useState<SettingsSection>("display");
@@ -317,28 +299,7 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                   </div>
                   <Switch checked={shortenPaths} onCheckedChange={setShortenPaths} />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-ink">{t('settings_dialog.display.tabs_layout')}</p>
-                    <p className="text-xs text-muted-foreground">{t('settings_dialog.display.tabs_layout_desc')}</p>
-                  </div>
-                  <div className="flex gap-0.5 p-0.5 bg-muted rounded-lg">
-                    <button
-                      onClick={() => setFeatureTabsLayout("horizontal")}
-                      className={`px-2.5 py-1 text-xs rounded-md transition-colors ${featureTabsLayout === "horizontal" ? "bg-background text-ink shadow-sm" : "text-muted-foreground hover:text-ink"
-                        }`}
-                    >
-                      {t('settings_dialog.display.horizontal')}
-                    </button>
-                    <button
-                      onClick={() => setFeatureTabsLayout("vertical")}
-                      className={`px-2.5 py-1 text-xs rounded-md transition-colors ${featureTabsLayout === "vertical" ? "bg-background text-ink shadow-sm" : "text-muted-foreground hover:text-ink"
-                        }`}
-                    >
-                      {t('settings_dialog.display.vertical')}
-                    </button>
-                  </div>
-                </div>
+
               </div>
             )}
             {activeSection === "terminal" && (

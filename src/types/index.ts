@@ -4,7 +4,7 @@
 
 export type FeatureType =
   | "chat"
-  | "workspace"
+
   | "features"
   | "basic-env"
   | "basic-llm"
@@ -230,7 +230,7 @@ export type TemplateCategory =
 
 export type View =
   | { type: "home" }
-  | { type: "workspace"; projectId?: string; featureId?: string; mode?: "terminal" | "dashboard" }
+
   | { type: "features" }
   | { type: "chat-projects" }
   | { type: "chat-sessions"; projectId: string; projectPath: string }

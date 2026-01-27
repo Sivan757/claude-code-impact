@@ -3,13 +3,13 @@ import { useAtom } from "jotai";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PersonIcon, ChevronLeftIcon, ChevronRightIcon,
-  RocketIcon, CounterClockwiseClockIcon, LayersIcon,
+  CounterClockwiseClockIcon, LayersIcon,
 } from "@radix-ui/react-icons";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-import { sidebarCollapsedAtom, profileAtom, workspaceDataAtom, primaryFeatureAtom, featureTabsLayoutAtom } from "@/store";
+import { sidebarCollapsedAtom, profileAtom, primaryFeatureAtom } from "@/store";
 import { useTranslation } from "react-i18next";
-import { GlobalFeatureTabs } from "./GlobalFeatureTabs";
+
 import type { View, FeatureType } from "@/types";
 
 interface GlobalHeaderProps {
@@ -38,15 +38,14 @@ export function GlobalHeader({
   const { t } = useTranslation();
   const [sidebarCollapsed] = useAtom(sidebarCollapsedAtom);
   const [profile] = useAtom(profileAtom);
-  const [workspace] = useAtom(workspaceDataAtom);
-  const [primaryFeature, setPrimaryFeature] = useAtom(primaryFeatureAtom);
-  const [featureTabsLayout] = useAtom(featureTabsLayoutAtom);
 
-  // Show horizontal feature tabs when workspace data is available AND layout is horizontal
-  const showFeatureTabs = !!workspace && featureTabsLayout === "horizontal";
+  const [primaryFeature, setPrimaryFeature] = useAtom(primaryFeatureAtom);
+
+
+
 
   // Main nav features - use primaryFeature for active state (not affected by profile menu clicks)
-  const mainNavFeatures = ["workspace", "chat"] as const;
+  const mainNavFeatures = ["chat"] as const;
   const isMainNavFeature = (f: string | null) => f && (mainNavFeatures.includes(f as typeof mainNavFeatures[number]) || f.startsWith("kb-"));
 
   // Handle main nav click - updates primaryFeature
@@ -74,12 +73,7 @@ export function GlobalHeader({
               icon={<img src="/logo.png" alt="Claude Code Impact" className="w-4 h-4" />}
               label="Claude Code Impact"
             />
-            <NavButton
-              isActive={primaryFeature === "workspace"}
-              onClick={() => handleMainNavClick("workspace")}
-              icon={<RocketIcon className="w-4 h-4" />}
-              label={t('features.workspace')}
-            />
+
             <NavButton
               isActive={primaryFeature === "features"}
               onClick={() => handleMainNavClick("features")}
@@ -113,13 +107,7 @@ export function GlobalHeader({
               <ChevronRightIcon className="w-5 h-5" />
             </button>
           </div>
-          {/* Feature Tabs */}
-          {showFeatureTabs && (
-            <>
-              <div className="h-4 border-l border-border mx-2" />
-              <GlobalFeatureTabs />
-            </>
-          )}
+
         </div>
         <ProfileMenu
           profile={profile}
@@ -150,13 +138,8 @@ export function GlobalHeader({
         >
           <ChevronRightIcon className="w-5 h-5" />
         </button>
-        {/* Feature Tabs - shown when in workspace view */}
-        {showFeatureTabs && (
-          <>
-            <div className="h-4 border-l border-border mx-2" />
-            <GlobalFeatureTabs />
-          </>
-        )}
+
+
       </div>
       <ProfileMenu
         profile={profile}

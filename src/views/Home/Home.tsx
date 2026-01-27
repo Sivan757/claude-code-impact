@@ -85,7 +85,7 @@ export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch 
             {stats && (
               <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border/40 text-sm text-muted-foreground">
                 <span>
-                  <strong className="text-foreground font-serif">{stats.projects}</strong> {t('home.stats.workspaces')}
+                  <strong className="text-foreground font-serif">{stats.projects}</strong> {t('statusbar.projects')}
                 </span>
                 <span>
                   <strong className="text-foreground font-serif">{stats.sessions}</strong> {t('home.stats.sessions')}

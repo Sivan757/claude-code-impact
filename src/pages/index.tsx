@@ -21,7 +21,7 @@ export default function HomePage() {
           "sub-agents": "/agents",
           "output-styles": "/output-styles",
           "statusline": "/statusline",
-          "workspace": "/workspace",
+
           "features": "/features",
           "marketplace": "/marketplace",
         };

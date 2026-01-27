@@ -17,10 +17,7 @@ const JSON_REFERENCE = `{
     "id": "claude-opus-4-1",
     "display_name": "Opus"
   },
-  "workspace": {
-    "current_dir": "/current/directory",
-    "project_dir": "/project/directory"
-  },
+
   "version": "1.0.80",
   "cost": {
     "total_cost_usd": 0.01234,

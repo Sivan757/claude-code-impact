@@ -20,7 +20,7 @@ export default function FeaturesPage() {
       "sub-agents": "/agents",
       "output-styles": "/output-styles",
       "statusline": "/statusline",
-      "workspace": "/workspace",
+
       "features": "/features",
       "marketplace": "/marketplace",
       "extensions": "/extensions",

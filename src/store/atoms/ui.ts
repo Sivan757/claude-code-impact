@@ -37,7 +37,7 @@ function parseUrlToView(hash: string): View {
   const [first, second] = segments;
 
   switch (first) {
-    case "workspace": return { type: "workspace" };
+
     case "features": return { type: "features" };
     case "annual-report-2025": return { type: "annual-report-2025" };
     case "mcp": return { type: "mcp" };

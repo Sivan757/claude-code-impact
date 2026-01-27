@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 // Radix icons
 import { PersonIcon } from "@radix-ui/react-icons";
-import { GlobalHeader, VerticalFeatureTabs } from "./components/GlobalHeader";
+import { GlobalHeader } from "./components/GlobalHeader";
 import { setAutoCopyOnSelect, getAutoCopyOnSelect } from "./components/Terminal";
 import { Switch } from "./components/ui/switch";
 import { Avatar, AvatarImage, AvatarFallback } from "./components/ui/avatar";
@@ -15,13 +15,13 @@ import { listen } from "@tauri-apps/api/event";
 // Modular imports
 import type { FeatureType, View, LocalCommand, UserProfile } from "./types";
 import { useAtom } from "jotai";
-import { marketplaceCategoryAtom, shortenPathsAtom, profileAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom, featureTabsLayoutAtom, workspaceDataAtom } from "./store";
+import { marketplaceCategoryAtom, shortenPathsAtom, profileAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom } from "./store";
 import { AppConfigContext, useAppConfig, type AppConfig } from "./context";
 import { useUrlInit } from "./hooks";
 // Modular views
 import {
   Home,
-  WorkspaceView,
+
   FeaturesView,
   FeaturesLayout,
   OutputStylesView,
@@ -99,8 +99,8 @@ function App() {
     });
   }, [setNavigationState]);
 
-  const [featureTabsLayout] = useAtom(featureTabsLayoutAtom);
-  const [workspace] = useAtom(workspaceDataAtom);
+
+
   const [marketplaceCategory, setMarketplaceCategory] = useAtom(marketplaceCategoryAtom);
   const [homeDir, setHomeDir] = useState("");
   const [shortenPaths, setShortenPaths] = useAtom(shortenPathsAtom);
@@ -144,45 +144,44 @@ function App() {
   const currentFeature: FeatureType | null =
     view.type === "chat-projects" || view.type === "chat-sessions" || view.type === "chat-messages"
       ? "chat"
-      : view.type === "workspace"
-        ? "workspace"
-        : view.type === "features"
-          ? "features"
-          : view.type === "basic-env"
-            ? "basic-env"
-            : view.type === "basic-llm"
-              ? "basic-llm"
-              : view.type === "basic-version"
-                ? "basic-version"
-                : view.type === "context"
-                  ? "context"
-                  : view.type === "settings"
-                    ? "settings"
-                    : view.type === "commands" || view.type === "command-detail"
-                      ? "commands"
-                      : view.type === "mcp"
-                        ? "mcp"
-                        : view.type === "skills"
-                          ? "skills"
-                          : view.type === "hooks"
-                            ? "hooks"
-                            : view.type === "sub-agents" || view.type === "sub-agent-detail"
-                              ? "sub-agents"
-                              : view.type === "output-styles"
-                                ? "output-styles"
-                                : view.type === "statusline"
-                                  ? "statusline"
-                                  : view.type === "kb-distill" || view.type === "kb-distill-detail"
-                                    ? "kb-distill"
-                                    : view.type === "kb-reference" || view.type === "kb-reference-doc"
-                                      ? "kb-reference"
-                                      : view.type === "feature-template-detail"
-                                        ? view.fromFeature
-                                        : view.type === "marketplace" || view.type === "template-detail"
-                                          ? "marketplace"
-                                          : view.type === "feature-todo"
-                                            ? view.feature
-                                            : null;
+
+      : view.type === "features"
+        ? "features"
+        : view.type === "basic-env"
+          ? "basic-env"
+          : view.type === "basic-llm"
+            ? "basic-llm"
+            : view.type === "basic-version"
+              ? "basic-version"
+              : view.type === "context"
+                ? "context"
+                : view.type === "settings"
+                  ? "settings"
+                  : view.type === "commands" || view.type === "command-detail"
+                    ? "commands"
+                    : view.type === "mcp"
+                      ? "mcp"
+                      : view.type === "skills"
+                        ? "skills"
+                        : view.type === "hooks"
+                          ? "hooks"
+                          : view.type === "sub-agents" || view.type === "sub-agent-detail"
+                            ? "sub-agents"
+                            : view.type === "output-styles"
+                              ? "output-styles"
+                              : view.type === "statusline"
+                                ? "statusline"
+                                : view.type === "kb-distill" || view.type === "kb-distill-detail"
+                                  ? "kb-distill"
+                                  : view.type === "kb-reference" || view.type === "kb-reference-doc"
+                                    ? "kb-reference"
+                                    : view.type === "feature-template-detail"
+                                      ? view.fromFeature
+                                      : view.type === "marketplace" || view.type === "template-detail"
+                                        ? "marketplace"
+                                        : view.type === "feature-todo"
+                                          ? view.feature
+                                          : null;
 
   const handleFeatureClick = (feature: FeatureType) => {
     switch (feature) {
@@ -231,9 +230,7 @@ function App() {
       case "kb-reference":
         navigate({ type: "kb-reference" });
         break;
-      case "workspace":
-        navigate({ type: "workspace" });
-        break;
+
       case "features":
         navigate({ type: "features" });
         break;
@@ -258,7 +255,7 @@ function App() {
         />
         <div className="flex-1 flex overflow-hidden">
           {/* Vertical Feature Tabs Sidebar */}
-          {featureTabsLayout === "vertical" && workspace && <VerticalFeatureTabs />}
+
           <main className="flex-1 overflow-auto">
             {view.type === "home" && (
               <Home
@@ -271,7 +268,7 @@ function App() {
             {view.type === "annual-report-2025" && (
               <AnnualReport2025 onClose={() => navigate({ type: "home" })} />
             )}
-            {view.type === "workspace" && <WorkspaceView />}
+
             {view.type === "features" && <FeaturesView onFeatureClick={handleFeatureClick} currentFeature={currentFeature} />}
             {view.type === "chat-projects" && (
               <ProjectList
@@ -431,7 +428,7 @@ function App() {
 function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { shortenPaths, setShortenPaths } = useAppConfig();
   const [autoCopy, setAutoCopy] = useState(getAutoCopyOnSelect);
-  const [featureTabsLayout, setFeatureTabsLayout] = useAtom(featureTabsLayoutAtom);
+
 
   const handleAutoCopyChange = (checked: boolean) => {
     setAutoCopy(checked);
@@ -459,32 +456,7 @@ function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
               <Switch checked={shortenPaths} onCheckedChange={setShortenPaths} />
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-ink">Project tabs layout</p>
-                <p className="text-xs text-muted-foreground">Position of project/feature tabs</p>
-              </div>
-              <div className="flex gap-0.5 p-0.5 bg-muted rounded-lg">
-                <button
-                  onClick={() => setFeatureTabsLayout("horizontal")}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${featureTabsLayout === "horizontal"
-                    ? "bg-background text-ink shadow-sm"
-                    : "text-muted-foreground hover:text-ink"
-                    }`}
-                >
-                  Horizontal
-                </button>
-                <button
-                  onClick={() => setFeatureTabsLayout("vertical")}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${featureTabsLayout === "vertical"
-                    ? "bg-background text-ink shadow-sm"
-                    : "text-muted-foreground hover:text-ink"
-                    }`}
-                >
-                  Vertical
-                </button>
-              </div>
-            </div>
+
           </div>
           {/* Terminal */}
           <div className="space-y-3">
