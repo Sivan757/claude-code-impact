@@ -1,10 +1,10 @@
-import { EnvSettingsView } from "../../views/Settings";
+import { GlobalSettingsView } from "../../views/Settings";
 import { FeaturesLayout } from "../../views/Features";
 
 export default function EnvSettingsPage() {
   return (
     <FeaturesLayout feature="basic-env">
-      <EnvSettingsView />
+      <GlobalSettingsView defaultTab="env" />
     </FeaturesLayout>
   );
 }

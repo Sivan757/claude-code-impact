@@ -232,6 +232,7 @@ pub fn run() {
             search_chats,
             list_local_commands,
             list_local_agents,
+            uninstall_agent,
             list_local_skills,
             list_codex_commands,
             install_skill_template,

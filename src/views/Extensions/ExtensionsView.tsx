@@ -10,7 +10,7 @@ import { PluginDetailModal } from "./PluginDetailModal";
 import { PluginFilterBar } from "./PluginFilterBar";
 import { usePluginLibrary } from "./usePluginLibrary";
 
-export function ExtensionsView() {
+export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const {
     scanResult,
@@ -79,10 +79,8 @@ export function ExtensionsView() {
 
   const showFilteredEmpty = !isScanning && filteredPlugins.length === 0 && !showEmpty;
 
-  return (
-    <ConfigPage>
-      <PageHeader title={t("extensions_view.title")} subtitle={t("extensions_view.subtitle")} />
-
+  const content = (
+    <>
       <div className="flex gap-6 h-full min-h-0">
         <MarketplaceSidebar
           marketplaces={scanResult.marketplaces}
@@ -202,6 +200,21 @@ export function ExtensionsView() {
         isToggleLoading={Boolean(selectedPlugin && togglingPluginId === selectedPlugin.id)}
         isUpdateLoading={Boolean(selectedPlugin && updatingPluginId === selectedPlugin.id)}
       />
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col w-full overflow-hidden">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <ConfigPage>
+      <PageHeader title={t("extensions_view.title")} subtitle={t("extensions_view.subtitle")} />
+      {content}
     </ConfigPage>
   );
 }

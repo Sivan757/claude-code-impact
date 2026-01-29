@@ -145,7 +145,7 @@ const ProviderItem = ({ provider, isActive, applyState, preset, onApply, onEdit,
 };
 
 
-export function LlmProviderView() {
+export function LlmProviderView({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
 
 
@@ -593,6 +593,94 @@ export function LlmProviderView() {
   }, [savedProviders, search]);
 
   if (isLoading) return <LoadingState message={t('llm.loading')} />;
+
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col w-full overflow-hidden">
+        <div className="flex items-center gap-3 mb-2">
+          <SearchInput
+            placeholder={t('llm.search_placeholder')}
+            value={search}
+            onChange={setSearch}
+            className="flex-1 px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+          />
+          <Button
+            size="icon"
+            className="h-10 w-10 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-full"
+            onClick={handleOpenCreate}
+            title={t('llm.apply')}
+          >
+            <PlusIcon className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <div className="flex-1 mt-1 flex flex-col gap-3 overflow-y-auto min-h-0">
+          {savedProviders.length > 0 ? (
+            search ? (
+              <div className="flex flex-col gap-3">
+                {filteredProviders.map(provider => (
+                  <ProviderItem
+                    key={provider.id}
+                    provider={provider}
+                    isActive={isProviderActive(provider)}
+                    applyState={applyStatus[provider.id]}
+                    preset={proxyPresets.find(p => p.key === provider.type) || { label: provider.type, description: "" }}
+                    onApply={handleApplyProvider}
+                    onEdit={handleOpenEdit}
+                    onDuplicate={handleDuplicateProvider}
+                    onDelete={handleDeleteProvider}
+                    t={t}
+                    isDraggable={false}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Reorder.Group axis="y" values={savedProviders} onReorder={setSavedProviders} className="flex flex-col gap-3">
+                {savedProviders.map(provider => (
+                  <ProviderItem
+                    key={provider.id}
+                    provider={provider}
+                    isActive={isProviderActive(provider)}
+                    applyState={applyStatus[provider.id]}
+                    preset={proxyPresets.find(p => p.key === provider.type) || { label: provider.type, description: "" }}
+                    onApply={handleApplyProvider}
+                    onEdit={handleOpenEdit}
+                    onDuplicate={handleDuplicateProvider}
+                    onDelete={handleDeleteProvider}
+                    t={t}
+                    isDraggable={true}
+                  />
+                ))}
+              </Reorder.Group>
+            )
+          ) : (
+            <p className="text-center text-muted-foreground p-8">{t('llm.no_providers') || "No providers saved. Click + to add one."}</p>
+          )}
+        </div>
+
+        <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>{editorId ? t('llm.edit_provider') || "Edit Provider" : t('llm.new_provider') || "New Provider"}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {renderEditorForm()}
+            </div>
+            <DialogFooter className="sm:justify-end">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsEditorOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button onClick={handleSaveProvider} disabled={editorLoading}>
+                  {t('common.save')}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   return (
     <ConfigPage>

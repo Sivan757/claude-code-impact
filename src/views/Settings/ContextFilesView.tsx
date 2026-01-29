@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useInvokeQuery } from "../../hooks";
-import { FileTextIcon } from "@radix-ui/react-icons";
+import { ReloadIcon, FileTextIcon } from "@radix-ui/react-icons";
+import { Button } from "../../components/ui/button";
+import { useInvokeQuery, useQueryClient } from "../../hooks";
 import {
   LoadingState,
   EmptyState,
@@ -14,10 +15,15 @@ import type { ContextFile } from "../../types";
 
 export function ContextFilesView() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data: allContextFiles = [], isLoading } = useInvokeQuery<ContextFile[]>(["contextFiles"], "get_context_files");
   const contextFiles = useMemo(() => allContextFiles.filter((f) => f.scope === "global"), [allContextFiles]);
 
   const [search, setSearch] = useState("");
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["contextFiles"] });
+  };
 
   if (isLoading) return <LoadingState message={t('context_files.loading')} />;
 
@@ -27,7 +33,15 @@ export function ContextFilesView() {
 
   return (
     <ConfigPage>
-      <PageHeader title={t('context_files.title')} subtitle={t('context_files.subtitle')} />
+      <PageHeader
+        title={t('context_files.title')}
+        subtitle={t('context_files.subtitle')}
+        action={
+          <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
+            <ReloadIcon className="w-4 h-4" />
+          </Button>
+        }
+      />
 
       <div className="flex-1 flex flex-col space-y-4">
         <SearchInput placeholder={t('context_files.search_placeholder')} value={search} onChange={setSearch} />

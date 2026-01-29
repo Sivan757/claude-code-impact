@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { CodeIcon, TrashIcon } from "@radix-ui/react-icons";
+import { CodeIcon, TrashIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { Button } from "../../components/ui/button";
 import type { LspServer } from "../../types";
 import {
   LoadingState,
@@ -28,6 +29,10 @@ export function LspView() {
   const [editingEnv, setEditingEnv] = useState<{ server: string; key: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [deletingServer, setDeletingServer] = useState<string | null>(null);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["lspServers"] });
+  };
 
   const handleDelete = async (serverName: string) => {
     setDeletingServer(serverName);
@@ -84,7 +89,14 @@ export function LspView() {
       <PageHeader
         title={t('lsp.title')}
         subtitle={t('lsp.servers_count', { count: servers.length })}
-        action={lspConfigPath && <FilePath path={lspConfigPath} showIcon filenameOnly />}
+        action={
+          <div className="flex items-center gap-2">
+            {lspConfigPath && <FilePath path={lspConfigPath} showIcon filenameOnly />}
+            <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
+              <ReloadIcon className="w-4 h-4" />
+            </Button>
+          </div>
+        }
       />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4">

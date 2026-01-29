@@ -107,7 +107,7 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="mb-6">
+    <header className="mb-2">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl font-semibold text-ink">{title}</h1>
@@ -235,8 +235,8 @@ export function DetailHeader({
           )}
           {statusBadge && (
             <span className={`text-xs px-2 py-0.5 rounded ${statusBadge.variant === "success" ? "bg-green-500/20 text-green-600" :
-                statusBadge.variant === "warning" ? "bg-amber-500/20 text-amber-600" :
-                  "bg-card-alt text-muted-foreground"
+              statusBadge.variant === "warning" ? "bg-amber-500/20 text-amber-600" :
+                "bg-card-alt text-muted-foreground"
               }`}>
               {statusBadge.label}
             </span>
@@ -432,7 +432,7 @@ export function ContentCard({
 // ============================================================================
 
 export function ConfigPage({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col h-full px-6 py-8 config-page-container overflow-hidden">{children}</div>;
+  return <div className="flex flex-col h-full px-6 py-4 config-page-container overflow-hidden">{children}</div>;
 }
 
 // ============================================================================

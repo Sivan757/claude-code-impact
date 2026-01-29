@@ -8,9 +8,8 @@ export default function SkillsPage() {
   return (
     <FeaturesLayout feature="skills">
       <SkillsView
-        onSelectTemplate={(_template, localPath) => {
-          const name = localPath.split("/").pop()?.replace(/\.md$/, "") || "";
-          navigate(`/skills/${encodeURIComponent(name)}`);
+        onSelectTemplate={(template, _localPath) => {
+          navigate(`/skills/${encodeURIComponent(template.name)}`);
         }}
       />
     </FeaturesLayout>

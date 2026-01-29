@@ -25,6 +25,21 @@ fn list_local_agents() -> Result<Vec<LocalAgent>, String> {
     Ok(agents)
 }
 
+#[tauri::command]
+fn uninstall_agent(name: String) -> Result<String, String> {
+    if name.is_empty() {
+        return Err("Agent name cannot be empty".to_string());
+    }
+
+    let agent_file = get_claude_dir().join("agents").join(format!("{}.md", name));
+    if !agent_file.exists() {
+        return Err(format!("Agent '{}' not found", name));
+    }
+
+    fs::remove_file(&agent_file).map_err(|e| format!("Failed to remove agent: {}", e))?;
+    Ok(format!("Uninstalled agent: {}", name))
+}
+
 fn collect_agents(
     base_dir: &PathBuf,
     current_dir: &PathBuf,

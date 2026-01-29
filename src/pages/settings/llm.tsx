@@ -1,10 +1,10 @@
-import { LlmProviderView } from "../../views/Settings";
+import { GlobalSettingsView } from "../../views/Settings";
 import { FeaturesLayout } from "../../views/Features";
 
 export default function LlmProviderPage() {
   return (
     <FeaturesLayout feature="basic-llm">
-      <LlmProviderView />
+      <GlobalSettingsView defaultTab="provider" />
     </FeaturesLayout>
   );
 }

@@ -31,7 +31,10 @@
         "unassociated": "未归类",
         "failed_with": "操作失败: {{error}}",
         "basic": "基础",
-        "config": "配置"
+        "config": "配置",
+        "refresh": "刷新",
+        "edit": "编辑",
+        "delete": "删除"
     },
     "home": {
         "tagline": "开启 Vibe Coding",
@@ -105,13 +108,14 @@
         "mcp": "MCP",
         "lsp": "LSP",
         "skills": "技能",
-        "hooks": "挂钩",
+        "hooks": "钩子",
         "sub-agents": "子代理",
         "output-styles": "输出样式",
         "statusline": "状态栏",
         "extensions": "扩展",
         "plugins": "插件",
-        "general": "常规"
+        "general": "常规",
+        "common_settings": "通用"
     },
     "knowledge_sidebar": {
         "title": "知识",
@@ -659,10 +663,21 @@
         "loading": "正在加载 MCP 服务...",
         "search_placeholder": "搜索已安装的 MCP 服务...",
         "no_servers": "未配置 MCP 服务",
-        "browse_marketplace": "浏览市场以安装 MCP 服务",
+        "browse_marketplace": "通过配置文件添加 MCP 服务",
         "servers_count": "已配置 {{count}} 个服务",
         "no_command": "未配置命令或 URL",
         "open_npm": "在 npm 中打开"
+    },
+    "lsp": {
+        "title": "LSP 服务",
+        "loading": "正在加载 LSP 服务...",
+        "servers_count": "已配置 {{count}} 个服务",
+        "search_placeholder": "搜索已安装的 LSP 服务...",
+        "no_command": "未配置命令",
+        "extensions": "扩展名",
+        "root_markers": "根目录标记",
+        "no_servers": "未配置 LSP 服务",
+        "add_hint": "通过配置文件添加 LSP 服务"
     },
     "skills": {
         "title": "技能",
@@ -674,7 +689,7 @@
         "no_templates": "未找到模板"
     },
     "hooks": {
-        "title": "挂钩",
+        "title": "钩子",
         "subtitle": "~/.claude/settings.json 中的自动化触发器",
         "loading": "正在加载挂钩...",
         "search_placeholder": "搜索已安装的挂钩...",

@@ -239,6 +239,7 @@ export type View =
   | { type: "kb-reference" }
   | { type: "kb-reference-doc"; source: string; docIndex: number }
   | { type: "marketplace"; category?: TemplateCategory }
+  | { type: "extensions" }
   | { type: "template-detail"; template: TemplateComponent; category: TemplateCategory }
   | { type: "feature-template-detail"; template: TemplateComponent; category: TemplateCategory; fromFeature: FeatureType; localPath?: string; isInstalled?: boolean }
   | { type: "feature-todo"; feature: FeatureType }

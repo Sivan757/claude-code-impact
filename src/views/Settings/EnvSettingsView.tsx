@@ -28,7 +28,7 @@ import {
 import type { ClaudeSettings } from "../../types";
 import { ENV_VAR_SUGGESTIONS } from "../../constants/env-vars";
 
-export function EnvSettingsView() {
+export function EnvSettingsView({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
@@ -136,170 +136,181 @@ export function EnvSettingsView() {
 
 
 
+  const content = (
+    <div className="flex-1 flex flex-col space-y-4">
+      <div className="flex items-center gap-2 mb-6">
+        <SearchInput
+          placeholder={t('env.search_placeholder')}
+          value={search}
+          onChange={setSearch}
+          className="flex-1 max-w-md px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+        />
+        <Button variant="ghost" size="icon" className="rounded-full w-8 h-8" onClick={refreshSettings} title={t('env.refresh')}>
+          <ReloadIcon className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center p-3 rounded-lg border border-border bg-card">
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen} className="flex-1 relative group">
+          <input
+            className="text-xs px-2 py-1 pr-8 rounded bg-canvas border border-border text-ink w-full"
+            placeholder={t('env.key')}
+            value={newEnvKey}
+            onChange={(e) => {
+              setNewEnvKey(e.target.value);
+              setPopoverOpen(true);
+            }}
+            onFocus={() => setPopoverOpen(true)}
+            onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
+          />
+          <div className="absolute right-0 top-0 bottom-0 flex items-center pr-1">
+            <PopoverTrigger className="p-1 hover:bg-accent rounded text-muted-foreground transition-colors">
+              <ChevronDownIcon className="w-3.5 h-3.5" />
+            </PopoverTrigger>
+          </div>
+          <PopoverContent align="start" className="w-full p-0 overflow-hidden mt-1 shadow-xl border-border/50">
+            <div className="max-h-[300px] overflow-y-auto">
+              {filteredSuggestions.length > 0 ? (
+                filteredSuggestions.map((item) => (
+                  <button
+                    key={item.key}
+                    className="w-full text-left px-3 py-2 hover:bg-accent transition-colors border-b border-border/40 last:border-0 flex flex-col gap-0.5"
+                    onClick={() => {
+                      setNewEnvKey(item.key);
+                      setPopoverOpen(false);
+                    }}
+                  >
+                    <span className="text-xs font-mono text-primary font-medium">{item.key}</span>
+                    <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed italic">{item.desc}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                  {t('env.no_suggestions', '未找到匹配的建议')}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+        <input
+          className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink flex-1"
+          placeholder={t('env.value')}
+          value={newEnvValue}
+          onChange={(e) => setNewEnvValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
+        />
+        <Button size="sm" onClick={handleEnvCreate} disabled={!newEnvKey.trim()}>
+          {t('env.add')}
+        </Button>
+      </div>
+
+
+
+      {filteredEnvEntries.length > 0 ? (
+        <div className="overflow-x-hidden rounded-lg border border-border bg-card">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-muted-foreground border-b border-border">
+                <th className="py-2 px-3 font-medium">{t('env.key_label')}</th>
+                <th className="py-2 px-3 font-medium">{t('env.value_label')}</th>
+                <th className="py-2 px-3 font-medium text-right">{t('env.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEnvEntries.map(([key, value, isDisabled]) => {
+                return (
+                  <tr
+                    key={key}
+                    className={`border-b border-border/60 last:border-0 ${isDisabled ? "opacity-50" : ""}`}
+                  >
+                    <td className="py-2 px-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded font-mono ${isDisabled ? "bg-muted/50 text-muted-foreground line-through" : "bg-primary/10 text-primary"}`}
+                      >
+                        {key}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3">
+                      {editingEnvKey === key ? (
+                        <input
+                          autoFocus
+                          className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink w-64"
+                          value={envEditValue}
+                          onChange={(e) => setEnvEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleEnvSave();
+                            if (e.key === "Escape") setEditingEnvKey(null);
+                          }}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {value || t('env.empty')}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 whitespace-nowrap text-right">
+                      {editingEnvKey === key ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={handleEnvSave} title={t('env.save')}>
+                            <CheckIcon />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setEditingEnvKey(null)} title={t('env.cancel')}>
+                            <Cross1Icon />
+                          </Button>
+                        </div>
+                      ) : isDisabled ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleEnvEdit(key, value, true)} title={t('env.edit')}>
+                            <Pencil1Icon />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleEnvEnable(key)} title={t('env.enable')}>
+                            <PlusCircledIcon />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
+                            <TrashIcon />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleEnvEdit(key, value, false)} title={t('env.edit')}>
+                            <Pencil1Icon />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-7 w-7 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => handleEnvDisable(key)} title={t('env.disable')}>
+                            <MinusCircledIcon />
+                          </Button>
+                          <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
+                            <TrashIcon />
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="p-4 rounded-lg border border-border bg-card text-center">
+          <p className="text-sm text-muted-foreground">{t('env.no_env')}</p>
+        </div>
+      )
+      }
+    </div >
+  );
+
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col w-full overflow-hidden">
+        {content}
+      </div>
+    );
+  }
+
   return (
     <ConfigPage>
       <PageHeader title={t('env.title')} subtitle={t('env.subtitle')} />
-
-      <div className="flex-1 flex flex-col space-y-4">
-        <div className="flex items-center gap-2 mb-6">
-          <SearchInput
-            placeholder={t('env.search_placeholder')}
-            value={search}
-            onChange={setSearch}
-            className="flex-1 max-w-md px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-          />
-          <Button variant="ghost" size="icon" className="rounded-full w-8 h-8" onClick={refreshSettings} title={t('env.refresh')}>
-            <ReloadIcon className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center p-3 rounded-lg border border-border bg-card">
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen} className="flex-1 relative group">
-            <input
-              className="text-xs px-2 py-1 pr-8 rounded bg-canvas border border-border text-ink w-full"
-              placeholder={t('env.key')}
-              value={newEnvKey}
-              onChange={(e) => {
-                setNewEnvKey(e.target.value);
-                setPopoverOpen(true);
-              }}
-              onFocus={() => setPopoverOpen(true)}
-              onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
-            />
-            <div className="absolute right-0 top-0 bottom-0 flex items-center pr-1">
-              <PopoverTrigger className="p-1 hover:bg-accent rounded text-muted-foreground transition-colors">
-                <ChevronDownIcon className="w-3.5 h-3.5" />
-              </PopoverTrigger>
-            </div>
-            <PopoverContent align="start" className="w-full p-0 overflow-hidden mt-1 shadow-xl border-border/50">
-              <div className="max-h-[300px] overflow-y-auto">
-                {filteredSuggestions.length > 0 ? (
-                  filteredSuggestions.map((item) => (
-                    <button
-                      key={item.key}
-                      className="w-full text-left px-3 py-2 hover:bg-accent transition-colors border-b border-border/40 last:border-0 flex flex-col gap-0.5"
-                      onClick={() => {
-                        setNewEnvKey(item.key);
-                        setPopoverOpen(false);
-                      }}
-                    >
-                      <span className="text-xs font-mono text-primary font-medium">{item.key}</span>
-                      <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed italic">{item.desc}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    {t('env.no_suggestions', '未找到匹配的建议')}
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-          <input
-            className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink flex-1"
-            placeholder={t('env.value')}
-            value={newEnvValue}
-            onChange={(e) => setNewEnvValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
-          />
-          <Button size="sm" onClick={handleEnvCreate} disabled={!newEnvKey.trim()}>
-            {t('env.add')}
-          </Button>
-        </div>
-
-
-
-        {filteredEnvEntries.length > 0 ? (
-          <div className="overflow-x-hidden rounded-lg border border-border bg-card">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground border-b border-border">
-                  <th className="py-2 px-3 font-medium">{t('env.key_label')}</th>
-                  <th className="py-2 px-3 font-medium">{t('env.value_label')}</th>
-                  <th className="py-2 px-3 font-medium text-right">{t('env.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEnvEntries.map(([key, value, isDisabled]) => {
-                  return (
-                    <tr
-                      key={key}
-                      className={`border-b border-border/60 last:border-0 ${isDisabled ? "opacity-50" : ""}`}
-                    >
-                      <td className="py-2 px-3">
-                        <span
-                          className={`text-xs px-2 py-1 rounded font-mono ${isDisabled ? "bg-muted/50 text-muted-foreground line-through" : "bg-primary/10 text-primary"}`}
-                        >
-                          {key}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3">
-                        {editingEnvKey === key ? (
-                          <input
-                            autoFocus
-                            className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink w-64"
-                            value={envEditValue}
-                            onChange={(e) => setEnvEditValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleEnvSave();
-                              if (e.key === "Escape") setEditingEnvKey(null);
-                            }}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {value || t('env.empty')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap text-right">
-                        {editingEnvKey === key ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button size="icon" variant="outline" className="h-7 w-7" onClick={handleEnvSave} title={t('env.save')}>
-                              <CheckIcon />
-                            </Button>
-                            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setEditingEnvKey(null)} title={t('env.cancel')}>
-                              <Cross1Icon />
-                            </Button>
-                          </div>
-                        ) : isDisabled ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleEnvEdit(key, value, true)} title={t('env.edit')}>
-                              <Pencil1Icon />
-                            </Button>
-                            <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleEnvEnable(key)} title={t('env.enable')}>
-                              <PlusCircledIcon />
-                            </Button>
-                            <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
-                              <TrashIcon />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleEnvEdit(key, value, false)} title={t('env.edit')}>
-                              <Pencil1Icon />
-                            </Button>
-                            <Button size="icon" variant="outline" className="h-7 w-7 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => handleEnvDisable(key)} title={t('env.disable')}>
-                              <MinusCircledIcon />
-                            </Button>
-                            <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
-                              <TrashIcon />
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-4 rounded-lg border border-border bg-card text-center">
-            <p className="text-sm text-muted-foreground">{t('env.no_env')}</p>
-          </div>
-        )
-        }
-      </div >
+      {content}
     </ConfigPage >
   );
 }

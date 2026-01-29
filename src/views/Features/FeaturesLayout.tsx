@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { SidebarLayout, NavSidebar } from "@/components/shared";
-import { TEMPLATE_CATEGORIES } from "@/constants";
 import type { FeatureType, TemplateCategory } from "@/types";
 import { useTranslation } from "react-i18next";
 
@@ -25,16 +24,16 @@ const KEY_TO_ROUTE: Record<SidebarKey, string> = {
 
 // Map feature type to sidebar key
 const FEATURE_TO_KEY: Partial<Record<FeatureType, SidebarKey>> = {
-  "basic-env": "basic-env",
-  "basic-llm": "basic-llm",
-  settings: "basic-settings",
+  "basic-env": "settings",
+  "basic-llm": "settings",
+  settings: "settings",
   context: "context",
   mcp: "mcps",
   lsp: "lsps",
   skills: "skills",
   hooks: "hooks",
   "sub-agents": "agents",
-  extensions: "extensions",
+  extensions: "settings",
 };
 
 interface FeaturesLayoutProps {
@@ -51,20 +50,13 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
 
   const groups = useMemo(() => [
     {
-      title: t('common.basic').toUpperCase(),
       items: [
-        { key: "basic-env", label: t('features.basic-env') },
-        { key: "basic-llm", label: t('features.basic-llm') },
-      ],
-    },
-    {
-      title: t('common.config').toUpperCase(),
-      items: [
-        ...TEMPLATE_CATEGORIES.map(c => ({
-          key: c.key,
-          label: t(`features.${c.key === 'mcps' ? 'mcp' : c.key === 'agents' ? 'sub-agents' : c.key}`)
-        })),
-        { key: "extensions", label: t('features.plugins') },
+        { key: "settings", label: t('settings_dialog.title') },
+        { key: "context", label: t('features.context') },
+        { key: "mcps", label: t('features.mcp') },
+        { key: "skills", label: t('features.skills') },
+        { key: "agents", label: t('features.sub-agents') },
+        { key: "lsps", label: t('features.lsp') },
       ],
     },
   ], [t]);

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Component1Icon, ExternalLinkIcon, TrashIcon } from "@radix-ui/react-icons";
+import { Component1Icon, ExternalLinkIcon, TrashIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { Button } from "../../components/ui/button";
 import type { McpServer, ClaudeSettings } from "../../types";
 import {
   LoadingState,
@@ -24,6 +25,10 @@ export function McpView() {
   const [editingEnv, setEditingEnv] = useState<{ server: string; key: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [uninstallingServer, setUninstallingServer] = useState<string | null>(null);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["settings"] });
+  };
 
   const handleUninstall = async (serverName: string) => {
     setUninstallingServer(serverName);
@@ -72,7 +77,14 @@ export function McpView() {
       <PageHeader
         title={t('mcp.title')}
         subtitle={t('mcp.servers_count', { count: servers.length })}
-        action={mcpConfigPath && <FilePath path={mcpConfigPath} showIcon filenameOnly />}
+        action={
+          <div className="flex items-center gap-2">
+            {mcpConfigPath && <FilePath path={mcpConfigPath} showIcon filenameOnly />}
+            <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
+              <ReloadIcon className="w-4 h-4" />
+            </Button>
+          </div>
+        }
       />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4">

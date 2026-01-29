@@ -53,6 +53,8 @@ interface TemplateDetailViewProps {
   isInstalled?: boolean;
 }
 
+import { useQueryClient } from "../../hooks";
+
 export function TemplateDetailView({
   template,
   category,
@@ -62,6 +64,7 @@ export function TemplateDetailView({
   isInstalled: initiallyInstalled,
 }: TemplateDetailViewProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [installing, setInstalling] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [installed, setInstalled] = useState(initiallyInstalled ?? false);
@@ -85,8 +88,13 @@ export function TemplateDetailView({
     try {
       if (category === "mcps") {
         await invoke("uninstall_mcp_template", { name: template.name });
+        queryClient.invalidateQueries({ queryKey: ["settings"] });
       } else if (category === "skills") {
         await invoke("uninstall_skill", { name: template.name });
+        queryClient.invalidateQueries({ queryKey: ["skills"] });
+      } else if (category === "agents") {
+        await invoke("uninstall_agent", { name: template.name });
+        queryClient.invalidateQueries({ queryKey: ["agents"] });
       }
       setInstalled(false);
     } catch (e) {
@@ -157,141 +165,143 @@ export function TemplateDetailView({
 
   return (
     <ConfigPage>
-      <header className="mb-6">
-        <button
-          onClick={onBack}
-          className="text-muted-foreground hover:text-ink mb-2 flex items-center gap-1 text-sm"
-        >
-          <span>←</span> {categoryLabel}
-        </button>
-        {/* Title row: title + badges + actions */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <h1 className="font-serif text-2xl font-semibold text-ink truncate">{template.name}</h1>
-            {installed && (
-              <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary shrink-0">
-                {t('template_detail.installed_badge')}
-              </span>
-            )}
-          </div>
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Primary Install button when not installed */}
-            {!installed && (
-              <button
-                onClick={handleInstall}
-                disabled={installing}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-              >
-                {installing ? t('template_detail.installing_btn') : t('template_detail.install_btn')}
-              </button>
-            )}
-            {/* Three-dot menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="p-2 rounded-xl hover:bg-card-alt text-muted-foreground hover:text-ink">
-                  <DotsHorizontalIcon className="w-5 h-5" />
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <header className="mb-6">
+          <button
+            onClick={onBack}
+            className="text-muted-foreground hover:text-ink mb-2 flex items-center gap-1 text-sm"
+          >
+            <span>←</span> {categoryLabel}
+          </button>
+          {/* Title row: title + badges + actions */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h1 className="font-serif text-2xl font-semibold text-ink truncate">{template.name}</h1>
+              {installed && (
+                <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary shrink-0">
+                  {t('template_detail.installed_badge')}
+                </span>
+              )}
+            </div>
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Primary Install button when not installed */}
+              {!installed && (
+                <button
+                  onClick={handleInstall}
+                  disabled={installing}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {installing ? t('template_detail.installing_btn') : t('template_detail.install_btn')}
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {localPath && (
-                  <DropdownMenuItem onClick={() => invoke("open_in_editor", { path: localPath })}>
-                    <Pencil1Icon className="w-4 h-4 mr-2" />
-                    {t('template_detail.open_in_editor')}
-                  </DropdownMenuItem>
-                )}
-                {installed && onNavigateToInstalled && (
-                  <DropdownMenuItem onClick={onNavigateToInstalled}>
-                    <ExternalLinkIcon className="w-4 h-4 mr-2" />
-                    {t('template_detail.view_installed')}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleReveal}>
-                  <ExternalLinkIcon className="w-4 h-4 mr-2" />
-                  {t('template_detail.reveal_finder')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenFile}>
-                  <FileIcon className="w-4 h-4 mr-2" />
-                  {t('template_detail.open_file')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleCopyPath}>
-                  <CopyIcon className="w-4 h-4 mr-2" />
-                  {t('template_detail.copy_path')}
-                </DropdownMenuItem>
-                {installed && (category === "mcps" || category === "skills") && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleUninstall}
-                      disabled={uninstalling}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <TrashIcon className="w-4 h-4 mr-2" />
-                      {uninstalling ? t('template_detail.uninstalling_btn') : t('template_detail.uninstall_btn')}
+              )}
+              {/* Three-dot menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-2 rounded-xl hover:bg-card-alt text-muted-foreground hover:text-ink">
+                    <DotsHorizontalIcon className="w-5 h-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {localPath && (
+                    <DropdownMenuItem onClick={() => invoke("open_in_editor", { path: localPath })}>
+                      <Pencil1Icon className="w-4 h-4 mr-2" />
+                      {t('template_detail.open_in_editor')}
                     </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                  {installed && onNavigateToInstalled && (
+                    <DropdownMenuItem onClick={onNavigateToInstalled}>
+                      <ExternalLinkIcon className="w-4 h-4 mr-2" />
+                      {t('template_detail.view_installed')}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleReveal}>
+                    <ExternalLinkIcon className="w-4 h-4 mr-2" />
+                    {t('template_detail.reveal_finder')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenFile}>
+                    <FileIcon className="w-4 h-4 mr-2" />
+                    {t('template_detail.open_file')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopyPath}>
+                    <CopyIcon className="w-4 h-4 mr-2" />
+                    {t('template_detail.copy_path')}
+                  </DropdownMenuItem>
+                  {installed && (category === "mcps" || category === "skills" || category === "agents") && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={handleUninstall}
+                        disabled={uninstalling}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <TrashIcon className="w-4 h-4 mr-2" />
+                        {uninstalling ? t('template_detail.uninstalling_btn') : t('template_detail.uninstall_btn')}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
-        {/* Description */}
-        {template.description && (
-          <p className="text-muted-foreground mt-3">{template.description}</p>
-        )}
-        {/* Metadata row */}
-        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1.5">
-            {categoryLabel}
-          </span>
-          {template.author && (
-            <>
-              <span>•</span>
-              <span>{t('template_detail.by_author', { author: template.author })}</span>
-            </>
+          {/* Description */}
+          {template.description && (
+            <p className="text-muted-foreground mt-3">{template.description}</p>
           )}
-          {template.downloads != null && (
-            <>
-              <span>•</span>
-              <span>↓ {template.downloads}</span>
-            </>
-          )}
-        </div>
-        {error && (
-          <div className="mt-4 p-3 bg-primary/10 text-primary rounded-xl text-sm">{error}</div>
-        )}
-      </header>
-
-      {template.content && (
-        <DetailCard label={t('marketplace.content_preview')}>
-          {category === "mcps" || category === "hooks" || category === "settings" || category === "statuslines" ? (
-            <CodePreview value={template.content} language={getLanguageForCategory(category)} height={400} />
-          ) : (() => {
-            const { meta, body } = parseFrontmatter(template.content);
-            const metaKeys = Object.keys(meta);
-            return (
+          {/* Metadata row */}
+          <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
+            <span className="flex items-center gap-1.5">
+              {categoryLabel}
+            </span>
+            {template.author && (
               <>
-                {metaKeys.length > 0 && (
-                  <div className="mb-4 p-3 bg-card-alt rounded-lg border border-border">
-                    <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                      {metaKeys.map(key => (
-                        <div key={key} className="contents">
-                          <span className="text-muted-foreground">{key}</span>
-                          <span className="text-ink">{meta[key]}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="prose prose-sm max-w-none prose-neutral prose-pre:bg-card-alt prose-pre:text-ink prose-code:text-ink">
-                  <Markdown>{body}</Markdown>
-                </div>
+                <span>•</span>
+                <span>{t('template_detail.by_author', { author: template.author })}</span>
               </>
-            );
-          })()}
-        </DetailCard>
-      )}
+            )}
+            {template.downloads != null && (
+              <>
+                <span>•</span>
+                <span>↓ {template.downloads}</span>
+              </>
+            )}
+          </div>
+          {error && (
+            <div className="mt-4 p-3 bg-primary/10 text-primary rounded-xl text-sm">{error}</div>
+          )}
+        </header>
+
+        {template.content && (
+          <DetailCard label={t('marketplace.content_preview')}>
+            {category === "mcps" || category === "hooks" || category === "settings" || category === "statuslines" ? (
+              <CodePreview value={template.content} language={getLanguageForCategory(category)} height={400} />
+            ) : (() => {
+              const { meta, body } = parseFrontmatter(template.content);
+              const metaKeys = Object.keys(meta);
+              return (
+                <>
+                  {metaKeys.length > 0 && (
+                    <div className="mb-4 p-3 bg-card-alt rounded-lg border border-border">
+                      <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                        {metaKeys.map(key => (
+                          <div key={key} className="contents">
+                            <span className="text-muted-foreground">{key}</span>
+                            <span className="text-ink">{meta[key]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="prose prose-sm max-w-none prose-neutral prose-pre:bg-card-alt prose-pre:text-ink prose-code:text-ink">
+                    <Markdown>{body}</Markdown>
+                  </div>
+                </>
+              );
+            })()}
+          </DetailCard>
+        )}
+      </div>
     </ConfigPage>
   );
 }

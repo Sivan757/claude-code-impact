@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { TargetIcon, StarFilledIcon, HeartFilledIcon, GlobeIcon } from "@radix-ui/react-icons";
+import { TargetIcon, StarFilledIcon, HeartFilledIcon, GlobeIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { Button } from "../../components/ui/button";
 import type { LocalSkill, TemplateComponent } from "../../types";
 import {
   LoadingState,
@@ -9,7 +10,7 @@ import {
   ConfigPage,
   useSearch,
 } from "../../components/config";
-import { useInvokeQuery } from "../../hooks";
+import { useInvokeQuery, useQueryClient } from "../../hooks";
 
 interface SkillsViewProps {
   onSelectTemplate: (template: TemplateComponent, localPath: string) => void;
@@ -17,14 +18,24 @@ interface SkillsViewProps {
 
 export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data: skills = [], isLoading } = useInvokeQuery<LocalSkill[]>(["skills"], "list_local_skills");
   const { search, setSearch, filtered } = useSearch(skills, ["name", "description"]);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["skills"] });
+  };
 
   return (
     <ConfigPage>
       <PageHeader
         title={t('skills.title')}
         subtitle={t('skills.skills_count', { count: skills.length })}
+        action={
+          <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
+            <ReloadIcon className="w-4 h-4" />
+          </Button>
+        }
       />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4">
@@ -39,7 +50,7 @@ export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
             />
 
             {filtered.length > 0 && (
-              <div className="space-y-2 overflow-y-auto min-h-0">
+              <div className="flex-1 space-y-2 overflow-y-auto min-h-0">
                 {filtered.map((skill) => {
                   const meta = skill.marketplace;
                   const hasMarketplaceInfo = meta?.source_id && meta.source_id !== "personal";

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { PersonIcon } from "@radix-ui/react-icons";
+import { PersonIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { Button } from "../../components/ui/button";
 import type { LocalAgent } from "../../types";
 import {
   LoadingState,
@@ -10,7 +11,7 @@ import {
   ConfigPage,
   useSearch,
 } from "../../components/config";
-import { useInvokeQuery } from "../../hooks";
+import { useInvokeQuery, useQueryClient } from "../../hooks";
 
 interface SubAgentsViewProps {
   onSelect: (agent: LocalAgent) => void;
@@ -18,8 +19,13 @@ interface SubAgentsViewProps {
 
 export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data: agents = [], isLoading } = useInvokeQuery<LocalAgent[]>(["agents"], "list_local_agents");
   const { search, setSearch, filtered } = useSearch(agents, ["name", "description", "model"]);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["agents"] });
+  };
 
   if (isLoading) return <LoadingState message={t('sub_agents.loading')} />;
 
@@ -28,6 +34,11 @@ export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
       <PageHeader
         title={t('sub_agents.title')}
         subtitle={t('sub_agents.subtitle', { count: agents.length })}
+        action={
+          <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
+            <ReloadIcon className="w-4 h-4" />
+          </Button>
+        }
       />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4">

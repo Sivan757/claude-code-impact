@@ -31,7 +31,10 @@
         "unassociated": "Unassociated",
         "failed_with": "Failed: {{error}}",
         "basic": "Basic",
-        "config": "Config"
+        "config": "Config",
+        "refresh": "Refresh",
+        "edit": "Edit",
+        "delete": "Delete"
     },
     "home": {
         "tagline": "Your Vibe Coding Hub",
@@ -110,7 +113,8 @@
         "output-styles": "Output Styles",
         "statusline": "Status Line",
         "extensions": "Plugins",
-        "general": "General"
+        "general": "General",
+        "common_settings": "General"
     },
     "knowledge_sidebar": {
         "title": "Knowledge",
@@ -661,6 +665,17 @@
         "servers_count": "{{count}} configured servers",
         "no_command": "No command or URL configured",
         "open_npm": "Open in npm"
+    },
+    "lsp": {
+        "title": "LSP Servers",
+        "loading": "Loading LSP servers...",
+        "servers_count": "{{count}} configured servers",
+        "search_placeholder": "Search installed LSP servers...",
+        "no_command": "No command configured",
+        "extensions": "Extensions",
+        "root_markers": "Root Markers",
+        "no_servers": "No LSP servers configured",
+        "add_hint": "Add LSP servers via configuration file"
     },
     "skills": {
         "title": "Skills",

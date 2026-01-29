@@ -37,9 +37,7 @@ import {
   DistillDetailView,
   ReferenceView,
   KnowledgeLayout,
-  SettingsView,
-  EnvSettingsView,
-  LlmProviderView,
+  GlobalSettingsView,
   ContextFilesView,
   ProjectList,
   SessionList,
@@ -196,6 +194,9 @@ function App() {
       case "sub-agents":
         navigate({ type: "sub-agents" });
         break;
+      case "extensions":
+        navigate({ type: "extensions" });
+        break;
 
       case "kb-distill":
         navigate({ type: "kb-distill" });
@@ -270,14 +271,13 @@ function App() {
               view.type === "settings" || view.type === "mcp" ||
               view.type === "skills" || view.type === "hooks" ||
               view.type === "sub-agents" || view.type === "sub-agent-detail" ||
-              view.type === "feature-template-detail") && (
+              view.type === "feature-template-detail" || view.type === "extensions") && (
                 <FeaturesLayout currentFeature={currentFeature} onFeatureClick={handleFeatureClick}>
-                  {view.type === "basic-env" && <EnvSettingsView />}
-                  {view.type === "basic-llm" && <LlmProviderView />}
+                  {view.type === "basic-env" && <GlobalSettingsView defaultTab="env" />}
+                  {view.type === "basic-llm" && <GlobalSettingsView defaultTab="provider" />}
                   {view.type === "context" && <ContextFilesView />}
-                  {view.type === "settings" && (
-                    <SettingsView />
-                  )}
+                  {view.type === "settings" && <GlobalSettingsView defaultTab="general" />}
+                  {view.type === "extensions" && <GlobalSettingsView defaultTab="plugins" />}
                   {view.type === "mcp" && (
                     <McpView />
                   )}
