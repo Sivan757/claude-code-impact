@@ -8,17 +8,13 @@ export type FeatureType =
   | "features"
   | "basic-env"
   | "basic-llm"
-  | "basic-version"
   | "context"
   | "settings"
-  | "statusline"
-  | "commands"
   | "mcp"
   | "lsp"
   | "skills"
   | "hooks"
   | "sub-agents"
-  | "output-styles"
   | "marketplace"
   | "extensions"
   | "kb-distill"
@@ -203,26 +199,20 @@ export interface SourceInfo {
 export interface TemplatesCatalog {
   context: TemplateComponent[];
   settings: TemplateComponent[];
-  commands: TemplateComponent[];
   mcps: TemplateComponent[];
   skills: TemplateComponent[];
   hooks: TemplateComponent[];
   agents: TemplateComponent[];
-  statuslines: TemplateComponent[];
-  "output-styles": TemplateComponent[];
   sources?: SourceInfo[];
 }
 
 export type TemplateCategory =
   | "context"
   | "settings"
-  | "commands"
   | "mcps"
   | "skills"
   | "hooks"
-  | "agents"
-  | "statuslines"
-  | "output-styles";
+  | "agents";
 
 // ============================================================================
 // View State Types
@@ -237,18 +227,13 @@ export type View =
   | { type: "chat-messages"; projectId: string; projectPath: string; sessionId: string; summary: string | null }
   | { type: "basic-env" }
   | { type: "basic-llm" }
-  | { type: "basic-version" }
   | { type: "context" }
   | { type: "settings" }
-  | { type: "commands" }
-  | { type: "command-detail"; command: LocalCommand; scrollToChangelog?: boolean }
   | { type: "mcp" }
   | { type: "skills" }
   | { type: "hooks" }
   | { type: "sub-agents" }
   | { type: "sub-agent-detail"; agent: LocalAgent }
-  | { type: "output-styles" }
-  | { type: "statusline" }
   | { type: "kb-distill" }
   | { type: "kb-distill-detail"; document: DistillDocument }
   | { type: "kb-reference" }

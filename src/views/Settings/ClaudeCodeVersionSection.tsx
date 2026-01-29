@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { CollapsibleCard } from "../../components/shared";
 import type { ClaudeCodeVersionInfo, ClaudeCodeInstallType } from "../../types";
 
 function formatDownloads(n: number): string {
@@ -178,14 +177,9 @@ export function ClaudeCodeVersionSection() {
 
   if (loading) {
     return (
-      <CollapsibleCard
-        storageKey="claudecodeimpact:settings:ccVersionOpen"
-        title={t('claude_code.title')}
-        subtitle={t('claude_code.loading')}
-        bodyClassName="p-3"
-      >
+      <div className="p-4 space-y-3">
         <p className="text-xs text-muted-foreground">{t('common.loading')}...</p>
-      </CollapsibleCard>
+      </div>
     );
   }
 
@@ -215,22 +209,10 @@ export function ClaudeCodeVersionSection() {
     return `${v.version}${isCurrent ? t('claude_code.current_marker') : ""}`;
   };
 
-  const getSubtitle = () => {
-    if (!versionInfo) return t('claude_code.error_loading');
-    if (isNotInstalled) return t('claude_code.not_installed');
-    const typeLabel = INSTALL_TYPES.find((t) => t.value === versionInfo.install_type)?.label;
-    return `v${versionInfo.current_version} (${typeLabel})`;
-  };
-
   return (
-    <CollapsibleCard
-      storageKey="claudecodeimpact:settings:ccVersionOpen"
-      title={t('claude_code.title')}
-      subtitle={getSubtitle()}
-      bodyClassName="p-3 space-y-3"
-    >
+    <div className="space-y-4">
       {/* Version + Install Type + Button */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <div className="flex gap-2">
           {/* Version selector */}
           <Select value={selectedVersion} onValueChange={setSelectedVersion} disabled={installing}>
@@ -300,7 +282,7 @@ export function ClaudeCodeVersionSection() {
         <p className="text-[10px] text-muted-foreground">
           {INSTALL_TYPES.find((t) => t.value === selectedInstallType)?.desc}
           {!isSameInstallType && versionInfo?.install_type !== "none" && (
-            <span className="text-amber-600">{t('claude_code.switcher_hint', { type: versionInfo?.install_type })}</span>
+            <span className="text-amber-600 block mt-1">{t('claude_code.switcher_hint', { type: versionInfo?.install_type })}</span>
           )}
         </p>
       </div>
@@ -318,7 +300,7 @@ export function ClaudeCodeVersionSection() {
 
       {/* Install progress logs */}
       {installLogs.length > 0 && (
-        <div className="bg-muted/50 rounded-lg p-2 max-h-32 overflow-y-auto font-mono text-[10px] text-muted-foreground">
+        <div className="bg-muted/50 rounded-lg p-3 max-h-48 overflow-y-auto font-mono text-[10px] text-muted-foreground border border-border">
           {installLogs.map((log, i) => (
             <div
               key={i}
@@ -331,27 +313,27 @@ export function ClaudeCodeVersionSection() {
         </div>
       )}
 
-
-
       {/* Error/Success messages */}
-      {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2">{error}</p>}
-      {success && <p className="text-xs text-green-600 bg-green-50 rounded-lg p-2">{success}</p>}
+      {error && <p className="text-xs text-red-600 bg-red-50/50 border border-red-100 rounded-lg p-2">{error}</p>}
+      {success && <p className="text-xs text-green-600 bg-green-50/50 border border-green-100 rounded-lg p-2">{success}</p>}
 
-      {!isNotInstalled && (
-        <p className="text-[10px] text-muted-foreground">
-          {t('claude_code.tip')}
-        </p>
-      )}
+      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        {!isNotInstalled && (
+          <p className="text-[10px] text-muted-foreground">
+            {t('claude_code.tip')}
+          </p>
+        )}
 
-      {/* NPM link */}
-      <a
-        href="https://www.npmjs.com/package/@anthropic-ai/claude-code?activeTab=versions"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
-      >
-        {t('claude_code.view_on_npm')}
-      </a>
-    </CollapsibleCard>
+        {/* NPM link */}
+        <a
+          href="https://www.npmjs.com/package/@anthropic-ai/claude-code?activeTab=versions"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] text-primary hover:underline inline-flex items-center gap-1 ml-auto"
+        >
+          {t('claude_code.view_on_npm')}
+        </a>
+      </div>
+    </div>
   );
 }

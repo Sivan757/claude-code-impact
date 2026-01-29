@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 // Modular imports
-import type { FeatureType, View, LocalCommand, UserProfile } from "./types";
+import type { FeatureType, View, UserProfile } from "./types";
 import { useAtom } from "jotai";
 import { marketplaceCategoryAtom, shortenPathsAtom, profileAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom } from "./store";
 import { AppConfigContext, useAppConfig, type AppConfig } from "./context";
@@ -24,16 +24,12 @@ import {
 
   FeaturesView,
   FeaturesLayout,
-  OutputStylesView,
-  StatuslineView,
   SubAgentsView,
   SubAgentDetailView,
   SkillsView,
   HooksView,
   McpView,
   FeatureTodo,
-  CommandsView,
-  CommandDetailView,
   MarketplaceView,
   MarketplaceLayout,
   TemplateDetailView,
@@ -44,7 +40,6 @@ import {
   SettingsView,
   EnvSettingsView,
   LlmProviderView,
-  ClaudeVersionView,
   ContextFilesView,
   ProjectList,
   SessionList,
@@ -151,37 +146,29 @@ function App() {
           ? "basic-env"
           : view.type === "basic-llm"
             ? "basic-llm"
-            : view.type === "basic-version"
-              ? "basic-version"
-              : view.type === "context"
-                ? "context"
-                : view.type === "settings"
-                  ? "settings"
-                  : view.type === "commands" || view.type === "command-detail"
-                    ? "commands"
-                    : view.type === "mcp"
-                      ? "mcp"
-                      : view.type === "skills"
-                        ? "skills"
-                        : view.type === "hooks"
-                          ? "hooks"
-                          : view.type === "sub-agents" || view.type === "sub-agent-detail"
-                            ? "sub-agents"
-                            : view.type === "output-styles"
-                              ? "output-styles"
-                              : view.type === "statusline"
-                                ? "statusline"
-                                : view.type === "kb-distill" || view.type === "kb-distill-detail"
-                                  ? "kb-distill"
-                                  : view.type === "kb-reference" || view.type === "kb-reference-doc"
-                                    ? "kb-reference"
-                                    : view.type === "feature-template-detail"
-                                      ? view.fromFeature
-                                      : view.type === "marketplace" || view.type === "template-detail"
-                                        ? "marketplace"
-                                        : view.type === "feature-todo"
-                                          ? view.feature
-                                          : null;
+            : view.type === "context"
+              ? "context"
+              : view.type === "settings"
+                ? "settings"
+                : view.type === "mcp"
+                  ? "mcp"
+                  : view.type === "skills"
+                    ? "skills"
+                    : view.type === "hooks"
+                      ? "hooks"
+                      : view.type === "sub-agents" || view.type === "sub-agent-detail"
+                        ? "sub-agents"
+                        : view.type === "kb-distill" || view.type === "kb-distill-detail"
+                          ? "kb-distill"
+                          : view.type === "kb-reference" || view.type === "kb-reference-doc"
+                            ? "kb-reference"
+                            : view.type === "feature-template-detail"
+                              ? view.fromFeature
+                              : view.type === "marketplace" || view.type === "template-detail"
+                                ? "marketplace"
+                                : view.type === "feature-todo"
+                                  ? view.feature
+                                  : null;
 
   const handleFeatureClick = (feature: FeatureType) => {
     switch (feature) {
@@ -194,17 +181,8 @@ function App() {
       case "basic-llm":
         navigate({ type: "basic-llm" });
         break;
-      case "basic-version":
-        navigate({ type: "basic-version" });
-        break;
-      case "context":
-        navigate({ type: "context" });
-        break;
       case "settings":
         navigate({ type: "settings" });
-        break;
-      case "commands":
-        navigate({ type: "commands" });
         break;
       case "mcp":
         navigate({ type: "mcp" });
@@ -218,12 +196,7 @@ function App() {
       case "sub-agents":
         navigate({ type: "sub-agents" });
         break;
-      case "output-styles":
-        navigate({ type: "output-styles" });
-        break;
-      case "statusline":
-        navigate({ type: "statusline" });
-        break;
+
       case "kb-distill":
         navigate({ type: "kb-distill" });
         break;
@@ -293,36 +266,17 @@ function App() {
                 onBack={() => navigate({ type: "chat-sessions", projectId: view.projectId, projectPath: view.projectPath })}
               />
             )}
-            {(view.type === "basic-env" || view.type === "basic-llm" || view.type === "basic-version" || view.type === "context" ||
-              view.type === "settings" || view.type === "commands" || view.type === "command-detail" || view.type === "mcp" ||
+            {(view.type === "basic-env" || view.type === "basic-llm" || view.type === "context" ||
+              view.type === "settings" || view.type === "mcp" ||
               view.type === "skills" || view.type === "hooks" ||
-              view.type === "sub-agents" || view.type === "sub-agent-detail" || view.type === "output-styles" ||
-              view.type === "statusline" || view.type === "feature-template-detail") && (
+              view.type === "sub-agents" || view.type === "sub-agent-detail" ||
+              view.type === "feature-template-detail") && (
                 <FeaturesLayout currentFeature={currentFeature} onFeatureClick={handleFeatureClick}>
                   {view.type === "basic-env" && <EnvSettingsView />}
                   {view.type === "basic-llm" && <LlmProviderView />}
-                  {view.type === "basic-version" && <ClaudeVersionView />}
                   {view.type === "context" && <ContextFilesView />}
                   {view.type === "settings" && (
                     <SettingsView />
-                  )}
-                  {view.type === "commands" && (
-                    <CommandsView
-                      onSelect={(cmd, scrollToChangelog) => navigate({ type: "command-detail", command: cmd, scrollToChangelog })}
-                    />
-                  )}
-                  {view.type === "command-detail" && (
-                    <CommandDetailView
-                      command={view.command}
-                      onBack={() => navigate({ type: "commands" })}
-                      onCommandUpdated={() => { }}
-                      onRenamed={async (newPath: string) => {
-                        const commands = await invoke<LocalCommand[]>("list_local_commands");
-                        const cmd = commands.find(c => c.path === newPath);
-                        if (cmd) navigate({ type: "command-detail", command: cmd });
-                      }}
-                      scrollToChangelog={view.scrollToChangelog}
-                    />
                   )}
                   {view.type === "mcp" && (
                     <McpView />
@@ -341,12 +295,6 @@ function App() {
                     />
                   )}
                   {view.type === "sub-agent-detail" && <SubAgentDetailView agent={view.agent} onBack={() => navigate({ type: "sub-agents" })} />}
-                  {view.type === "output-styles" && (
-                    <OutputStylesView />
-                  )}
-                  {view.type === "statusline" && (
-                    <StatuslineView />
-                  )}
                   {view.type === "feature-template-detail" && (
                     <TemplateDetailView
                       template={view.template}

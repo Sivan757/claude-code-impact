@@ -23,13 +23,6 @@ export const FEATURES: FeatureConfig[] = [
     group: "basic",
   },
   {
-    type: "basic-version",
-    label: "CC Version",
-    description: "Claude Code version management",
-    available: true,
-    group: "basic",
-  },
-  {
     type: "settings",
     label: "Settings",
     description: "settings.json templates",
@@ -37,7 +30,7 @@ export const FEATURES: FeatureConfig[] = [
     group: "basic",
   },
 
-  // Features (with marketplace) - 顺序: 上下文/插件/技能/子代理/指令/MCP/LSP/挂钩/状态栏
+  // Features (with marketplace) - 顺序: 上下文/插件/技能/子代理/MCP/LSP/挂钩
   {
     type: "context",
     label: "Context",
@@ -67,13 +60,6 @@ export const FEATURES: FeatureConfig[] = [
     group: "config",
   },
   {
-    type: "commands",
-    label: "Commands",
-    description: "Slash commands",
-    available: true,
-    group: "config",
-  },
-  {
     type: "mcp",
     label: "MCPs",
     description: "MCP servers",
@@ -91,13 +77,6 @@ export const FEATURES: FeatureConfig[] = [
     type: "hooks",
     label: "Hooks",
     description: "Automation triggers",
-    available: true,
-    group: "config",
-  },
-  {
-    type: "statusline",
-    label: "Status Line",
-    description: "Custom CLI status line",
     available: true,
     group: "config",
   },
@@ -124,11 +103,8 @@ export const TEMPLATE_CATEGORIES: {
 }[] = [
     { key: "settings", label: "Settings" },
     { key: "context", label: "Context" },
-    { key: "commands", label: "Commands" },
     { key: "mcps", label: "MCPs" },
     { key: "skills", label: "Skills" },
     { key: "hooks", label: "Hooks" },
     { key: "agents", label: "Sub Agents" },
-    { key: "output-styles", label: "Output Styles" },
-    { key: "statuslines", label: "Status Line" },
   ];

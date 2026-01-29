@@ -7,17 +7,12 @@
  * - Fallback to built-in status bar if no script configured
  */
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useAtom } from "jotai";
-import { profileAtom } from "../store";
+// import { useAtom } from "jotai";
+// import { profileAtom } from "../store";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  FolderIcon,
-  GitBranchIcon,
-  CodeIcon,
   GlobeIcon,
   ShieldCheckIcon,
-  UserIcon,
-  ClockIcon,
   SettingsIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -27,6 +22,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { ClaudeCodeVersionSection } from "../views/Settings/ClaudeCodeVersionSection";
 import { version as VERSION } from "../../package.json";
 
 
@@ -119,7 +122,7 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ onOpenSettings }: StatusBarProps) {
-  const [profile] = useAtom(profileAtom);
+  // const [profile] = useAtom(profileAtom);
   const { t, i18n } = useTranslation();
   const [time, setTime] = useState(new Date());
   const [todayStats, setTodayStats] = useState<TodayStats>({ lines_added: 0, lines_deleted: 0 });
@@ -140,6 +143,35 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
     }
     loadSettings();
   }, []);
+
+  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+  const [ccVersion, setCcVersion] = useState<string | null>(null);
+
+  // Fetch Claude Code version info
+  const fetchCcVersion = useCallback(async () => {
+    try {
+      const info = await invoke<{ current_version: string | null }>("get_claude_code_version_info");
+      if (info.current_version) {
+        setCcVersion("v" + info.current_version);
+      } else {
+        setCcVersion("Not Installed");
+      }
+    } catch {
+      setCcVersion("Unknown");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCcVersion();
+  }, [fetchCcVersion]);
+
+  // Refresh version when dialog closes (in case of update)
+  useEffect(() => {
+    if (!versionDialogOpen) {
+      fetchCcVersion();
+    }
+  }, [versionDialogOpen, fetchCcVersion]);
+
 
   // Get home dir
   useEffect(() => {
@@ -243,22 +275,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
     checkProxy();
   }, [settings?.enabled]);
 
-  const formatTime = useCallback((d: Date) => {
-    return d.toLocaleTimeString(i18n.language, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-  }, [i18n.language]);
 
-  const formatDate = useCallback((d: Date) => {
-    return d.toLocaleDateString(i18n.language, {
-      month: "short",
-      day: "numeric",
-      weekday: "short",
-    });
-  }, [i18n.language]);
 
   // Render script output with ANSI color support
   const renderedScriptOutput = useMemo(() => {
@@ -293,35 +310,34 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
     );
   }
 
+
   // Default mode: built-in status bar
   return (
     <div className="h-6 bg-card border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground select-none">
-      {/* Left: Product name & version */}
+      {/* Left: Versions */}
       <div className="flex items-center gap-4">
-        <span className="font-medium text-ink">Claude Code Impact</span>
-        <span className="text-muted-foreground">v{VERSION}</span>
+        {/* App Version - Static */}
+        <span className="text-muted-foreground select-text">
+          v{VERSION}
+        </span>
 
-        {/* Stats */}
-        <div className="flex items-center gap-3 ml-2 border-l border-border/50 pl-4">
-          <div className="flex items-center gap-1" title={t('statusbar.projects')}>
-            <FolderIcon className="w-3 h-3" />
-            <span>{projectCount}</span>
-          </div>
-          <div className="flex items-center gap-1" title={t('statusbar.features')}>
-            <GitBranchIcon className="w-3 h-3" />
-            <span>{featCount}</span>
-          </div>
-          {(todayStats.lines_added > 0 || todayStats.lines_deleted > 0) && (
-            <div className="flex items-center gap-1" title={t('statusbar.today_changes')}>
-              <CodeIcon className="w-3 h-3" />
-              <span className="text-green-600">+{todayStats.lines_added}</span>
-              <span className="text-red-500">-{todayStats.lines_deleted}</span>
-            </div>
-          )}
-        </div>
+        {/* Claude Code Version - Clickable */}
+        <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
+          <DialogTrigger asChild>
+            <button className="text-muted-foreground hover:text-foreground transition-colors hover:bg-muted/50 px-1.5 py-0.5 rounded cursor-pointer pointer-events-auto">
+              Claude Code: {ccVersion || t('common.loading')}
+            </button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('claude_code.title')}</DialogTitle>
+            </DialogHeader>
+            <ClaudeCodeVersionSection />
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Right: Time, Network, Account, Settings */}
+      {/* Right: Network, Settings */}
       <div className="flex items-center gap-4">
         {/* Proxy indicator */}
         {proxyEnv && (
@@ -331,7 +347,6 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
           </div>
         )}
 
-        {/* Network region */}
         {/* Language Selector */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -352,21 +367,6 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Date & Time */}
-        <div className="flex items-center gap-1 border-l border-border/50 pl-4">
-          <ClockIcon className="w-3 h-3" />
-          <span>{formatDate(time)}</span>
-          <span className="font-mono">{formatTime(time)}</span>
-        </div>
-
-        {/* Account */}
-        {profile.nickname && (
-          <div className="flex items-center gap-1 border-l border-border/50 pl-4">
-            <UserIcon className="w-3 h-3" />
-            <span>{profile.nickname}</span>
-          </div>
-        )}
 
         {/* Settings gear */}
         {onOpenSettings && (
