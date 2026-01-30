@@ -51,6 +51,7 @@ interface TemplateDetailViewProps {
   onNavigateToInstalled?: () => void;
   localPath?: string;
   isInstalled?: boolean;
+  settingsPath?: string;
 }
 
 import { useQueryClient } from "../../hooks";
@@ -62,6 +63,7 @@ export function TemplateDetailView({
   onNavigateToInstalled,
   localPath,
   isInstalled: initiallyInstalled,
+  settingsPath,
 }: TemplateDetailViewProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -88,7 +90,7 @@ export function TemplateDetailView({
     try {
       if (category === "mcps") {
         await invoke("uninstall_mcp_template", { name: template.name });
-        queryClient.invalidateQueries({ queryKey: ["settings"] });
+        queryClient.invalidateQueries({ queryKey: ["settings", "default"] });
       } else if (category === "skills") {
         await invoke("uninstall_skill", { name: template.name });
         queryClient.invalidateQueries({ queryKey: ["skills"] });
@@ -135,13 +137,23 @@ export function TemplateDetailView({
           break;
         case "mcps":
           await invoke("install_mcp_template", { name: template.name, config: template.content });
+          queryClient.invalidateQueries({ queryKey: ["settings", "default"] });
           break;
         case "hooks":
-          await invoke("install_hook_template", { name: template.name, config: template.content });
+          await invoke("install_hook_template", {
+            name: template.name,
+            config: template.content,
+            path: settingsPath || undefined,
+          });
+          queryClient.invalidateQueries({ queryKey: ["settings", settingsPath ?? "default"] });
           break;
         case "settings":
         case "output-styles":
-          await invoke("install_setting_template", { config: template.content });
+          await invoke("install_setting_template", {
+            config: template.content,
+            path: settingsPath || undefined,
+          });
+          queryClient.invalidateQueries({ queryKey: ["settings", settingsPath ?? "default"] });
           break;
         case "statuslines":
           // Install to ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh

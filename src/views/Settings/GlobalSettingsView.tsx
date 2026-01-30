@@ -21,12 +21,14 @@ import {
 
 interface GlobalSettingsViewProps {
     defaultTab?: "general" | "provider" | "plugins" | "env" | "hooks";
+    settingsPath?: string;
 }
 
-export function GlobalSettingsView({ defaultTab = "general" }: GlobalSettingsViewProps) {
+export function GlobalSettingsView({ defaultTab = "general", settingsPath }: GlobalSettingsViewProps) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState(defaultTab);
+    const settingsKey = ["settings", settingsPath ?? "default"];
 
     // Sync activeTab if defaultTab changes (e.g. navigation via sidebar)
     useEffect(() => {
@@ -34,7 +36,7 @@ export function GlobalSettingsView({ defaultTab = "general" }: GlobalSettingsVie
     }, [defaultTab]);
 
     const refresh = () => {
-        queryClient.invalidateQueries({ queryKey: ["settings"] });
+        queryClient.invalidateQueries({ queryKey: settingsKey });
         queryClient.invalidateQueries({ queryKey: ["installedPlugins"] });
         queryClient.invalidateQueries({ queryKey: ["hooks"] });
     };
@@ -43,7 +45,11 @@ export function GlobalSettingsView({ defaultTab = "general" }: GlobalSettingsVie
         <ConfigPage>
             <PageHeader
                 title={t('settings_dialog.title') || "Unified Settings"}
-                subtitle={t('settings.global_subtitle', 'Manage all your configurations in one place')}
+                subtitle={
+                    settingsPath
+                        ? `${t('settings.global_subtitle', 'Manage all your configurations in one place')} · ${settingsPath}`
+                        : t('settings.global_subtitle', 'Manage all your configurations in one place')
+                }
                 action={
                     <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
                         <ReloadIcon className="w-4 h-4" />
@@ -80,19 +86,19 @@ export function GlobalSettingsView({ defaultTab = "general" }: GlobalSettingsVie
 
                     <div className="flex-1 overflow-hidden bg-canvas">
                         <TabsContent value="general" className="h-full m-0 data-[state=active]:flex flex-col">
-                            <SettingsView embedded={true} />
+                            <SettingsView embedded={true} settingsPath={settingsPath} />
                         </TabsContent>
                         <TabsContent value="provider" className="h-full m-0 data-[state=active]:flex flex-col">
-                            <LlmProviderView embedded />
+                            <LlmProviderView embedded settingsPath={settingsPath} />
                         </TabsContent>
                         <TabsContent value="plugins" className="h-full m-0 data-[state=active]:flex flex-col">
                             <ExtensionsView embedded />
                         </TabsContent>
                         <TabsContent value="env" className="h-full m-0 data-[state=active]:flex flex-col">
-                            <EnvSettingsView embedded />
+                            <EnvSettingsView embedded settingsPath={settingsPath} />
                         </TabsContent>
                         <TabsContent value="hooks" className="h-full m-0 data-[state=active]:flex flex-col">
-                            <HooksSettingsView embedded />
+                            <HooksSettingsView embedded settingsPath={settingsPath} />
                         </TabsContent>
                     </div>
                 </Tabs>

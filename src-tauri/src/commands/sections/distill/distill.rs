@@ -1,5 +1,8 @@
 // ============================================================================
 
+use crate::infra::{get_distill_dir, get_reference_dir};
+use crate::state::DISTILL_WATCH_ENABLED;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DistillDocument {
     pub date: String,
@@ -9,18 +12,6 @@ pub struct DistillDocument {
     pub tags: Vec<String>,
     #[serde(default)]
     pub session: Option<String>,
-}
-
-pub(super) fn get_distill_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".claudecodeimpact/docs/distill")
-}
-
-fn get_reference_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".claudecodeimpact/docs/reference")
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -295,7 +286,7 @@ fn list_distill_documents() -> Result<Vec<DistillDocument>, String> {
 }
 
 #[tauri::command]
-fn find_session_project(session_id: String) -> Result<Option<Session>, String> {
+fn find_session_project(session_id: String) -> Result<Option<crate::domain::Session>, String> {
     let projects_dir = get_claude_dir().join("projects");
     if !projects_dir.exists() {
         return Ok(None);
@@ -329,7 +320,7 @@ fn find_session_project(session_id: String) -> Result<Option<Session>, String> {
                 }
             }
 
-            return Ok(Some(Session {
+            return Ok(Some(crate::domain::Session {
                 id: session_id,
                 project_id,
                 project_path: Some(display_path),

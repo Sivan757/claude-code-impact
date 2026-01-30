@@ -1,10 +1,4 @@
-// Distill watch state
-pub(super) static DISTILL_WATCH_ENABLED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(true);
-
-// Claude Code install process PID (for cancellation)
-pub(super) static CC_INSTALL_PID: std::sync::atomic::AtomicU32 =
-    std::sync::atomic::AtomicU32::new(0);
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Project {

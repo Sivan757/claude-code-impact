@@ -1,5 +1,7 @@
 // ============================================================================
 
+use crate::domain::{ChatMessage, ChatsResponse, Message, Project, Session, SessionUsage};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalCommand {
     pub name: String,

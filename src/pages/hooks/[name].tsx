@@ -5,10 +5,13 @@ import type { TemplatesCatalog } from "../../types";
 import { TemplateDetailView } from "../../views/Marketplace";
 import { FeaturesLayout } from "../../views/Features";
 import { LoadingState } from "../../components/config";
+import { useSettingsPath } from "../../hooks";
 
 export default function HookDetailPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const settingsPath = useSettingsPath();
+  const backPath = settingsPath ? `/settings/hooks?path=${encodeURIComponent(settingsPath)}` : "/settings/hooks";
 
   const { data: template, isLoading } = useQuery({
     queryKey: ["marketplaceHook", name],
@@ -32,7 +35,7 @@ export default function HookDetailPage() {
       <FeaturesLayout feature="hooks">
         <div className="p-6">
           <p className="text-destructive">Hook "{name}" not found</p>
-          <button onClick={() => navigate("/hooks")} className="mt-2 text-primary hover:underline">
+          <button onClick={() => navigate(backPath)} className="mt-2 text-primary hover:underline">
             ← Back to Hooks
           </button>
         </div>
@@ -45,7 +48,8 @@ export default function HookDetailPage() {
       <TemplateDetailView
         template={template}
         category="hooks"
-        onBack={() => navigate("/hooks")}
+        onBack={() => navigate(backPath)}
+        settingsPath={settingsPath}
       />
     </FeaturesLayout>
   );

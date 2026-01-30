@@ -40,7 +40,8 @@ interface StatusLineConfig {
 export function StatuslineView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
+  const settingsKey = ["settings", "default"];
+  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(settingsKey, "get_settings");
   const [editing, setEditing] = useState(false);
   const [command, setCommand] = useState("");
   const [padding, setPadding] = useState<number | undefined>(undefined);
@@ -81,7 +82,7 @@ export function StatuslineView() {
   }, [statusLine]);
 
   const refreshSettings = () => {
-    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: settingsKey });
   };
 
   const handleSave = async () => {

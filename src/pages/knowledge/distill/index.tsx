@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { DistillView, KnowledgeLayout } from "../../../views/Knowledge";
 import type { FeatureType } from "../../../types";
+import { featureToPath } from "@/navigation/featureRoutes";
 
 export default function KnowledgeDistillPage() {
   const navigate = useNavigate();
@@ -13,8 +14,8 @@ export default function KnowledgeDistillPage() {
   }, []);
 
   const handleFeatureClick = (feature: FeatureType) => {
-    if (feature === "kb-distill") navigate("/knowledge/distill");
-    else if (feature === "kb-reference") navigate("/knowledge/reference");
+    const path = featureToPath(feature);
+    if (path) navigate(path);
   };
 
   return (

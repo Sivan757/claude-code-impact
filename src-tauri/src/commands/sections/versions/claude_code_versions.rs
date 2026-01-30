@@ -1,5 +1,7 @@
 // ============================================================================
 
+use crate::state::CC_INSTALL_PID;
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum ClaudeCodeInstallType {

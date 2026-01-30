@@ -1,13 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { ReferenceView, KnowledgeLayout } from "../../views/Knowledge";
 import type { FeatureType } from "../../types";
+import { featureToPath } from "@/navigation/featureRoutes";
 
 export default function KnowledgeReferencePage() {
   const navigate = useNavigate();
 
   const handleFeatureClick = (feature: FeatureType) => {
-    if (feature === "kb-distill") navigate("/knowledge/distill");
-    else if (feature === "kb-reference") navigate("/knowledge/reference");
+    const path = featureToPath(feature);
+    if (path) navigate(path);
   };
 
   return (

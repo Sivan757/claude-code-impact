@@ -9,6 +9,13 @@ export const FEATURES: FeatureConfig[] = [
 
   // Basic settings (no marketplace) - grouped under "Basic"
   {
+    type: "settings",
+    label: "Settings",
+    description: "settings.json templates",
+    available: true,
+    group: "basic",
+  },
+  {
     type: "basic-env",
     label: "Environment",
     description: "Environment variables",
@@ -23,9 +30,16 @@ export const FEATURES: FeatureConfig[] = [
     group: "basic",
   },
   {
-    type: "settings",
-    label: "Settings",
-    description: "settings.json templates",
+    type: "extensions",
+    label: "Extensions",
+    description: "Claude Code plugins",
+    available: true,
+    group: "basic",
+  },
+  {
+    type: "hooks",
+    label: "Hooks",
+    description: "Automation triggers",
     available: true,
     group: "basic",
   },
@@ -38,13 +52,7 @@ export const FEATURES: FeatureConfig[] = [
     available: true,
     group: "config",
   },
-  {
-    type: "extensions",
-    label: "Extensions",
-    description: "Claude Code plugins",
-    available: true,
-    group: "config",
-  },
+
   {
     type: "skills",
     label: "Skills",
@@ -66,20 +74,7 @@ export const FEATURES: FeatureConfig[] = [
     available: true,
     group: "config",
   },
-  {
-    type: "lsp",
-    label: "LSPs",
-    description: "Language Server Protocol servers",
-    available: true,
-    group: "config",
-  },
-  {
-    type: "hooks",
-    label: "Hooks",
-    description: "Automation triggers",
-    available: true,
-    group: "config",
-  },
+
 ];
 
 // ============================================================================

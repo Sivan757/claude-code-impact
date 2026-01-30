@@ -1,8 +1,8 @@
 // ============================================================================
 
 #[tauri::command]
-fn get_settings() -> Result<ClaudeSettings, String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn get_settings(path: Option<String>) -> Result<ClaudeSettings, String> {
+    let settings_path = resolve_settings_path(path);
     let claude_json_path = get_claude_json_path();
 
     // Read ~/.claude/settings.json for permissions, hooks, etc.
@@ -603,8 +603,9 @@ fn update_settings_env(
     env_key: String,
     env_value: String,
     is_new: Option<bool>,
+    path: Option<String>,
 ) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+    let settings_path = resolve_settings_path(path);
     let mut settings: serde_json::Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -634,14 +635,15 @@ fn update_settings_env(
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 #[tauri::command]
-fn delete_settings_env(env_key: String) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn delete_settings_env(env_key: String, path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
     let mut settings: serde_json::Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -677,6 +679,7 @@ fn delete_settings_env(env_key: String) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
 
     let mut disabled_env = load_disabled_env()?;
@@ -687,8 +690,8 @@ fn delete_settings_env(env_key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn disable_settings_env(env_key: String) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn disable_settings_env(env_key: String, path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
     if !settings_path.exists() {
         return Ok(());
     }
@@ -717,6 +720,7 @@ fn disable_settings_env(env_key: String) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
 
     let mut disabled_env = load_disabled_env()?;
@@ -727,8 +731,8 @@ fn disable_settings_env(env_key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn enable_settings_env(env_key: String) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn enable_settings_env(env_key: String, path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
     let mut settings: serde_json::Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -760,13 +764,18 @@ fn enable_settings_env(env_key: String) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 #[tauri::command]
-fn update_disabled_settings_env(env_key: String, env_value: String) -> Result<(), String> {
+fn update_disabled_settings_env(
+    env_key: String,
+    env_value: String,
+    _path: Option<String>,
+) -> Result<(), String> {
     let mut disabled_env = load_disabled_env()?;
     disabled_env.insert(env_key, serde_json::Value::String(env_value));
     save_disabled_env(&disabled_env)?;

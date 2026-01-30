@@ -28,10 +28,21 @@ import {
 import type { ClaudeSettings } from "../../types";
 import { ENV_VAR_SUGGESTIONS } from "../../constants/env-vars";
 
-export function EnvSettingsView({ embedded = false }: { embedded?: boolean }) {
+export function EnvSettingsView({
+  embedded = false,
+  settingsPath,
+}: {
+  embedded?: boolean;
+  settingsPath?: string;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
+  const settingsKey = ["settings", settingsPath ?? "default"];
+  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
+    settingsKey,
+    "get_settings",
+    settingsPath ? { path: settingsPath } : undefined
+  );
 
   const [search, setSearch] = useState("");
   const [editingEnvKey, setEditingEnvKey] = useState<string | null>(null);
@@ -81,7 +92,7 @@ export function EnvSettingsView({ embedded = false }: { embedded?: boolean }) {
     : allEnvEntries.filter(([key]) => key.toLowerCase().includes(search.toLowerCase()));
 
   const refreshSettings = () => {
-    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: settingsKey });
   };
 
   const handleEnvEdit = (key: string, value: string, isDisabled = false) => {
@@ -93,9 +104,17 @@ export function EnvSettingsView({ embedded = false }: { embedded?: boolean }) {
   const handleEnvSave = async () => {
     if (!editingEnvKey) return;
     if (editingEnvIsDisabled) {
-      await invoke("update_disabled_settings_env", { envKey: editingEnvKey, envValue: envEditValue });
+      await invoke("update_disabled_settings_env", {
+        envKey: editingEnvKey,
+        envValue: envEditValue,
+        path: settingsPath || undefined,
+      });
     } else {
-      await invoke("update_settings_env", { envKey: editingEnvKey, envValue: envEditValue });
+      await invoke("update_settings_env", {
+        envKey: editingEnvKey,
+        envValue: envEditValue,
+        path: settingsPath || undefined,
+      });
     }
     await refreshSettings();
     setEditingEnvKey(null);
@@ -103,26 +122,31 @@ export function EnvSettingsView({ embedded = false }: { embedded?: boolean }) {
   };
 
   const handleEnvDelete = async (key: string) => {
-    await invoke("delete_settings_env", { envKey: key });
+    await invoke("delete_settings_env", { envKey: key, path: settingsPath || undefined });
     await refreshSettings();
     if (editingEnvKey === key) setEditingEnvKey(null);
   };
 
   const handleEnvDisable = async (key: string) => {
-    await invoke("disable_settings_env", { envKey: key });
+    await invoke("disable_settings_env", { envKey: key, path: settingsPath || undefined });
     await refreshSettings();
     if (editingEnvKey === key) setEditingEnvKey(null);
   };
 
   const handleEnvEnable = async (key: string) => {
-    await invoke("enable_settings_env", { envKey: key });
+    await invoke("enable_settings_env", { envKey: key, path: settingsPath || undefined });
     await refreshSettings();
   };
 
   const handleEnvCreate = async () => {
     const key = newEnvKey.trim();
     if (!key) return;
-    await invoke("update_settings_env", { envKey: key, envValue: newEnvValue, isNew: true });
+    await invoke("update_settings_env", {
+      envKey: key,
+      envValue: newEnvValue,
+      isNew: true,
+      path: settingsPath || undefined,
+    });
     await refreshSettings();
     setNewEnvKey("");
     setNewEnvValue("");

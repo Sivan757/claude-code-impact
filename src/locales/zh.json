@@ -13,6 +13,7 @@
         "go_back": "返回",
         "go_forward": "前进",
         "cancel": "取消",
+        "reset": "重置",
         "save": "保存",
         "create": "创建",
         "id": "ID",
@@ -38,7 +39,11 @@
     },
     "home": {
         "tagline": "开启 Vibe Coding",
-        "stats": {},
+        "stats": {
+            "chats": "对话",
+            "sessions": "会话",
+            "commands": "命令"
+        },
         "recent_activity": "最近活动",
         "features": "功能",
         "feature_soon": "即将推出",
@@ -114,7 +119,6 @@
         "statusline": "状态栏",
         "extensions": "扩展",
         "plugins": "插件",
-        "general": "常规",
         "common_settings": "通用"
     },
     "knowledge_sidebar": {
@@ -145,7 +149,7 @@
     "settings_dialog": {
         "title": "设置",
         "configuration": "管理",
-        "ecosystem_desc": "Claude Code 生态组件",
+        "ecosystem_desc": "Claude Code 全局配置",
         "sections": {
             "display": "显示",
             "terminal": "终端",
@@ -185,6 +189,7 @@
     },
     "settings": {
         "title": "通用",
+        "global_subtitle": "集中管理你的所有配置",
         "loading": "正在加载设置...",
         "open_in_editor": "在编辑器中打开",
         "copy_path": "复制路径",
@@ -212,6 +217,7 @@
         "no_additional_directories": "暂无附加目录",
         "plugins": "插件",
         "hooks": "钩子",
+        "no_hooks": "暂无钩子配置",
         "disable_all": "禁用全部",
         "disabled": "已禁用",
         "delete_hook_confirm": "确定要永久删除这个钩子吗？",
@@ -222,8 +228,6 @@
         "bypass_desc": "跳过所有权限提示",
         "allow_edits": "允许编辑",
         "allow_edits_desc": "自动批准文件编辑",
-        "normal": "常规",
-        "normal_desc": "对所有操作进行提示",
         "co_author": "共同作者",
         "co_author_desc": "添加 Co-Authored-By 行",
         "footer": "页脚",
@@ -234,8 +238,12 @@
     },
     "llm": {
         "title": "LLM 提供商",
-        "subtitle": "在 Anthropic 官方或第三方提供商之间切换",
+        "subtitle": "配置 Anthropic API 凭据",
         "loading": "正在加载设置...",
+        "anthropic_token_hint": "你的 Anthropic API Key",
+        "anthropic_base_url_hint": "留空则使用 https://api.anthropic.com",
+        "show_token": "显示密钥",
+        "hide_token": "隐藏密钥",
         "active": "生效中",
         "documentation": "文档",
         "hide_config": "隐藏配置",
@@ -269,6 +277,8 @@
         "no_official_match": "没有匹配当前搜索的官方提供商。",
         "no_partner_match": "没有匹配当前搜索的合作伙伴提供商。",
         "no_match": "没有找到匹配的提供商。",
+        "use_current": "使用当前配置",
+        "default_profile_name": "Anthropic API",
         "new_provider": "新建提供商",
         "edit_provider": "编辑提供商",
         "provider_name": "提供商名称",

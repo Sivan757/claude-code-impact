@@ -78,7 +78,7 @@ export function GlobalHeader({
               isActive={primaryFeature === "features"}
               onClick={() => handleMainNavClick("features")}
               icon={<LayersIcon className="w-4 h-4" />}
-              label={t('features.general')}
+              label={t('features.common_settings')}
             />
             <NavButton
               isActive={primaryFeature === "chat"}

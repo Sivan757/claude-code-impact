@@ -1,7 +1,7 @@
 import { atomWithStorage } from "jotai/utils";
-import type { TemplateCategory, UserProfile } from "@/types";
+import type { FeatureType, TemplateCategory, UserProfile } from "@/types";
 
-// 侧边栏折叠状态 (always true - expanded sidebar removed from App.tsx)
+// 侧边栏折叠状态 (always true - expanded sidebar removed from legacy layout)
 export const sidebarCollapsedAtom = atomWithStorage("claudecodeimpact:sidebarCollapsed", true);
 
 // Marketplace 分类
@@ -16,4 +16,4 @@ export const profileAtom = atomWithStorage<UserProfile>("claudecodeimpact:profil
 
 
 // Primary feature for main nav (not affected by secondary nav like settings/marketplace from profile menu)
-export const primaryFeatureAtom = atomWithStorage<string | null>("claudecodeimpact:primaryFeature", null);
+export const primaryFeatureAtom = atomWithStorage<FeatureType | null>("claudecodeimpact:primaryFeature", null);

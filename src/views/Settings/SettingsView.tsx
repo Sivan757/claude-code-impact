@@ -47,12 +47,18 @@ const DEFAULT_ATTRIBUTION_FOOTER =
 const DEFAULT_ATTRIBUTION_COAUTHOR = `${DEFAULT_ATTRIBUTION_FOOTER}\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`;
 
 
-export function SettingsView(props: { embedded?: boolean }) {
-  const { embedded = false } = props;
+export function SettingsView(props: { embedded?: boolean; settingsPath?: string }) {
+  const { embedded = false, settingsPath } = props;
   const { t } = useTranslation();
   /* Restore missing state/queries */
-  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
-  const { data: settingsPath = "" } = useInvokeQuery<string>(["settingsPath"], "get_settings_path");
+  const settingsKey = ["settings", settingsPath ?? "default"];
+  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
+    settingsKey,
+    "get_settings",
+    settingsPath ? { path: settingsPath } : undefined
+  );
+  const { data: defaultSettingsPath = "" } = useInvokeQuery<string>(["settingsPath"], "get_settings_path");
+  const effectiveSettingsPath = settingsPath ?? defaultSettingsPath ?? "";
 
   const [showRawJson, setShowRawJson] = useState(false);
   const queryClient = useQueryClient();
@@ -119,11 +125,15 @@ export function SettingsView(props: { embedded?: boolean }) {
   const additionalDirectories = (permissions.additionalDirectories as string[]) || [];
 
   const refreshSettings = () => {
-    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: settingsKey });
   };
 
   const updateField = async (field: string, value: unknown) => {
-    await invoke("update_settings_field", { field, value });
+    await invoke("update_settings_field", {
+      field,
+      value,
+      path: settingsPath || undefined,
+    });
     refreshSettings();
   };
 
@@ -164,17 +174,27 @@ export function SettingsView(props: { embedded?: boolean }) {
   if (isLoading) return <LoadingState message={t('settings.loading')} />;
 
   const updatePermissionField = async (field: string, value: unknown) => {
-    await invoke("update_settings_permission_field", { field, value });
+    await invoke("update_settings_permission_field", {
+      field,
+      value,
+      path: settingsPath || undefined,
+    });
     refreshSettings();
   };
 
   const addDirectory = async (path: string) => {
-    await invoke("add_permission_directory", { path });
+    await invoke("add_permission_directory", {
+      path,
+      settings_path: settingsPath || undefined,
+    });
     refreshSettings();
   };
 
   const removeDirectory = async (path: string) => {
-    await invoke("remove_permission_directory", { path });
+    await invoke("remove_permission_directory", {
+      path,
+      settings_path: settingsPath || undefined,
+    });
     refreshSettings();
   };
 
@@ -188,11 +208,11 @@ export function SettingsView(props: { embedded?: boolean }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => invoke("open_in_editor", { path: settingsPath })}>
+        <DropdownMenuItem onClick={() => invoke("open_in_editor", { path: effectiveSettingsPath })}>
           <ExternalLinkIcon className="w-4 h-4 mr-2" />
           {t('settings.open_in_editor')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(settingsPath)}>
+        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(effectiveSettingsPath)}>
           <CopyIcon className="w-4 h-4 mr-2" />
           {t('settings.copy_path')}
         </DropdownMenuItem>
@@ -391,10 +411,9 @@ export function SettingsView(props: { embedded?: boolean }) {
 
   return (
     <ConfigPage>
-      <PageHeader title={t('settings.title')} subtitle="~/.claude/settings.json" action={headerAction} />
+      <PageHeader title={t('settings.title')} subtitle={effectiveSettingsPath || "~/.claude/settings.json"} action={headerAction} />
       {mainContent}
       {dialogs}
     </ConfigPage>
   );
 }
-

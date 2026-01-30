@@ -29,12 +29,17 @@ interface HookMatcher {
     hooks: HookItem[];
 }
 
-export function HooksSettingsView(props: { embedded?: boolean }) {
-    const { embedded = false } = props;
+export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: string }) {
+    const { embedded = false, settingsPath } = props;
     const { t } = useTranslation();
     const queryClient = useQueryClient();
 
-    const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
+    const settingsKey = ["settings", settingsPath ?? "default"];
+    const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
+        settingsKey,
+        "get_settings",
+        settingsPath ? { path: settingsPath } : undefined
+    );
     // Load disabled hooks from claudecodeimpact storage
     const { data: disabledHooksData } = useInvokeQuery<Record<string, Array<{ matcher: string; hook: HookItem; key: string }>>>(
         ["disabledHooks"],
@@ -49,23 +54,23 @@ export function HooksSettingsView(props: { embedded?: boolean }) {
     const disabledHooks = disabledHooksData || {};
 
     const refreshSettings = () => {
-        queryClient.invalidateQueries({ queryKey: ["settings"] });
+        queryClient.invalidateQueries({ queryKey: settingsKey });
         queryClient.invalidateQueries({ queryKey: ["disabledHooks"] });
     };
 
     const updateField = async (field: string, value: unknown) => {
-        await invoke("update_settings_field", { field, value });
+        await invoke("update_settings_field", { field, value, path: settingsPath || undefined });
         refreshSettings();
     };
 
     const toggleHookItem = async (eventType: string, matcherIndex: number, hookIndex: number, disabled: boolean) => {
-        await invoke("toggle_hook_item", { eventType, matcherIndex, hookIndex, disabled });
+        await invoke("toggle_hook_item", { eventType, matcherIndex, hookIndex, disabled, path: settingsPath || undefined });
         refreshSettings();
     };
 
     const deleteHookItem = async (eventType: string, matcherIndex: number, hookIndex: number) => {
         if (!confirm(t('settings.delete_hook_confirm'))) return;
-        await invoke("delete_hook_item", { eventType, matcherIndex, hookIndex });
+        await invoke("delete_hook_item", { eventType, matcherIndex, hookIndex, path: settingsPath || undefined });
         refreshSettings();
     };
 

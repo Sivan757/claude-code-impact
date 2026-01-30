@@ -1,6 +1,6 @@
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub(crate) fn get_claude_dir() -> PathBuf {
     dirs::home_dir().unwrap().join(".claude")
@@ -15,6 +15,46 @@ pub(crate) fn get_claudecodeimpact_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".claudecodeimpact")
         .join("claudecodeimpact")
+}
+
+pub(crate) fn resolve_settings_path(path: Option<String>) -> PathBuf {
+    let input = path
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty());
+
+    if let Some(path) = input {
+        if path == "~" || path.starts_with("~/") {
+            let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+            let suffix = path.trim_start_matches('~').trim_start_matches('/');
+            return home.join(suffix);
+        }
+        return PathBuf::from(path);
+    }
+
+    get_claude_dir().join("settings.json")
+}
+
+pub(crate) fn ensure_parent_dir(path: &Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+pub(crate) fn get_distill_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".claudecodeimpact")
+        .join("docs")
+        .join("distill")
+}
+
+pub(crate) fn get_reference_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".claudecodeimpact")
+        .join("docs")
+        .join("reference")
 }
 
 pub(crate) fn get_command_stats_path() -> PathBuf {

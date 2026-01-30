@@ -1,6 +1,5 @@
 // ============================================================================
-
-// Plugin repository scan models
+// Plugin repository scan (marketplaces, plugins, components)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ScannedMarketplace {
@@ -1804,8 +1803,9 @@ fn toggle_hook_item(
     matcher_index: usize,
     hook_index: usize,
     disabled: bool,
+    path: Option<String>,
 ) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+    let settings_path = resolve_settings_path(path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -1893,6 +1893,7 @@ fn toggle_hook_item(
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -1907,8 +1908,9 @@ fn delete_hook_item(
     event_type: String,
     matcher_index: usize,
     hook_index: usize,
+    path: Option<String>,
 ) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+    let settings_path = resolve_settings_path(path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -1936,6 +1938,7 @@ fn delete_hook_item(
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -2090,4 +2093,3 @@ async fn test_claude_cli(
         stderr,
     })
 }
-

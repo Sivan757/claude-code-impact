@@ -2,7 +2,6 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
     "src/main.tsx",
-    "src/App.tsx",
     "src/pages/**/*.tsx"
   ],
   "project": ["src/**/*.{ts,tsx}"],

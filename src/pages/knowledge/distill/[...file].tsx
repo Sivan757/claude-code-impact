@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { DistillDetailView, KnowledgeLayout } from "../../../views/Knowledge";
 import { LoadingState } from "../../../components/config";
 import type { DistillDocument, FeatureType } from "../../../types";
+import { featureToPath } from "@/navigation/featureRoutes";
 
 export default function DistillDetailPage() {
   const { t } = useTranslation();
@@ -35,8 +36,8 @@ export default function DistillDetailPage() {
   }, [file, navigate]);
 
   const handleFeatureClick = (feature: FeatureType) => {
-    if (feature === "kb-distill") navigate("/knowledge/distill");
-    else if (feature === "kb-reference") navigate("/knowledge/reference");
+    const path = featureToPath(feature);
+    if (path) navigate(path);
   };
 
   const handleNavigateSession = (projectId: string, projectPath: string, sessionId: string, summary: string | null) => {

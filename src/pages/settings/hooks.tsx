@@ -2,12 +2,12 @@ import { GlobalSettingsView } from "../../views/Settings";
 import { FeaturesLayout } from "../../views/Features";
 import { useSettingsPath } from "../../hooks";
 
-export default function EnvSettingsPage() {
+export default function HooksSettingsPage() {
   const settingsPath = useSettingsPath();
 
   return (
-    <FeaturesLayout feature="basic-env">
-      <GlobalSettingsView defaultTab="env" settingsPath={settingsPath} />
+    <FeaturesLayout feature="hooks">
+      <GlobalSettingsView defaultTab="hooks" settingsPath={settingsPath} />
     </FeaturesLayout>
   );
 }

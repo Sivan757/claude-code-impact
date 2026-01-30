@@ -7,7 +7,8 @@ import {
   ExclamationTriangleIcon,
   InfoCircledIcon,
 } from "@radix-ui/react-icons";
-import { useNavigate } from "@/hooks";
+import { useNavigate } from "react-router-dom";
+import { featureToPath } from "@/navigation/featureRoutes";
 import {
   Dialog,
   DialogContent,
@@ -803,7 +804,7 @@ export function TerminalPane({
                 variant="outline"
                 onClick={() => {
                   setDiagnosticOpen(false);
-                  navigate({ type: "basic-version" });
+                  navigate(featureToPath("basic-version"));
                 }}
               >
                 {t('terminal.open_cc_version')}
@@ -814,7 +815,7 @@ export function TerminalPane({
                 variant="outline"
                 onClick={() => {
                   setDiagnosticOpen(false);
-                  navigate({ type: "basic-llm" });
+                  navigate(featureToPath("basic-llm"));
                 }}
               >
                 {t('terminal.open_llm_providers')}
@@ -824,7 +825,7 @@ export function TerminalPane({
               variant="outline"
               onClick={() => {
                 setDiagnosticOpen(false);
-                navigate({ type: "basic-env" });
+                navigate(featureToPath("basic-env"));
               }}
             >
               {t('terminal.open_environment')}

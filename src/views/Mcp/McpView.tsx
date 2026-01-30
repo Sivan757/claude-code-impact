@@ -18,7 +18,8 @@ import { useInvokeQuery, useQueryClient } from "../../hooks";
 export function McpView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: settings, isLoading: settingsLoading } = useInvokeQuery<ClaudeSettings>(["settings"], "get_settings");
+  const settingsKey = ["settings", "default"];
+  const { data: settings, isLoading: settingsLoading } = useInvokeQuery<ClaudeSettings>(settingsKey, "get_settings");
   const { data: mcpConfigPath = "" } = useInvokeQuery<string>(["mcpConfigPath"], "get_mcp_config_path");
   const servers = settings?.mcp_servers ?? [];
   const [search, setSearch] = useState("");
@@ -27,14 +28,14 @@ export function McpView() {
   const [uninstallingServer, setUninstallingServer] = useState<string | null>(null);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: settingsKey });
   };
 
   const handleUninstall = async (serverName: string) => {
     setUninstallingServer(serverName);
     try {
       await invoke("uninstall_mcp_template", { name: serverName });
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      queryClient.invalidateQueries({ queryKey: settingsKey });
     } finally {
       setUninstallingServer(null);
     }
@@ -52,7 +53,7 @@ export function McpView() {
       envKey: editingEnv.key,
       envValue: editValue,
     });
-    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: settingsKey });
     setEditingEnv(null);
   };
 

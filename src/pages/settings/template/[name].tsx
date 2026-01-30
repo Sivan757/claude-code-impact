@@ -5,10 +5,13 @@ import type { TemplatesCatalog } from "../../../types";
 import { TemplateDetailView } from "../../../views/Marketplace";
 import { FeaturesLayout } from "../../../views/Features";
 import { LoadingState } from "../../../components/config";
+import { useSettingsPath } from "../../../hooks";
 
 export default function SettingsTemplateDetailPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const settingsPath = useSettingsPath();
+  const backPath = settingsPath ? `/settings?path=${encodeURIComponent(settingsPath)}` : "/settings";
 
   const { data: template, isLoading } = useQuery({
     queryKey: ["marketplaceSettings", name],
@@ -32,7 +35,7 @@ export default function SettingsTemplateDetailPage() {
       <FeaturesLayout feature="settings">
         <div className="p-6">
           <p className="text-destructive">Settings template "{name}" not found</p>
-          <button onClick={() => navigate("/settings")} className="mt-2 text-primary hover:underline">
+          <button onClick={() => navigate(backPath)} className="mt-2 text-primary hover:underline">
             ← Back to Settings
           </button>
         </div>
@@ -45,7 +48,8 @@ export default function SettingsTemplateDetailPage() {
       <TemplateDetailView
         template={template}
         category="settings"
-        onBack={() => navigate("/settings")}
+        onBack={() => navigate(backPath)}
+        settingsPath={settingsPath}
       />
     </FeaturesLayout>
   );

@@ -5,7 +5,7 @@ import { SidebarLayout, NavSidebar } from "@/components/shared";
 import type { FeatureType, TemplateCategory } from "@/types";
 import { useTranslation } from "react-i18next";
 
-type SidebarKey = TemplateCategory | "basic-env" | "basic-llm" | "basic-settings" | "extensions" | "lsps";
+type SidebarKey = TemplateCategory | "basic-env" | "basic-llm" | "basic-settings" | "extensions";
 
 // Map sidebar key to route path
 const KEY_TO_ROUTE: Record<SidebarKey, string> = {
@@ -16,22 +16,21 @@ const KEY_TO_ROUTE: Record<SidebarKey, string> = {
   settings: "/settings",
   mcps: "/mcp",
   skills: "/skills",
-  hooks: "/hooks",
+  hooks: "/settings/hooks",
   agents: "/agents",
   extensions: "/extensions",
-  lsps: "/lsp",
 };
 
 // Map feature type to sidebar key
 const FEATURE_TO_KEY: Partial<Record<FeatureType, SidebarKey>> = {
   "basic-env": "settings",
   "basic-llm": "settings",
+  "basic-version": "settings",
   settings: "settings",
   context: "context",
   mcp: "mcps",
-  lsp: "lsps",
   skills: "skills",
-  hooks: "hooks",
+  hooks: "settings",
   "sub-agents": "agents",
   extensions: "settings",
 };
@@ -56,7 +55,6 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
         { key: "mcps", label: t('features.mcp') },
         { key: "skills", label: t('features.skills') },
         { key: "agents", label: t('features.sub-agents') },
-        { key: "lsps", label: t('features.lsp') },
       ],
     },
   ], [t]);
@@ -78,7 +76,6 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
         hooks: "hooks",
         agents: "sub-agents",
         extensions: "extensions",
-        lsps: "lsp",
       };
       onFeatureClick(keyToFeature[key as SidebarKey]);
     } else {

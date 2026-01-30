@@ -5,9 +5,6 @@ export {
   primaryFeatureAtom
 } from "./atoms/app";
 
-// UI atoms
-export { activePanelIdAtom, navigationStateAtom, viewAtom, viewHistoryAtom, historyIndexAtom } from "./atoms/ui";
-
 // Chat atoms
 export {
   originalChatAtom, markdownPreviewAtom,

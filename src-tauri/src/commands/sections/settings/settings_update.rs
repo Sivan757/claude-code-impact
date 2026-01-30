@@ -27,8 +27,8 @@ fn normalize_attribution_setting(value: Value) -> Value {
 }
 
 #[tauri::command]
-fn update_settings_field(field: String, value: Value) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn update_settings_field(field: String, value: Value, path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -48,13 +48,18 @@ fn update_settings_field(field: String, value: Value) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-fn update_settings_permission_field(field: String, value: Value) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn update_settings_permission_field(
+    field: String,
+    value: Value,
+    path: Option<String>,
+) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -76,13 +81,14 @@ fn update_settings_permission_field(field: String, value: Value) -> Result<(), S
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-fn add_permission_directory(path: String) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn add_permission_directory(path: String, settings_path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(settings_path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -116,13 +122,14 @@ fn add_permission_directory(path: String) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-fn remove_permission_directory(path: String) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn remove_permission_directory(path: String, settings_path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(settings_path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -142,13 +149,14 @@ fn remove_permission_directory(path: String) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-fn toggle_plugin(plugin_id: String, enabled: bool) -> Result<(), String> {
-    let settings_path = get_claude_dir().join("settings.json");
+fn toggle_plugin(plugin_id: String, enabled: bool, path: Option<String>) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -170,7 +178,7 @@ fn toggle_plugin(plugin_id: String, enabled: bool) -> Result<(), String> {
     }
 
     let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
     fs::write(&settings_path, output).map_err(|e| e.to_string())?;
     Ok(())
 }
-
