@@ -9,7 +9,7 @@ interface HomeProps {
   onFeatureClick: (feature: FeatureType) => void;
   onProjectClick: (project: Project) => void;
   onSessionClick: (session: Session) => void;
-  onSearch: () => void;
+  onSearch?: () => void;
 }
 
 interface ActivityStats {
@@ -18,7 +18,7 @@ interface ActivityStats {
   detailed: Record<string, number>;
 }
 
-export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch }: HomeProps) {
+export function Home({ onFeatureClick, onProjectClick, onSessionClick }: HomeProps) {
   const { t } = useTranslation();
   const { data: projects } = useInvokeQuery<Project[]>(["projects"], "list_projects");
   const { data: sessions } = useInvokeQuery<Session[]>(["sessions"], "list_all_sessions");
@@ -27,14 +27,6 @@ export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch 
 
   const data = projects && sessions && commands ? { projects, sessions, commands } : null;
 
-
-  // Get last active project
-  const lastProject = useMemo(() => {
-    if (!data || data.projects.length === 0) return null;
-    return data.projects.reduce((latest, p) =>
-      p.last_active > latest.last_active ? p : latest
-    );
-  }, [data]);
 
   // Stats
   const stats = useMemo(() => {

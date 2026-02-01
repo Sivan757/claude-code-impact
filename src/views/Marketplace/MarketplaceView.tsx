@@ -14,7 +14,7 @@ interface MarketplaceViewProps {
 export function MarketplaceView({ initialCategory, onSelectTemplate }: MarketplaceViewProps) {
   const { t } = useTranslation();
   const { data: catalog, isLoading, error } = useInvokeQuery<TemplatesCatalog>(["templatesCatalog"], "get_templates_catalog");
-  const activeCategory = initialCategory || "commands";
+  const activeCategory = initialCategory || "skills";
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilterId>("all");
 

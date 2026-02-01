@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ReferenceView, KnowledgeLayout } from "../../views/Knowledge";
+import { KnowledgeLayout } from "../../views/Knowledge";
 import type { FeatureType } from "../../types";
 import { featureToPath } from "@/navigation/featureRoutes";
 
@@ -13,10 +13,7 @@ export default function KnowledgeReferencePage() {
 
   return (
     <KnowledgeLayout currentFeature="kb-reference" onFeatureClick={handleFeatureClick}>
-      <ReferenceView
-        onDocOpen={(source) => navigate(`/knowledge/reference/${encodeURIComponent(source)}`)}
-        onDocClose={() => navigate("/knowledge/reference")}
-      />
+      <div className="p-6 text-muted-foreground">Reference view removed</div>
     </KnowledgeLayout>
   );
 }

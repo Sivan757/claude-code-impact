@@ -5,7 +5,7 @@ import type { FeatureType, TemplateCategory, UserProfile } from "@/types";
 export const sidebarCollapsedAtom = atomWithStorage("claudecodeimpact:sidebarCollapsed", true);
 
 // Marketplace 分类
-export const marketplaceCategoryAtom = atomWithStorage<TemplateCategory>("claudecodeimpact:marketplaceCategory", "commands");
+export const marketplaceCategoryAtom = atomWithStorage<TemplateCategory>("claudecodeimpact:marketplaceCategory", "skills");
 
 // 路径缩短显示
 export const shortenPathsAtom = atomWithStorage("claudecodeimpact:shortenPaths", true);

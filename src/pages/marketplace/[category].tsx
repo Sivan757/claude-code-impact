@@ -20,7 +20,7 @@ export default function MarketplaceCategoryPage() {
         initialCategory={currentCategory}
         onSelectTemplate={(template, cat) => {
           setMarketplaceCategory(cat as TemplateCategory);
-          const categoryPath = cat === "output-styles" ? "output-styles" : cat === "mcps" ? "mcp" : cat;
+          const categoryPath = cat === "mcps" ? "mcp" : cat;
           navigate(`/${categoryPath}/${encodeURIComponent(template.name)}?source=marketplace`);
         }}
       />

@@ -20,8 +20,6 @@ function getLanguageForCategory(category: TemplateCategory): string {
     case "hooks":
     case "settings":
       return "json";
-    case "statuslines":
-      return "shell";
     default:
       return "markdown";
   }
@@ -117,7 +115,6 @@ export function TemplateDetailView({
 
     try {
       switch (category) {
-        case "commands":
         case "agents":
           await invoke("install_command_template", {
             name: template.name,
@@ -148,16 +145,11 @@ export function TemplateDetailView({
           queryClient.invalidateQueries({ queryKey: ["settings", settingsPath ?? "default"] });
           break;
         case "settings":
-        case "output-styles":
           await invoke("install_setting_template", {
             config: template.content,
             path: settingsPath || undefined,
           });
           queryClient.invalidateQueries({ queryKey: ["settings", settingsPath ?? "default"] });
-          break;
-        case "statuslines":
-          // Install to ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh
-          await invoke("install_statusline_template", { name: template.name, content: template.content });
           break;
       }
       setInstalled(true);
@@ -168,7 +160,7 @@ export function TemplateDetailView({
     }
   };
 
-  const categoryLabel = t(`features.${category === 'mcps' ? 'mcp' : category === 'agents' ? 'sub-agents' : category === 'statuslines' ? 'statusline' : category}`);
+  const categoryLabel = t(`features.${category === 'mcps' ? 'mcp' : category === 'agents' ? 'sub-agents' : category}`);
   const filePath = localPath || template.path;
 
   const handleReveal = () => invoke("reveal_path", { path: filePath });
@@ -286,7 +278,7 @@ export function TemplateDetailView({
 
         {template.content && (
           <DetailCard label={t('marketplace.content_preview')}>
-            {category === "mcps" || category === "hooks" || category === "settings" || category === "statuslines" ? (
+            {category === "mcps" || category === "hooks" || category === "settings" ? (
               <CodePreview value={template.content} language={getLanguageForCategory(category)} height={400} />
             ) : (() => {
               const { meta, body } = parseFrontmatter(template.content);
