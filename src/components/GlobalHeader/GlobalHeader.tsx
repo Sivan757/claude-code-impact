@@ -64,7 +64,7 @@ export function GlobalHeader({
   if (sidebarCollapsed) {
     // Collapsed layout - full nav in header
     return (
-      <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-card">
+      <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center pl-[80px]">
           <div className="flex items-center gap-0.5">
             <NavButton
@@ -120,7 +120,7 @@ export function GlobalHeader({
 
   // Expanded layout - minimal header (nav is in sidebar)
   return (
-    <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-card">
+    <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
       <div className="flex items-center gap-0.5 pl-3">
         <button
           onClick={onGoBack}

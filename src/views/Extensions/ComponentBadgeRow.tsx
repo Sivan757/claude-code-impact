@@ -4,10 +4,13 @@ import type { PluginComponents } from "../../types";
 
 interface ComponentBadgeRowProps {
   components: PluginComponents;
+  size?: "sm" | "md";
 }
 
-export function ComponentBadgeRow({ components }: ComponentBadgeRowProps) {
+export function ComponentBadgeRow({ components, size = "md" }: ComponentBadgeRowProps) {
   const { t } = useTranslation();
+  const badgeSizeClass =
+    size === "sm" ? "text-[10px] px-1.5 py-0.5 leading-none" : "text-xs px-2 py-0.5";
 
   const badges = useMemo(
     () => [
@@ -58,11 +61,11 @@ export function ComponentBadgeRow({ components }: ComponentBadgeRowProps) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={size === "sm" ? "flex flex-wrap gap-1.5" : "flex flex-wrap gap-2"}>
       {visibleBadges.map((badge) => (
         <span
           key={badge.key}
-          className={`text-xs px-2 py-0.5 rounded-full ${badge.className}`}
+          className={`${badgeSizeClass} rounded-full ${badge.className}`}
         >
           {badge.label} {badge.count}
         </span>

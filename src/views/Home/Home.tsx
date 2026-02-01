@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { FeatureType, Project, Session, LocalCommand } from "../../types";
 import { FEATURES } from "../../constants";
-import { ActivityHeatmap, RecentActivity, QuickActions } from "../../components/home";
+import { ActivityHeatmap, RecentActivity } from "../../components/home";
 import { useInvokeQuery } from "../../hooks";
 import { useTranslation } from "react-i18next";
 
@@ -60,15 +60,6 @@ export function Home({ onFeatureClick, onProjectClick, onSessionClick, onSearch 
       </div>
 
 
-
-      {/* Quick Actions */}
-      <div className="flex justify-center mb-8">
-        <QuickActions
-          lastProject={lastProject}
-          onContinue={onProjectClick}
-          onSearch={onSearch}
-        />
-      </div>
 
       {/* Main Content */}
       <div className="flex-1 max-w-4xl mx-auto w-full space-y-6">

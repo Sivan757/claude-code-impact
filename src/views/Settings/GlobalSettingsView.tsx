@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ConfigPage, PageHeader } from "../../components/config";
+import { ConfigPage } from "../../components/config";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { SettingsView } from "./SettingsView";
 import { LlmProviderView } from "./LlmProviderView";
@@ -24,13 +23,20 @@ interface GlobalSettingsViewProps {
     settingsPath?: string;
 }
 
+const TAB_CONFIG = [
+    { value: "general", icon: GearIcon, labelKey: "features.common_settings" },
+    { value: "provider", icon: LightningBoltIcon, labelKey: "features.basic-llm" },
+    { value: "plugins", icon: CubeIcon, labelKey: "features.extensions", fallbackKey: "features.plugins" },
+    { value: "env", icon: MixIcon, labelKey: "features.basic-env" },
+    { value: "hooks", icon: Link2Icon, labelKey: "features.hooks", fallback: "Hooks" },
+] as const;
+
 export function GlobalSettingsView({ defaultTab = "general", settingsPath }: GlobalSettingsViewProps) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState(defaultTab);
     const settingsKey = ["settings", settingsPath ?? "default"];
 
-    // Sync activeTab if defaultTab changes (e.g. navigation via sidebar)
     useEffect(() => {
         setActiveTab(defaultTab);
     }, [defaultTab]);
@@ -41,63 +47,80 @@ export function GlobalSettingsView({ defaultTab = "general", settingsPath }: Glo
         queryClient.invalidateQueries({ queryKey: ["hooks"] });
     };
 
+    const getTabLabel = (tab: typeof TAB_CONFIG[number]) => {
+        const label = t(tab.labelKey);
+        if (label && label !== tab.labelKey) return label;
+        if ('fallbackKey' in tab) return t(tab.fallbackKey as string);
+        if ('fallback' in tab) return tab.fallback;
+        return tab.labelKey;
+    };
+
     return (
         <ConfigPage>
-            <PageHeader
-                title={t('settings_dialog.title') || "Unified Settings"}
-                subtitle={
-                    settingsPath
-                        ? `${t('settings.global_subtitle', 'Manage all your configurations in one place')} · ${settingsPath}`
-                        : t('settings.global_subtitle', 'Manage all your configurations in one place')
-                }
-                action={
-                    <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
+            {/* Header Section */}
+            <header className="mb-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">
+                            {t('settings_dialog.title') || "Settings"}
+                        </h1>
+                        <p className="text-muted-foreground mt-0.5 text-sm">
+                            {t('settings.global_subtitle', 'Manage all your configurations in one place')}
+                        </p>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={refresh}
+                        title={t('common.refresh')}
+                        className="rounded-xl hover:bg-secondary/80"
+                    >
                         <ReloadIcon className="w-4 h-4" />
                     </Button>
-                }
-            />
+                </div>
+            </header>
 
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col h-full">
-                    <div className="px-1 pb-1 bg-canvas">
-                        <TabsList className="h-12 bg-secondary/50 p-1.5 gap-2 w-auto inline-flex justify-start rounded-xl border border-border/40 backdrop-blur-sm">
-                            <TabsTrigger value="general" className="px-5 h-full rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 dark:data-[state=active]:ring-white/10 transition-all duration-200 ease-in-out font-medium text-muted-foreground hover:text-foreground">
-                                <GearIcon className="w-4 h-4 mr-2" />
-                                {t('features.common_settings')}
-                            </TabsTrigger>
-                            <TabsTrigger value="provider" className="px-5 h-full rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 dark:data-[state=active]:ring-white/10 transition-all duration-200 ease-in-out font-medium text-muted-foreground hover:text-foreground">
-                                <LightningBoltIcon className="w-4 h-4 mr-2" />
-                                {t('features.basic-llm')}
-                            </TabsTrigger>
-                            <TabsTrigger value="plugins" className="px-5 h-full rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 dark:data-[state=active]:ring-white/10 transition-all duration-200 ease-in-out font-medium text-muted-foreground hover:text-foreground">
-                                <CubeIcon className="w-4 h-4 mr-2" />
-                                {t('features.extensions') || t('features.plugins')}
-                            </TabsTrigger>
-                            <TabsTrigger value="env" className="px-5 h-full rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 dark:data-[state=active]:ring-white/10 transition-all duration-200 ease-in-out font-medium text-muted-foreground hover:text-foreground">
-                                <MixIcon className="w-4 h-4 mr-2" />
-                                {t('features.basic-env')}
-                            </TabsTrigger>
-                            <TabsTrigger value="hooks" className="px-5 h-full rounded-lg data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5 dark:data-[state=active]:ring-white/10 transition-all duration-200 ease-in-out font-medium text-muted-foreground hover:text-foreground">
-                                <Link2Icon className="w-4 h-4 mr-2" />
-                                {t('features.hooks') || "Hooks"}
-                            </TabsTrigger>
+            {/* Tabs Container */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <Tabs
+                    value={activeTab}
+                    onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+                    className="flex-1 flex flex-col h-full"
+                >
+                    {/* Tab Navigation */}
+                    <div className="pb-0">
+                        <TabsList className="h-10 bg-secondary/40 p-0.5 gap-1 w-auto inline-flex justify-start rounded-lg border border-border/30 backdrop-blur-sm">
+                            {TAB_CONFIG.map((tab) => {
+                                const Icon = tab.icon;
+                                return (
+                                    <TabsTrigger
+                                        key={tab.value}
+                                        value={tab.value}
+                                        className="px-3 h-full rounded-md gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-200 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border-border/50"
+                                    >
+                                        <Icon className="w-4 h-4" />
+                                        <span className="hidden sm:inline">{getTabLabel(tab)}</span>
+                                    </TabsTrigger>
+                                );
+                            })}
                         </TabsList>
                     </div>
 
-                    <div className="flex-1 overflow-hidden bg-canvas">
-                        <TabsContent value="general" className="h-full m-0 data-[state=active]:flex flex-col">
+                    {/* Tab Content Area */}
+                    <div className="flex-1 overflow-hidden">
+                        <TabsContent value="general" className="h-full m-0 data-[state=active]:flex flex-col overflow-y-auto">
                             <SettingsView embedded={true} settingsPath={settingsPath} />
                         </TabsContent>
-                        <TabsContent value="provider" className="h-full m-0 data-[state=active]:flex flex-col">
+                        <TabsContent value="provider" className="h-full m-0 data-[state=active]:flex flex-col overflow-y-auto">
                             <LlmProviderView embedded settingsPath={settingsPath} />
                         </TabsContent>
-                        <TabsContent value="plugins" className="h-full m-0 data-[state=active]:flex flex-col">
+                        <TabsContent value="plugins" className="h-full m-0 data-[state=active]:flex flex-col overflow-hidden">
                             <ExtensionsView embedded />
                         </TabsContent>
-                        <TabsContent value="env" className="h-full m-0 data-[state=active]:flex flex-col">
+                        <TabsContent value="env" className="h-full m-0 data-[state=active]:flex flex-col overflow-y-auto">
                             <EnvSettingsView embedded settingsPath={settingsPath} />
                         </TabsContent>
-                        <TabsContent value="hooks" className="h-full m-0 data-[state=active]:flex flex-col">
+                        <TabsContent value="hooks" className="h-full m-0 data-[state=active]:flex flex-col overflow-y-auto">
                             <HooksSettingsView embedded settingsPath={settingsPath} />
                         </TabsContent>
                     </div>

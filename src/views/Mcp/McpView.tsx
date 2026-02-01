@@ -89,16 +89,18 @@ export function McpView() {
       />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4">
-        <SearchInput
-          placeholder={t('mcp.search_placeholder')}
-          value={search}
-          onChange={setSearch}
-        />
+        <div className="flex items-center justify-between gap-3">
+          <SearchInput
+            placeholder={t('mcp.search_placeholder')}
+            value={search}
+            onChange={setSearch}
+          />
+        </div>
 
         {filtered.length > 0 && (
           <div className="space-y-3 overflow-y-auto min-h-0">
             {filtered.map((server) => (
-              <div key={server.name} className="bg-card rounded-xl p-4 border border-border">
+              <div key={server.name} className="bg-card rounded-xl p-4 border border-border shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <p className="font-medium text-ink flex items-center gap-2">

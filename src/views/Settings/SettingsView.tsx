@@ -8,6 +8,8 @@ import {
   ExternalLinkIcon,
   CopyIcon,
   CodeIcon,
+  PlusIcon,
+  Cross2Icon,
 } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
@@ -32,11 +34,16 @@ import {
 } from "../../components/ui/dialog";
 import {
   LoadingState,
-  EmptyState,
   PageHeader,
   ConfigPage,
 } from "../../components/config";
+import {
+  SettingSection,
+  SettingRow,
+  SettingsEmptyState,
+} from "../../components/Settings";
 import type { ClaudeSettings } from "../../types";
+import { cn } from "../../lib/utils";
 
 type PermissionMode = "bypassPermissions" | "allowEdits" | "normal";
 type ModelType = "opus" | "sonnet" | "haiku";
@@ -90,7 +97,23 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
     { value: "haiku", label: "Haiku" },
   ];
 
+  const denseLayout = {
+    contentGap: "space-y-3",
+    contentPadding: "pb-3",
+    sectionDensity: "dense" as const,
+    rowCompact: true,
+    rowClassName: "py-2",
+    blockPadding: "py-2.5",
+  };
 
+  const labelIds = {
+    defaultModel: "settings-default-model-label",
+    extendedThinking: "settings-extended-thinking-label",
+    spinnerTips: "settings-spinner-tips-label",
+    commitAttribution: "settings-commit-attribution-label",
+    chatRetention: "settings-chat-retention-label",
+    permissionMode: "settings-permission-mode-label",
+  };
 
   const raw = (settings?.raw as Record<string, unknown>) || {};
   const model = (raw.model as ModelType) || "sonnet";
@@ -203,7 +226,7 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   const headerAction = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" aria-label={t('settings.more_actions')}>
           <DotsHorizontalIcon className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -225,163 +248,198 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   );
 
   const mainContent = (
-    <div className="flex-1 flex flex-col min-h-0 space-y-6 overflow-y-auto">
+    <div
+      className={cn(
+        "flex-1 flex flex-col min-h-0 overflow-y-auto",
+        denseLayout.contentGap,
+        denseLayout.contentPadding
+      )}
+    >
       {!settings?.raw ? (
-        <EmptyState icon={GearIcon} message={t('settings.no_settings')} hint={t('settings.create_hint')} />
+        <SettingsEmptyState
+          icon={GearIcon}
+          title={t('settings.no_settings')}
+          description={t('settings.create_hint')}
+        />
       ) : (
         <>
           {/* General Section */}
-          <section className="bg-card rounded-xl border border-border p-4">
-            <h3 className="text-sm font-medium text-ink mb-4">{t('settings.general')}</h3>
-            <div className="space-y-4">
-              {/* Model */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">{t('settings.default_model')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.default_model_desc')}</p>
-                </div>
-                <Select value={model} onValueChange={(v) => updateField("model", v)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MODEL_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Always Thinking */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">{t('settings.extended_thinking')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.extended_thinking_desc')}</p>
-                </div>
-                <Switch
-                  checked={alwaysThinkingEnabled}
-                  onCheckedChange={(checked) => updateField("alwaysThinkingEnabled", checked)}
-                />
-              </div>
-
-              {/* Spinner Tips */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">{t('settings.spinner_tips')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.spinner_tips_desc')}</p>
-                </div>
-                <Switch
-                  checked={spinnerTipsEnabled}
-                  onCheckedChange={(checked) => updateField("spinnerTipsEnabled", checked)}
-                />
-              </div>
-
-              {/* Attribution */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">{t('settings.commit_attribution')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.commit_attribution_desc')}</p>
-                </div>
-                <Select value={attribution} onValueChange={(v) => updateAttribution(v as AttributionMode)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ATTRIBUTION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Cleanup Period */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">{t('settings.chat_retention')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.chat_retention_desc')}</p>
-                </div>
-                <Select
-                  value={String(cleanupPeriodDays)}
-                  onValueChange={(v) => updateField("cleanupPeriodDays", Number(v))}
+          <SettingSection title={t('settings.general')} density={denseLayout.sectionDensity}>
+            {/* Model */}
+            <SettingRow
+              label={t('settings.default_model')}
+              description={t('settings.default_model_desc')}
+              labelId={labelIds.defaultModel}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Select value={model} onValueChange={(v) => updateField("model", v)}>
+                <SelectTrigger
+                  className="w-28 h-8 rounded-lg"
+                  aria-labelledby={labelIds.defaultModel}
                 >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CLEANUP_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </section>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODEL_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+
+            {/* Always Thinking */}
+            <SettingRow
+              label={t('settings.extended_thinking')}
+              description={t('settings.extended_thinking_desc')}
+              labelId={labelIds.extendedThinking}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Switch
+                checked={alwaysThinkingEnabled}
+                aria-labelledby={labelIds.extendedThinking}
+                onCheckedChange={(checked) => updateField("alwaysThinkingEnabled", checked)}
+              />
+            </SettingRow>
+
+            {/* Spinner Tips */}
+            <SettingRow
+              label={t('settings.spinner_tips')}
+              description={t('settings.spinner_tips_desc')}
+              labelId={labelIds.spinnerTips}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Switch
+                checked={spinnerTipsEnabled}
+                aria-labelledby={labelIds.spinnerTips}
+                onCheckedChange={(checked) => updateField("spinnerTipsEnabled", checked)}
+              />
+            </SettingRow>
+
+            {/* Attribution */}
+            <SettingRow
+              label={t('settings.commit_attribution')}
+              description={t('settings.commit_attribution_desc')}
+              labelId={labelIds.commitAttribution}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Select value={attribution} onValueChange={(v) => updateAttribution(v as AttributionMode)}>
+                <SelectTrigger
+                  className="w-28 h-8 rounded-lg"
+                  aria-labelledby={labelIds.commitAttribution}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ATTRIBUTION_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+
+            {/* Cleanup Period */}
+            <SettingRow
+              label={t('settings.chat_retention')}
+              description={t('settings.chat_retention_desc')}
+              labelId={labelIds.chatRetention}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Select
+                value={String(cleanupPeriodDays)}
+                onValueChange={(v) => updateField("cleanupPeriodDays", Number(v))}
+              >
+                <SelectTrigger
+                  className="w-28 h-8 rounded-lg"
+                  aria-labelledby={labelIds.chatRetention}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLEANUP_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+          </SettingSection>
 
           {/* Permissions Section */}
-          <section className="bg-card rounded-xl border border-border p-4">
-            <h3 className="text-sm font-medium text-ink mb-4">{t('settings.permissions')}</h3>
-            <div className="space-y-4">
-              {/* Default Mode */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">{t('settings.permission_mode')}</p>
-                  <p className="text-xs text-muted-foreground">{t('settings.permission_mode_desc')}</p>
+          <SettingSection title={t('settings.permissions')} density={denseLayout.sectionDensity}>
+            {/* Default Mode */}
+            <SettingRow
+              label={t('settings.permission_mode')}
+              description={t('settings.permission_mode_desc')}
+              labelId={labelIds.permissionMode}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Select value={defaultMode} onValueChange={(v) => updatePermissionField("defaultMode", v)}>
+                <SelectTrigger
+                  className="w-28 h-8 rounded-lg"
+                  aria-labelledby={labelIds.permissionMode}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERMISSION_MODES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+
+            {/* Additional Directories */}
+            <div className={cn(denseLayout.blockPadding, "border-b border-border/30 last:border-0")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground font-medium">{t('settings.additional_directories')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    {t('settings.additional_directories_desc')}
+                  </p>
                 </div>
-                <Select value={defaultMode} onValueChange={(v) => updatePermissionField("defaultMode", v)}>
-                  <SelectTrigger className="w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PERMISSION_MODES.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-lg gap-1.5"
+                  onClick={() => {
+                    const path = prompt(t('settings.enter_path'));
+                    if (path?.trim()) addDirectory(path.trim());
+                  }}
+                >
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  {t('common.add')}
+                </Button>
               </div>
 
-              {/* Additional Directories */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-sm text-ink">{t('settings.additional_directories')}</p>
-                    <p className="text-xs text-muted-foreground">{t('settings.additional_directories_desc')}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const path = prompt(t('settings.enter_path'));
-                      if (path?.trim()) addDirectory(path.trim());
-                    }}
-                  >
-                    {t('common.add')}
-                  </Button>
-                </div>
-                {additionalDirectories.length > 0 ? (
-                  <div className="space-y-1">
-                    {additionalDirectories.map((dir) => (
-                      <div
-                        key={dir}
-                        className="flex items-center justify-between px-3 py-2 bg-card-alt rounded-lg text-xs"
+              {additionalDirectories.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {additionalDirectories.map((dir) => (
+                    <div
+                      key={dir}
+                      className="flex items-center justify-between px-3 py-2 bg-secondary/40 rounded-lg group hover:bg-secondary/60 transition-colors"
+                    >
+                      <span className="font-mono text-xs text-muted-foreground truncate">{dir}</span>
+                      <button
+                        onClick={() => removeDirectory(dir)}
+                        aria-label={t('common.remove')}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 hover:text-red-500 transition-all"
+                        title={t('common.remove')}
                       >
-                        <span className="font-mono text-muted-foreground">{dir}</span>
-                        <button
-                          onClick={() => removeDirectory(dir)}
-                          className="text-muted-foreground hover:text-red-500"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">{t('settings.no_additional_directories')}</p>
-                )}
-              </div>
+                        <Cross2Icon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground/70 italic mt-2">{t('settings.no_additional_directories')}</p>
+              )}
             </div>
-          </section>
-
-
+          </SettingSection>
         </>
       )}
     </div>

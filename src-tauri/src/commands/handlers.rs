@@ -8,8 +8,9 @@ use tauri::{Emitter, Manager};
 
 use crate::infra::{
     ensure_parent_dir, get_claude_dir, get_claude_json_path, get_claudecodeimpact_dir,
-    load_custom_keys, load_disabled_env, resolve_settings_path, save_custom_keys,
-    save_disabled_env,
+    get_docs_distill_dir, get_docs_reference_dir, get_statusbar_dir, get_statusline_dir,
+    load_custom_keys, load_disabled_env, load_disabled_hooks, read_data_key, remove_data_key,
+    resolve_settings_path, save_custom_keys, save_disabled_env, save_disabled_hooks, write_data_key,
 };
 use crate::services::claude_format::{HistoryEntry, RawLine};
 use crate::services::message_content::extract_content_with_meta;
@@ -31,6 +32,8 @@ include!("sections/activity/annual_report.rs");
 include!("sections/commands/command_stats.rs");
 include!("sections/settings/settings_access.rs");
 include!("sections/settings/settings_update.rs");
+include!("sections/settings/llm_profiles.rs");
+include!("sections/settings/ui_preferences.rs");
 include!("sections/plugins/repository_scan.rs");
 include!("sections/versions/claude_code_versions.rs");
 include!("sections/pty/pty_commands.rs");
@@ -118,6 +121,12 @@ pub fn build_invoke_handler(
         update_settings_permission_field,
         add_permission_directory,
         remove_permission_directory,
+        get_llm_profiles_state,
+        save_llm_profiles_state,
+        get_ui_preference,
+        get_ui_preferences,
+        set_ui_preference,
+        remove_ui_preference,
         toggle_plugin,
         // Extensions management
         scan_plugins,

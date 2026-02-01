@@ -396,12 +396,11 @@ export function CommandsView({
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
               <SearchInput
                 placeholder={t('commands.search_installed')}
                 value={search}
                 onChange={setSearch}
-                className="flex-1 px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

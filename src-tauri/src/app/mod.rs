@@ -7,7 +7,7 @@ use std::time::Duration;
 use tauri::{Emitter, Manager};
 
 use crate::commands;
-use crate::infra::get_distill_dir;
+use crate::infra::get_docs_distill_dir;
 use crate::pty_manager;
 use crate::state::DISTILL_WATCH_ENABLED;
 
@@ -74,7 +74,7 @@ pub fn run() {
             // Start watching distill directory for changes
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
-                let distill_dir = get_distill_dir();
+                let distill_dir = get_docs_distill_dir();
                 if !distill_dir.exists() {
                     // Create directory if it doesn't exist so we can watch it
                     let _ = fs::create_dir_all(&distill_dir);

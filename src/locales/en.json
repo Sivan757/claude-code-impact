@@ -35,7 +35,8 @@
         "config": "Config",
         "refresh": "Refresh",
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Delete",
+        "remove": "Remove"
     },
     "home": {
         "tagline": "Your Vibe Coding Hub",
@@ -194,6 +195,7 @@
         "open_in_editor": "Open in Editor",
         "copy_path": "Copy Path",
         "view_raw_json": "View Raw JSON",
+        "more_actions": "More actions",
         "configuration": "Configuration",
         "marketplace": "Marketplace",
         "no_settings": "No settings found",
@@ -281,6 +283,12 @@
         "no_match": "No matching providers found.",
         "use_current": "Use current",
         "default_profile_name": "Anthropic API",
+        "view_options": "View",
+        "view_list": "List",
+        "view_card": "Card",
+        "drag_hint": "Drag the handle to reorder providers.",
+        "reorder": "Reorder provider",
+        "drag_disabled": "Reordering is disabled while filtering",
         "new_provider": "New Provider",
         "edit_provider": "Edit Provider",
         "provider_name": "Provider Name",

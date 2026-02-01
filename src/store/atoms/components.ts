@@ -1,4 +1,4 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage } from "@/store/persistence";
 
 // CollapsibleCard states (dynamic keys)
 export const collapsibleStatesAtom = atomWithStorage<Record<string, boolean>>("claudecodeimpact:collapsibleStates", {});

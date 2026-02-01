@@ -4,6 +4,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { getUiPreference, setUiPreference } from "@/lib/uiPreferences";
 
 interface PooledTerminal {
   term: Terminal;
@@ -40,13 +41,8 @@ const autoCopyDisposables: Map<string, { dispose: () => void }> =
   window.__autoCopyDisposables ?? (window.__autoCopyDisposables = new Map());
 
 /** Global auto-copy enabled state */
-let autoCopyEnabled = (() => {
-  try {
-    return localStorage.getItem("terminal:autoCopyOnSelect") === "true";
-  } catch {
-    return false;
-  }
-})();
+const AUTO_COPY_KEY = "terminal:autoCopyOnSelect";
+let autoCopyEnabled = false;
 
 /** Global lock to prevent concurrent PTY initialization (survives HMR) */
 export const ptyInitLocks: Map<string, Promise<void>> =
@@ -316,6 +312,11 @@ function setupAutoCopy(sessionId: string, term: Terminal): void {
   autoCopyDisposables.get(sessionId)?.dispose();
   autoCopyDisposables.delete(sessionId);
 
+  const storedAutoCopy = getUiPreference<boolean>(AUTO_COPY_KEY);
+  if (typeof storedAutoCopy === "boolean") {
+    autoCopyEnabled = storedAutoCopy;
+  }
+
   if (!autoCopyEnabled) return;
 
   const disposable = term.onSelectionChange(() => {
@@ -331,7 +332,7 @@ function setupAutoCopy(sessionId: string, term: Terminal): void {
 /** Set auto-copy on select enabled state */
 export function setAutoCopyOnSelect(enabled: boolean): void {
   autoCopyEnabled = enabled;
-  localStorage.setItem("terminal:autoCopyOnSelect", String(enabled));
+  setUiPreference(AUTO_COPY_KEY, enabled);
 
   // Update all existing terminals
   for (const [sessionId, pooled] of terminalPool) {
@@ -341,5 +342,9 @@ export function setAutoCopyOnSelect(enabled: boolean): void {
 
 /** Get auto-copy on select enabled state */
 export function getAutoCopyOnSelect(): boolean {
+  const storedAutoCopy = getUiPreference<boolean>(AUTO_COPY_KEY);
+  if (typeof storedAutoCopy === "boolean") {
+    autoCopyEnabled = storedAutoCopy;
+  }
   return autoCopyEnabled;
 }

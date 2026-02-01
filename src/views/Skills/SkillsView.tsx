@@ -43,11 +43,13 @@ export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
           <LoadingState message={t('skills.loading')} />
         ) : (
           <>
-            <SearchInput
-              placeholder={t('skills.search_placeholder')}
-              value={search}
-              onChange={setSearch}
-            />
+            <div className="flex items-center justify-between gap-3">
+              <SearchInput
+                placeholder={t('skills.search_placeholder')}
+                value={search}
+                onChange={setSearch}
+              />
+            </div>
 
             {filtered.length > 0 && (
               <div className="flex-1 space-y-2 overflow-y-auto min-h-0">
@@ -69,7 +71,7 @@ export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
                         source_name: skill.marketplace?.source_name ?? null,
                         author: skill.marketplace?.author ?? null,
                       }, skill.path)}
-                      className="w-full text-left bg-card rounded-xl p-4 border border-border hover:border-primary transition-colors"
+                      className="w-full text-left bg-card rounded-xl p-4 border border-border hover:bg-muted/50 hover:shadow-sm transition-all"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">

@@ -1,4 +1,4 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage } from "@/store/persistence";
 import type { FeatureType, TemplateCategory, UserProfile } from "@/types";
 
 // 侧边栏折叠状态 (always true - expanded sidebar removed from legacy layout)

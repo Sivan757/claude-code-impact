@@ -564,7 +564,7 @@ fn load_single_plugin(
 
 /// Load personal/installed statuslines from ~/.claudecodeimpact/claudecodeimpact/statusline/
 fn load_personal_statuslines() -> Vec<TemplateComponent> {
-    let statusline_dir = get_claudecodeimpact_dir().join("statusline");
+    let statusline_dir = get_statusline_dir();
     let mut components = Vec::new();
 
     if !statusline_dir.exists() {

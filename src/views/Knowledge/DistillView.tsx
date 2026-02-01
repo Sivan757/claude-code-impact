@@ -57,7 +57,9 @@ export function DistillView({ onSelect, watchEnabled, onWatchToggle }: DistillVi
         }
       />
 
-      <SearchInput placeholder={t('distill.search_placeholder')} value={search} onChange={setSearch} />
+      <div className="flex items-center justify-between gap-3">
+        <SearchInput placeholder={t('distill.search_placeholder')} value={search} onChange={setSearch} />
+      </div>
 
       {filtered.length > 0 ? (
         <div className="space-y-2">

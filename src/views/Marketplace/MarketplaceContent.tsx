@@ -113,11 +113,13 @@ export function MarketplaceContent({ category, onSelectTemplate, externalSearch 
       </div>
 
       {showSearchInput && (
-        <SearchInput
-          placeholder={t('marketplace.search_placeholder')}
-          value={internalSearch}
-          onChange={setInternalSearch}
-        />
+        <div className="flex items-center justify-between gap-3">
+          <SearchInput
+            placeholder={t('marketplace.search_placeholder')}
+            value={internalSearch}
+            onChange={setInternalSearch}
+          />
+        </div>
       )}
 
       {/* Grid */}

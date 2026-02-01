@@ -65,7 +65,7 @@ fn write_statusline_script(content: String) -> Result<String, String> {
 /// Install statusline template to ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh
 #[tauri::command]
 fn install_statusline_template(name: String, content: String) -> Result<String, String> {
-    let statusline_dir = get_claudecodeimpact_dir().join("statusline");
+    let statusline_dir = get_statusline_dir();
     fs::create_dir_all(&statusline_dir).map_err(|e| e.to_string())?;
 
     let script_path = statusline_dir.join(format!("{}.sh", name));
@@ -89,15 +89,13 @@ fn install_statusline_template(name: String, content: String) -> Result<String, 
 /// If ~/.claude/statusline.sh exists and is not already installed, backup to ~/.claudecodeimpact/claudecodeimpact/statusline/_previous.sh
 #[tauri::command]
 fn apply_statusline(name: String) -> Result<String, String> {
-    let source_path = get_claudecodeimpact_dir()
-        .join("statusline")
-        .join(format!("{}.sh", name));
+    let source_path = get_statusline_dir().join(format!("{}.sh", name));
     if !source_path.exists() {
         return Err(format!("Statusline template not found: {}", name));
     }
 
     let target_path = get_claude_dir().join("statusline.sh");
-    let backup_dir = get_claudecodeimpact_dir().join("statusline");
+    let backup_dir = get_statusline_dir();
     fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
 
     // Backup existing statusline.sh if it exists and differs from source
@@ -131,7 +129,7 @@ fn apply_statusline(name: String) -> Result<String, String> {
 /// Restore previous statusline from backup
 #[tauri::command]
 fn restore_previous_statusline() -> Result<String, String> {
-    let backup_path = get_claudecodeimpact_dir().join("statusline").join("_previous.sh");
+    let backup_path = get_statusline_dir().join("_previous.sh");
     if !backup_path.exists() {
         return Err("No previous statusline to restore".to_string());
     }
@@ -160,10 +158,7 @@ fn restore_previous_statusline() -> Result<String, String> {
 /// Check if previous statusline backup exists
 #[tauri::command]
 fn has_previous_statusline() -> bool {
-    get_claudecodeimpact_dir()
-        .join("statusline")
-        .join("_previous.sh")
-        .exists()
+    get_statusline_dir().join("_previous.sh").exists()
 }
 
 /// Context passed to Claude Code Impact statusbar script
@@ -239,24 +234,16 @@ fn execute_statusbar_script(
     Ok(first_line)
 }
 
-/// Get Claude Code Impact statusbar settings from workspace.json
+/// Get Claude Code Impact statusbar settings from ~/.claudecodeimpact/data.db
 #[tauri::command]
 fn get_statusbar_settings() -> Result<Option<serde_json::Value>, String> {
-    let settings_path = get_claudecodeimpact_dir().join("statusbar-settings.json");
-    if !settings_path.exists() {
-        return Ok(None);
-    }
-    let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    Ok(Some(settings))
+    crate::infra::load_statusbar_settings()
 }
 
-/// Save Claude Code Impact statusbar settings
+/// Save Claude Code Impact statusbar settings to ~/.claudecodeimpact/data.db
 #[tauri::command]
 fn save_statusbar_settings(settings: serde_json::Value) -> Result<(), String> {
-    let settings_path = get_claudecodeimpact_dir().join("statusbar-settings.json");
-    let content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    fs::write(&settings_path, content).map_err(|e| e.to_string())
+    crate::infra::save_statusbar_settings(&settings)
 }
 
 /// Write Claude Code Impact statusbar script to ~/.claudecodeimpact/claudecodeimpact/statusbar/
@@ -265,7 +252,7 @@ fn write_claudecodeimpact_statusbar_script(
     name: String,
     content: String,
 ) -> Result<String, String> {
-    let statusbar_dir = get_claudecodeimpact_dir().join("statusbar");
+    let statusbar_dir = get_statusbar_dir();
     fs::create_dir_all(&statusbar_dir).map_err(|e| e.to_string())?;
 
     let script_path = statusbar_dir.join(format!("{}.sh", name));
@@ -288,9 +275,7 @@ fn write_claudecodeimpact_statusbar_script(
 /// Remove installed statusline template
 #[tauri::command]
 fn remove_statusline_template(name: String) -> Result<(), String> {
-    let script_path = get_claudecodeimpact_dir()
-        .join("statusline")
-        .join(format!("{}.sh", name));
+    let script_path = get_statusline_dir().join(format!("{}.sh", name));
     if script_path.exists() {
         fs::remove_file(&script_path).map_err(|e| e.to_string())?;
     }

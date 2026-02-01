@@ -92,7 +92,7 @@ export function SearchInput({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={className ?? "w-full max-w-md mb-6 px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"}
+      className={className ?? "w-1/2 px-4 py-2.5 text-sm bg-card border border-border/60 rounded-xl text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-200"}
     />
   );
 }
@@ -107,10 +107,10 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="mb-2">
+    <header className="mb-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl font-semibold text-ink">{title}</h1>
+          <h1 className="font-sans text-2xl font-semibold text-ink tracking-tight">{title}</h1>
           <div className="text-muted-foreground mt-1">{subtitle}</div>
         </div>
         {action}
@@ -323,7 +323,7 @@ export function ItemCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-card rounded-xl p-4 border border-border hover:border-primary transition-colors"
+      className="w-full text-left bg-card rounded-xl p-4 border border-border hover:bg-muted/50 hover:shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -351,8 +351,8 @@ export function ItemCard({
             </span>
           )}
         </div>
-      </div>
-    </button>
+      </div >
+    </button >
   );
 }
 

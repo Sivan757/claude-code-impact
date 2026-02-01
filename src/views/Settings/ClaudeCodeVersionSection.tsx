@@ -210,9 +210,9 @@ export function ClaudeCodeVersionSection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Version + Install Type + Button */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <div className="flex gap-2">
           {/* Version selector */}
           <Select value={selectedVersion} onValueChange={setSelectedVersion} disabled={installing}>

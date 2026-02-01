@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { loader } from "@monaco-editor/react";
 import { AppRouter } from "./router";
+import { initializeUiPreferences } from "./lib/uiPreferences";
 import "./index.css";
 import "./i18n";
 
@@ -24,8 +25,18 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <QueryClientProvider client={queryClient}>
-    <AppRouter />
-  </QueryClientProvider>,
-);
+async function bootstrap() {
+  try {
+    await initializeUiPreferences();
+  } catch {
+    // Ignore preference initialization errors to avoid blocking startup.
+  }
+
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <QueryClientProvider client={queryClient}>
+      <AppRouter />
+    </QueryClientProvider>,
+  );
+}
+
+void bootstrap();

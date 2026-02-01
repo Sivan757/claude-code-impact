@@ -11,9 +11,9 @@ import {
   TrashIcon,
   ReloadIcon,
   ChevronDownIcon,
+  MixIcon,
 } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
-
 import {
   Popover,
   PopoverContent,
@@ -21,10 +21,15 @@ import {
 } from "../../components/ui/popover";
 import {
   LoadingState,
-  SearchInput,
   PageHeader,
   ConfigPage,
 } from "../../components/config";
+import {
+  ActionToolbar,
+  SettingsEmptyState,
+  StatusBadge,
+  AddFormRow,
+} from "../../components/Settings";
 import type { ClaudeSettings } from "../../types";
 import { ENV_VAR_SUGGESTIONS } from "../../constants/env-vars";
 
@@ -161,166 +166,174 @@ export function EnvSettingsView({
 
 
   const content = (
-    <div className="flex-1 flex flex-col space-y-4">
-      <div className="flex items-center gap-2 mb-6">
-        <SearchInput
-          placeholder={t('env.search_placeholder')}
-          value={search}
-          onChange={setSearch}
-          className="flex-1 max-w-md px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-        />
-        <Button variant="ghost" size="icon" className="rounded-full w-8 h-8" onClick={refreshSettings} title={t('env.refresh')}>
-          <ReloadIcon className="w-4 h-4" />
-        </Button>
-      </div>
+    <div className="flex-1 flex flex-col space-y-3">
+      {/* Toolbar */}
+      <ActionToolbar
+        searchPlaceholder={t('env.search_placeholder')}
+        searchValue={search}
+        onSearchChange={setSearch}
+        primaryAction={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full w-9 h-9"
+            onClick={refreshSettings}
+            title={t('env.refresh')}
+          >
+            <ReloadIcon className="w-4 h-4" />
+          </Button>
+        }
+      />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center p-3 rounded-lg border border-border bg-card">
-        <Popover open={popoverOpen} onOpenChange={setPopoverOpen} className="flex-1 relative group">
-          <input
-            className="text-xs px-2 py-1 pr-8 rounded bg-canvas border border-border text-ink w-full"
-            placeholder={t('env.key')}
-            value={newEnvKey}
-            onChange={(e) => {
-              setNewEnvKey(e.target.value);
-              setPopoverOpen(true);
-            }}
-            onFocus={() => setPopoverOpen(true)}
-            onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
-          />
-          <div className="absolute right-0 top-0 bottom-0 flex items-center pr-1">
-            <PopoverTrigger className="p-1 hover:bg-accent rounded text-muted-foreground transition-colors">
-              <ChevronDownIcon className="w-3.5 h-3.5" />
+      {/* Add New Row */}
+      <AddFormRow>
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <div className="flex-1 relative">
+            <input
+              className="text-sm px-3.5 py-2 pr-8 rounded-xl bg-secondary/40 border border-border/50 text-foreground w-full focus:border-primary/50 focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+              placeholder={t('env.key')}
+              value={newEnvKey}
+              onChange={(e) => {
+                setNewEnvKey(e.target.value);
+                setPopoverOpen(true);
+              }}
+              onFocus={() => setPopoverOpen(true)}
+              onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
+            />
+            <PopoverTrigger asChild>
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-secondary rounded-lg text-muted-foreground transition-colors">
+                <ChevronDownIcon className="w-4 h-4" />
+              </button>
             </PopoverTrigger>
           </div>
-          <PopoverContent align="start" className="w-full p-0 overflow-hidden mt-1 shadow-xl border-border/50">
-            <div className="max-h-[300px] overflow-y-auto">
+          <PopoverContent align="start" className="w-[320px] p-0 overflow-hidden shadow-xl border-border/50 rounded-xl">
+            <div className="max-h-[280px] overflow-y-auto">
               {filteredSuggestions.length > 0 ? (
                 filteredSuggestions.map((item) => (
                   <button
                     key={item.key}
-                    className="w-full text-left px-3 py-2 hover:bg-accent transition-colors border-b border-border/40 last:border-0 flex flex-col gap-0.5"
+                    className="w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors border-b border-border/30 last:border-0 flex flex-col gap-0.5"
                     onClick={() => {
                       setNewEnvKey(item.key);
                       setPopoverOpen(false);
                     }}
                   >
-                    <span className="text-xs font-mono text-primary font-medium">{item.key}</span>
-                    <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed italic">{item.desc}</span>
+                    <span className="text-sm font-mono text-primary font-medium">{item.key}</span>
+                    <span className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.desc}</span>
                   </button>
                 ))
               ) : (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                  {t('env.no_suggestions', '未找到匹配的建议')}
+                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  {t('env.no_suggestions', 'No matching suggestions')}
                 </div>
               )}
             </div>
           </PopoverContent>
         </Popover>
         <input
-          className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink flex-1"
+          className="text-sm px-3.5 py-2 rounded-xl bg-secondary/40 border border-border/50 text-foreground flex-1 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 outline-none transition-all font-mono"
           placeholder={t('env.value')}
           value={newEnvValue}
           onChange={(e) => setNewEnvValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleEnvCreate()}
         />
-        <Button size="sm" onClick={handleEnvCreate} disabled={!newEnvKey.trim()}>
+        <Button onClick={handleEnvCreate} disabled={!newEnvKey.trim()} className="rounded-xl h-9 px-4">
           {t('env.add')}
         </Button>
-      </div>
+      </AddFormRow>
 
-
-
+      {/* Environment Variables Table */}
       {filteredEnvEntries.length > 0 ? (
-        <div className="overflow-x-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b border-border">
-                <th className="py-2 px-3 font-medium">{t('env.key_label')}</th>
-                <th className="py-2 px-3 font-medium">{t('env.value_label')}</th>
-                <th className="py-2 px-3 font-medium text-right">{t('env.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEnvEntries.map(([key, value, isDisabled]) => {
-                return (
-                  <tr
-                    key={key}
-                    className={`border-b border-border/60 last:border-0 ${isDisabled ? "opacity-50" : ""}`}
-                  >
-                    <td className="py-2 px-3">
-                      <span
-                        className={`text-xs px-2 py-1 rounded font-mono ${isDisabled ? "bg-muted/50 text-muted-foreground line-through" : "bg-primary/10 text-primary"}`}
-                      >
-                        {key}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      {editingEnvKey === key ? (
-                        <input
-                          autoFocus
-                          className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink w-64"
-                          value={envEditValue}
-                          onChange={(e) => setEnvEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleEnvSave();
-                            if (e.key === "Escape") setEditingEnvKey(null);
-                          }}
-                        />
-                      ) : (
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {value || t('env.empty')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap text-right">
-                      {editingEnvKey === key ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={handleEnvSave} title={t('env.save')}>
-                            <CheckIcon />
-                          </Button>
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setEditingEnvKey(null)} title={t('env.cancel')}>
-                            <Cross1Icon />
-                          </Button>
-                        </div>
-                      ) : isDisabled ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleEnvEdit(key, value, true)} title={t('env.edit')}>
-                            <Pencil1Icon />
-                          </Button>
-                          <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleEnvEnable(key)} title={t('env.enable')}>
-                            <PlusCircledIcon />
-                          </Button>
-                          <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
-                            <TrashIcon />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleEnvEdit(key, value, false)} title={t('env.edit')}>
-                            <Pencil1Icon />
-                          </Button>
-                          <Button size="icon" variant="outline" className="h-7 w-7 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => handleEnvDisable(key)} title={t('env.disable')}>
-                            <MinusCircledIcon />
-                          </Button>
-                          <Button size="icon" variant="outline" className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
-                            <TrashIcon />
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+          {/* Table Header */}
+          <div className="grid grid-cols-[minmax(180px,1fr)_2fr_auto] gap-3 px-3 py-2 border-b border-border/40 bg-muted/30">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('env.key_label')}</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('env.value_label')}</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">{t('env.actions')}</span>
+          </div>
+          {/* Table Body */}
+          <div className="divide-y divide-border/30">
+            {filteredEnvEntries.map(([key, value, isDisabled]) => (
+              <div
+                key={key}
+                className={`grid grid-cols-[minmax(180px,1fr)_2fr_auto] gap-3 px-3 py-2 items-center hover:bg-muted/20 transition-colors group ${isDisabled ? "opacity-60" : ""}`}
+              >
+                {/* Key */}
+                <div>
+                  <StatusBadge variant={isDisabled ? "muted" : "active"} className={isDisabled ? "line-through" : ""}>
+                    {key}
+                  </StatusBadge>
+                </div>
+
+                {/* Value */}
+                <div className="min-w-0">
+                  {editingEnvKey === key ? (
+                    <input
+                      autoFocus
+                      className="text-sm px-2.5 py-1 rounded-lg bg-secondary/40 border border-primary/50 text-foreground w-full max-w-md font-mono outline-none"
+                      value={envEditValue}
+                      onChange={(e) => setEnvEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleEnvSave();
+                        if (e.key === "Escape") setEditingEnvKey(null);
+                      }}
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground font-mono truncate block">
+                      {value || <em className="text-muted-foreground/50">{t('env.empty')}</em>}
+                    </span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-1">
+                  {editingEnvKey === key ? (
+                    <>
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" onClick={handleEnvSave} title={t('env.save')}>
+                        <CheckIcon className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" onClick={() => setEditingEnvKey(null)} title={t('env.cancel')}>
+                        <Cross1Icon className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : isDisabled ? (
+                    <>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEnvEdit(key, value, true)} title={t('env.edit')}>
+                        <Pencil1Icon className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-green-600 hover:bg-green-500/10" onClick={() => handleEnvEnable(key)} title={t('env.enable')}>
+                        <PlusCircledIcon className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 hover:bg-red-500/10" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
+                        <TrashIcon className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEnvEdit(key, value, false)} title={t('env.edit')}>
+                        <Pencil1Icon className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-600 hover:bg-amber-500/10" onClick={() => handleEnvDisable(key)} title={t('env.disable')}>
+                        <MinusCircledIcon className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 hover:bg-red-500/10" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
+                        <TrashIcon className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
-        <div className="p-4 rounded-lg border border-border bg-card text-center">
-          <p className="text-sm text-muted-foreground">{t('env.no_env')}</p>
-        </div>
-      )
-      }
-    </div >
+        <SettingsEmptyState
+          icon={MixIcon}
+          title={t('env.no_env')}
+          description={t('env.no_env_hint', 'Add environment variables to configure Claude Code')}
+        />
+      )}
+    </div>
   );
 
   if (embedded) {

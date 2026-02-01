@@ -125,11 +125,13 @@ export function MarketplaceView({ initialCategory, onSelectTemplate }: Marketpla
         ))}
       </div>
 
-      <SearchInput
-        placeholder={t('marketplace.search_category_placeholder', { category: categoryLabel.toLowerCase() })}
-        value={search}
-        onChange={setSearch}
-      />
+      <div className="flex items-center justify-between gap-3">
+        <SearchInput
+          placeholder={t('marketplace.search_category_placeholder', { category: categoryLabel.toLowerCase() })}
+          value={search}
+          onChange={setSearch}
+        />
+      </div>
 
       {/* Grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

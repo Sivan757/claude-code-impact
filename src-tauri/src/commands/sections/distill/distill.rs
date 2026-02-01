@@ -1,6 +1,6 @@
 // ============================================================================
 
-use crate::infra::{get_distill_dir, get_reference_dir};
+// Note: infra helpers are imported in handlers.rs (module scope for include!).
 use crate::state::DISTILL_WATCH_ENABLED;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -119,7 +119,7 @@ fn list_reference_sources(app_handle: tauri::AppHandle) -> Result<Vec<ReferenceS
     let mut seen_names = std::collections::HashSet::new();
 
     // 1. Scan user's custom reference directory first (higher priority)
-    let ref_dir = get_reference_dir();
+    let ref_dir = get_docs_reference_dir();
     for source in scan_reference_dir(&ref_dir) {
         seen_names.insert(source.name.clone());
         sources.push(source);
@@ -158,7 +158,7 @@ fn list_reference_sources(app_handle: tauri::AppHandle) -> Result<Vec<ReferenceS
 /// Find reference source directory by name (checks user dir first, then bundled)
 fn find_reference_source_dir(app_handle: &tauri::AppHandle, source: &str) -> Option<PathBuf> {
     // 1. Check user's custom reference directory first
-    let user_dir = get_reference_dir().join(source);
+    let user_dir = get_docs_reference_dir().join(source);
     if user_dir.exists() {
         return Some(user_dir);
     }
@@ -255,7 +255,7 @@ fn list_reference_docs(
 
 #[tauri::command]
 fn list_distill_documents() -> Result<Vec<DistillDocument>, String> {
-    let distill_dir = get_distill_dir();
+    let distill_dir = get_docs_distill_dir();
     let index_path = distill_dir.join("index.jsonl");
 
     if !index_path.exists() {

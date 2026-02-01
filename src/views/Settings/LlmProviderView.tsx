@@ -1,6 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { LayoutGrid, List as ListIcon } from "lucide-react";
 import {
   EyeOpenIcon,
   EyeNoneIcon,
@@ -23,9 +48,15 @@ import {
   LoadingState,
   PageHeader,
   ConfigPage,
-  SearchInput,
 } from "../../components/config";
+import {
+  ListItemCard,
+  StatusBadge,
+  ActionToolbar,
+  SettingsEmptyState,
+} from "../../components/Settings";
 import type { ClaudeSettings } from "../../types";
+import { cn } from "../../lib/utils";
 
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const STORAGE_KEY = "claudecodeimpact_llm_profiles";
@@ -36,6 +67,56 @@ interface ProviderProfile {
   authToken: string;
   baseUrl: string;
   updatedAt: number;
+}
+
+type ProviderViewMode = "list" | "card";
+
+interface LlmProfilesState {
+  profiles: ProviderProfile[];
+  viewMode: ProviderViewMode;
+}
+
+interface SortableProviderItemRenderProps {
+  dragHandleProps: HTMLAttributes<HTMLDivElement>;
+  setActivatorNodeRef: (element: HTMLElement | null) => void;
+  isDragging: boolean;
+}
+
+function SortableProviderItem({
+  profile,
+  children,
+}: {
+  profile: ProviderProfile;
+  children: (props: SortableProviderItemRenderProps) => ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: profile.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "opacity-70")}
+    >
+      {children({
+        dragHandleProps: { ...attributes, ...listeners },
+        setActivatorNodeRef,
+        isDragging,
+      })}
+    </div>
+  );
 }
 
 const getEnvFromSettings = (value: ClaudeSettings | null | undefined): Record<string, string> => {
@@ -76,14 +157,10 @@ export function LlmProviderView({
   const currentBaseUrl = normalizeBaseUrl(env.ANTHROPIC_BASE_URL);
 
   const [search, setSearch] = useState("");
-  const [profiles, setProfiles] = useState<ProviderProfile[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
+  const [viewMode, setViewMode] = useState<ProviderViewMode>("list");
+  const [profilesLoaded, setProfilesLoaded] = useState(false);
+  const didBootstrapFromConfig = useRef(false);
 
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
@@ -95,9 +172,93 @@ export function LlmProviderView({
   const [editorBaseUrl, setEditorBaseUrl] = useState("");
   const [showToken, setShowToken] = useState(false);
 
+  const persistProfilesState = useCallback(
+    async (nextProfiles: ProviderProfile[], nextViewMode = viewMode) => {
+      await invoke("save_llm_profiles_state", {
+        state: { profiles: nextProfiles, viewMode: nextViewMode },
+      });
+    },
+    [viewMode]
+  );
+
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-  }, [profiles]);
+    let active = true;
+    const loadProfilesState = async () => {
+      try {
+        const state = await invoke<LlmProfilesState>("get_llm_profiles_state");
+        if (!active) return;
+        const nextViewMode = state?.viewMode ?? "list";
+        if (state?.profiles?.length) {
+          setProfiles(state.profiles);
+          setViewMode(nextViewMode);
+          return;
+        }
+
+        let migratedProfiles: ProviderProfile[] = [];
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              migratedProfiles = parsed;
+            }
+          }
+        } catch {
+          migratedProfiles = [];
+        }
+
+        if (migratedProfiles.length > 0) {
+          setProfiles(migratedProfiles);
+          setViewMode(nextViewMode);
+          await invoke("save_llm_profiles_state", {
+            state: { profiles: migratedProfiles, viewMode: nextViewMode },
+          });
+          localStorage.removeItem(STORAGE_KEY);
+        } else {
+          setProfiles([]);
+          setViewMode(nextViewMode);
+        }
+      } finally {
+        if (active) setProfilesLoaded(true);
+      }
+    };
+
+    loadProfilesState();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const hasCurrentConfig = Boolean(
+    env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_BASE_URL
+  );
+
+  useEffect(() => {
+    if (!profilesLoaded) return;
+    if (profiles.length > 0) return;
+    if (!hasCurrentConfig) return;
+    if (didBootstrapFromConfig.current) return;
+
+    const bootstrapProfile: ProviderProfile = {
+      id: Date.now().toString(),
+      name: t("llm.default_profile_name", "Anthropic API"),
+      authToken: env.ANTHROPIC_AUTH_TOKEN ?? "",
+      baseUrl: env.ANTHROPIC_BASE_URL ?? "",
+      updatedAt: Date.now(),
+    };
+
+    didBootstrapFromConfig.current = true;
+    setProfiles([bootstrapProfile]);
+    persistProfilesState([bootstrapProfile]).catch(() => {});
+  }, [
+    env.ANTHROPIC_AUTH_TOKEN,
+    env.ANTHROPIC_BASE_URL,
+    hasCurrentConfig,
+    persistProfilesState,
+    profiles.length,
+    profilesLoaded,
+    t,
+  ]);
 
   const refreshSettings = () => queryClient.invalidateQueries({ queryKey: settingsKey });
 
@@ -110,6 +271,14 @@ export function LlmProviderView({
     );
   };
 
+  const updateProfilesState = useCallback(
+    (nextProfiles: ProviderProfile[]) => {
+      setProfiles(nextProfiles);
+      persistProfilesState(nextProfiles).catch(() => {});
+    },
+    [persistProfilesState]
+  );
+
   const filteredProfiles = useMemo(() => {
     if (!search.trim()) return profiles;
     const q = search.toLowerCase();
@@ -119,20 +288,29 @@ export function LlmProviderView({
     );
   }, [profiles, search]);
 
+  const isDragEnabled = !search.trim();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      if (!event.over) return;
+      if (event.active.id === event.over.id) return;
+      const oldIndex = profiles.findIndex((p) => p.id === event.active.id);
+      const newIndex = profiles.findIndex((p) => p.id === event.over?.id);
+      if (oldIndex < 0 || newIndex < 0) return;
+      const nextProfiles = arrayMove(profiles, oldIndex, newIndex);
+      updateProfilesState(nextProfiles);
+    },
+    [profiles, updateProfilesState]
+  );
+
   const openCreate = () => {
     setEditorId(null);
     setEditorName("");
     setEditorToken("");
     setEditorBaseUrl("");
-    setShowToken(false);
-    setIsEditorOpen(true);
-  };
-
-  const openFromCurrent = () => {
-    setEditorId(null);
-    setEditorName(t("llm.default_profile_name", "Anthropic API"));
-    setEditorToken(env.ANTHROPIC_AUTH_TOKEN ?? "");
-    setEditorBaseUrl(env.ANTHROPIC_BASE_URL ?? "");
     setShowToken(false);
     setIsEditorOpen(true);
   };
@@ -145,6 +323,58 @@ export function LlmProviderView({
     setShowToken(false);
     setIsEditorOpen(true);
   };
+
+  const handleViewModeChange = useCallback(
+    (mode: ProviderViewMode) => {
+      setViewMode(mode);
+      persistProfilesState(profiles, mode).catch(() => {});
+    },
+    [persistProfilesState, profiles]
+  );
+
+  const viewModeToggle = (
+    <div className="inline-flex items-center rounded-lg border border-border/60 bg-card/70 p-0.5 shadow-sm">
+      <button
+        type="button"
+        aria-label={t("llm.view_list")}
+        title={t("llm.view_list")}
+        onClick={() => handleViewModeChange("list")}
+        className={cn(
+          "h-7 w-7 flex items-center justify-center rounded-md transition-colors",
+          viewMode === "list"
+            ? "bg-secondary text-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+        )}
+      >
+        <ListIcon className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        aria-label={t("llm.view_card")}
+        title={t("llm.view_card")}
+        onClick={() => handleViewModeChange("card")}
+        className={cn(
+          "h-7 w-7 flex items-center justify-center rounded-md transition-colors",
+          viewMode === "card"
+            ? "bg-secondary text-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+        )}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+
+  const createButton = (
+    <Button
+      size="icon"
+      className="h-7 w-7 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+      onClick={openCreate}
+      title={t("llm.new_provider")}
+    >
+      <PlusIcon className="w-3.5 h-3.5" />
+    </Button>
+  );
 
   const handleSaveProfile = () => {
     if (!editorName.trim()) {
@@ -160,18 +390,16 @@ export function LlmProviderView({
       updatedAt: Date.now(),
     };
 
-    setProfiles((prev) => {
-      if (editorId) {
-        return prev.map((p) => (p.id === editorId ? profile : p));
-      }
-      return [...prev, profile];
-    });
+    const nextProfiles = editorId
+      ? profiles.map((p) => (p.id === editorId ? profile : p))
+      : [...profiles, profile];
+    updateProfilesState(nextProfiles);
     setIsEditorOpen(false);
   };
 
   const handleDeleteProfile = (profileId: string) => {
     if (!confirm(t("llm.confirm_delete"))) return;
-    setProfiles((prev) => prev.filter((p) => p.id !== profileId));
+    updateProfilesState(profiles.filter((p) => p.id !== profileId));
   };
 
   const applyProfile = async (profile: ProviderProfile) => {
@@ -219,121 +447,165 @@ export function LlmProviderView({
   if (isLoading) return <LoadingState message={t("llm.loading")} />;
 
   const listContent = (
-    <div className="flex-1 flex flex-col space-y-4">
-      <div className="flex items-center gap-3">
-        <SearchInput
-          placeholder={t("llm.search_placeholder")}
-          value={search}
-          onChange={setSearch}
-          className="flex-1 max-w-md px-4 py-2 bg-card border border-border rounded-lg text-ink placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-        />
-        <Button variant="outline" onClick={openFromCurrent} disabled={!env.ANTHROPIC_AUTH_TOKEN && !env.ANTHROPIC_BASE_URL}>
-          {t("llm.use_current", "Use current")}
-        </Button>
-        <Button
-          size="icon"
-          className="h-10 w-10 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-full"
-          onClick={openCreate}
-          title={t("llm.new_provider")}
-        >
-          <PlusIcon className="w-5 h-5" />
-        </Button>
-      </div>
+    <div className="flex-1 flex flex-col space-y-3">
+      {/* Toolbar */}
+      <ActionToolbar
+        searchPlaceholder={t("llm.search_placeholder")}
+        searchValue={search}
+        onSearchChange={setSearch}
+        primaryAction={
+          <div className="flex items-center gap-1.5">
+            {createButton}
+            {viewModeToggle}
+          </div>
+        }
+      />
 
-      {applyError && <p className="text-xs text-destructive">{applyError}</p>}
+      {applyError && (
+        <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">
+          {applyError}
+        </p>
+      )}
 
-      <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-h-0">
-        {filteredProfiles.length > 0 ? (
-          filteredProfiles.map((profile) => {
-            const active = isProfileActive(profile);
-            return (
+      {/* Provider List */}
+      <div className="flex-1 overflow-y-auto min-h-0 pb-3">
+        {!profilesLoaded ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            {t("common.loading")}
+          </div>
+        ) : filteredProfiles.length > 0 ? (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext
+              items={filteredProfiles.map((profile) => profile.id)}
+              strategy={viewMode === "card" ? rectSortingStrategy : verticalListSortingStrategy}
+            >
               <div
-                key={profile.id}
-                className={`group rounded-xl border p-3 flex items-center justify-between transition-colors duration-200
-                  ${active
-                    ? "border-primary bg-primary/5"
-                    : "border-border/40 bg-card/40 hover:bg-card hover:border-primary/40 hover:shadow-sm"}`}
+                className={cn(
+                  viewMode === "card"
+                    ? "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+                    : "flex flex-col gap-2"
+                )}
               >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-secondary/80 flex items-center justify-center font-bold text-muted-foreground/80 border border-white/5 select-none">
-                    {profile.name[0]?.toUpperCase() || "A"}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-sm truncate text-foreground/90">
-                        {profile.name}
-                      </h3>
-                      {active && (
-                        <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">
-                          {t("llm.active_status")}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-blue-500/80 truncate font-mono mt-0.5" title={displayBaseUrl(profile.baseUrl)}>
-                      {displayBaseUrl(profile.baseUrl)}
-                    </p>
-                  </div>
-                </div>
+                {filteredProfiles.map((profile) => {
+                  const active = isProfileActive(profile);
+                  return (
+                    <SortableProviderItem key={profile.id} profile={profile}>
+                      {({ dragHandleProps, setActivatorNodeRef }) => {
+                        const dragActivatorProps = isDragEnabled
+                          ? {
+                              ...dragHandleProps,
+                              title: t("llm.reorder"),
+                              "aria-label": t("llm.reorder"),
+                              className:
+                                "cursor-grab active:cursor-grabbing touch-none",
+                            }
+                          : {
+                              "aria-disabled": true,
+                              title: t("llm.drag_disabled"),
+                              "aria-label": t("llm.drag_disabled"),
+                              className: "cursor-not-allowed opacity-40",
+                            };
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {!active && (
-                    <Button
-                      size="sm"
-                      className="rounded-lg h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={() => applyProfile(profile)}
-                      disabled={applyingId === profile.id}
-                    >
-                      {applyingId === profile.id ? (
-                        t("llm.applying")
-                      ) : (
-                        <>
-                          <PlayIcon className="w-3.5 h-3.5 mr-1" />
-                          {t("llm.apply")}
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-lg hover:text-foreground hover:bg-secondary/50"
-                    onClick={() => openEdit(profile)}
-                    title={t("llm.edit")}
-                  >
-                    <Pencil1Icon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-lg hover:text-red-500 hover:bg-red-500/10"
-                    onClick={() => handleDeleteProfile(profile.id)}
-                    title={t("llm.delete")}
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
-                </div>
+                        const applyButton = !active && (
+                          <Button
+                            size="icon"
+                            className="rounded-lg h-7 w-7 bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => applyProfile(profile)}
+                            disabled={applyingId === profile.id}
+                            title={t("llm.apply")}
+                            aria-label={t("llm.apply")}
+                          >
+                            {applyingId === profile.id ? (
+                              <ReloadIcon className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <PlayIcon className="w-3.5 h-3.5" />
+                            )}
+                          </Button>
+                        );
+
+                        const editButton = (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg hover:text-foreground hover:bg-secondary/50"
+                            onClick={() => openEdit(profile)}
+                            title={t("llm.edit")}
+                          >
+                            <Pencil1Icon className="w-3.5 h-3.5" />
+                          </Button>
+                        );
+
+                        const deleteButton = (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
+                            onClick={() => handleDeleteProfile(profile.id)}
+                            title={t("llm.delete")}
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </Button>
+                        );
+
+                        return (
+                          <ListItemCard
+                            avatarFallback={profile.name}
+                            title={profile.name}
+                            subtitle={displayBaseUrl(profile.baseUrl)}
+                            isActive={active}
+                            dragHandleRef={setActivatorNodeRef}
+                            dragHandleProps={dragActivatorProps}
+                            className={viewMode === "list" ? "p-2" : undefined}
+                            badges={
+                              active && (
+                                <StatusBadge variant="active">
+                                  {t("llm.active_status")}
+                                </StatusBadge>
+                              )
+                            }
+                            actions={
+                              <>
+                                {applyButton}
+                                {editButton}
+                                {deleteButton}
+                              </>
+                            }
+                          />
+                        );
+                      }}
+                    </SortableProviderItem>
+                  );
+                })}
               </div>
-            );
-          })
+            </SortableContext>
+          </DndContext>
         ) : (
-          <p className="text-center text-muted-foreground p-8">
-            {t("llm.no_providers")}
-          </p>
+          <SettingsEmptyState
+            icon={PlayIcon}
+            title={t("llm.no_providers")}
+            description={t("llm.no_providers_hint", "Add a provider to get started")}
+            action={
+              <Button onClick={openCreate} className="rounded-xl">
+                <PlusIcon className="w-4 h-4 mr-2" />
+                {t("llm.new_provider")}
+              </Button>
+            }
+          />
         )}
       </div>
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-serif">
               {editorId ? t("llm.edit_provider") : t("llm.new_provider")}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-3 py-3">
             <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">{t("llm.provider_name")}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("llm.provider_name")}</label>
               <input
-                className="w-full bg-secondary/30 border border-transparent focus:border-primary rounded-md px-3 py-2 text-sm outline-none transition-all"
+                className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all"
                 value={editorName}
                 onChange={(e) => setEditorName(e.target.value)}
                 placeholder={t("llm.placeholder_name")}
@@ -341,16 +613,17 @@ export function LlmProviderView({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">ANTHROPIC_AUTH_TOKEN</label>
+              <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_AUTH_TOKEN</label>
               <div className="relative">
                 <input
                   type={showToken ? "text" : "password"}
-                  className="w-full bg-secondary/30 border border-transparent focus:border-primary rounded-md px-3 py-2 text-sm outline-none transition-all pr-10 font-mono placeholder:text-muted-foreground/40"
+                  className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all pr-9 font-mono placeholder:text-muted-foreground/40"
                   value={editorToken}
                   onChange={(e) => setEditorToken(e.target.value)}
                   placeholder={t("llm.anthropic_token_hint")}
                 />
                 <button
+                  type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
                   onClick={() => setShowToken((prev) => !prev)}
                   tabIndex={-1}
@@ -362,10 +635,10 @@ export function LlmProviderView({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">ANTHROPIC_BASE_URL</label>
+              <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_BASE_URL</label>
               <input
                 type="text"
-                className="w-full bg-secondary/30 border border-transparent focus:border-primary rounded-md px-3 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
+                className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
                 value={editorBaseUrl}
                 onChange={(e) => setEditorBaseUrl(e.target.value)}
                 placeholder={t("llm.anthropic_base_url_hint")}
@@ -374,10 +647,10 @@ export function LlmProviderView({
           </div>
           <DialogFooter className="sm:justify-end">
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditorOpen(false)}>
+              <Button variant="outline" onClick={() => setIsEditorOpen(false)} className="rounded-xl">
                 {t("common.cancel")}
               </Button>
-              <Button onClick={handleSaveProfile}>{t("common.save")}</Button>
+              <Button onClick={handleSaveProfile} className="rounded-xl">{t("common.save")}</Button>
             </div>
           </DialogFooter>
         </DialogContent>

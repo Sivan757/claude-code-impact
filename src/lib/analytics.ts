@@ -13,30 +13,33 @@
 const DEFAULT_ANALYTICS_ENDPOINT = "";
 const DEFAULT_ANON_KEY = "";
 
+import { getUiPreference, setUiPreference } from "./uiPreferences";
+
 // Storage key for opt-out preference
 const ANALYTICS_ENABLED_KEY = "claudecodeimpact:analytics:enabled";
+const ANALYTICS_CLIENT_ID_KEY = "claudecodeimpact:analytics:clientId";
 
 // Get or generate a stable anonymous client ID
 function getClientId(): string {
-  const key = "claudecodeimpact:analytics:clientId";
-  let clientId = localStorage.getItem(key);
-  if (!clientId) {
-    clientId = crypto.randomUUID();
-    localStorage.setItem(key, clientId);
+  const stored = getUiPreference<string>(ANALYTICS_CLIENT_ID_KEY);
+  if (stored) {
+    return stored;
   }
+  const clientId = crypto.randomUUID();
+  setUiPreference(ANALYTICS_CLIENT_ID_KEY, clientId);
   return clientId;
 }
 
 // Check if analytics is enabled
 export function isAnalyticsEnabled(): boolean {
-  const stored = localStorage.getItem(ANALYTICS_ENABLED_KEY);
+  const stored = getUiPreference<boolean>(ANALYTICS_ENABLED_KEY);
   // Default to enabled if not explicitly disabled
-  return stored !== "false";
+  return stored !== false;
 }
 
 // Set analytics enabled/disabled
 export function setAnalyticsEnabled(enabled: boolean): void {
-  localStorage.setItem(ANALYTICS_ENABLED_KEY, String(enabled));
+  setUiPreference(ANALYTICS_ENABLED_KEY, enabled);
 }
 
 // Get app version from package.json (injected at build time)

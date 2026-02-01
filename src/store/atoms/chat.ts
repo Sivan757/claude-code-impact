@@ -1,4 +1,4 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage } from "@/store/persistence";
 
 // MessageView
 export const originalChatAtom = atomWithStorage("claudecodeimpact:originalChat", true);

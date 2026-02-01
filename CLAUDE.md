@@ -4,27 +4,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Design System
 
-This project uses **claudecodeimpact Warm Academic Style (暖学术风格)**
+This project uses **claudecodeimpact Warm Academic Style **
 
 Reference complete design guide: file:///Users/mark/@claudecodeimpact/design/design-guide.md
 
 ### Quick Rules
-1. **禁止硬编码颜色**：必须使用 semantic 类名（如 `bg-primary`、`text-muted-foreground`）
-2. **字体配对**：标题用 `font-serif`，正文用默认 `font-sans`
-3. **圆角风格**：使用 `rounded-lg`、`rounded-xl`、`rounded-2xl`
-4. **主色调**：陶土色（按钮/高亮）+ 暖米色背景 + 炭灰文字
-5. **组件优先**：优先使用 shadcn/ui 组件
+1. **No Hardcoded Colors**: Must use semantic class names (e.g., `bg-primary`, `text-muted-foreground`)
+2. **Font Pairing**: Use `font-serif` for Dialog titles, `font-mono` for technical text, and default `font-sans` for body text
+3. **Border Radius Style**: Use `rounded-xl` for cards/input fields, `rounded-lg` for buttons/badges, and `rounded-full` for status labels
+4. **Primary Color Palette**: Terracotta (buttons/highlights) + warm beige background + charcoal gray text
+5. **Component Priority**: Prioritize using shadcn/ui components (Button, Dialog, Switch, etc.)
+6. **Compact Sizing**: Icon buttons `h-7 w-7` or `h-6 w-6`, icons `w-3.5 h-3.5` or `w-4 h-4`
 
 ### Color Palette
-- **Primary**: #CC785C (陶土色 Terracotta)
-- **Background**: #F9F9F7 (暖米色 Warm Beige)
-- **Foreground**: #181818 (炭灰色 Charcoal)
-- **Border**: #E8E6DC
+- **Primary**: `bg-primary`, `text-primary`, `bg-primary/10`, `border-primary/10`
+- **Background**: `bg-card`, `bg-muted`, `bg-secondary`, `bg-secondary/40`
+- **Foreground**: `text-foreground`, `text-ink`, `text-muted-foreground`
+- **Border**: `border-border`, `border-border/50`, `border-border/60`
+- **Destructive**: `text-destructive`, `bg-destructive/10`, `hover:bg-red-500/10`
+- **Success**: `bg-green-500/10`, `text-green-600`
 
 ### Common Patterns
-- 主按钮: `bg-primary text-primary-foreground hover:bg-primary/90`
-- 卡片: `bg-card border border-border rounded-xl`
-- 标题: `font-serif text-foreground`
+- Primary Button: `bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl`
+- Icon Button: `h-7 w-7 rounded-lg` + `variant="ghost"` or `size="icon"`
+- Card: `bg-card border border-border rounded-lg` or `rounded-xl`
+- Dialog Title: `font-serif`
+- Input Field: `bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm`
+- Status Badge: `text-xs px-2 py-0.5 rounded-full bg-{color}/10 text-{color}`
+- Label: `text-xs font-medium text-muted-foreground`
+- Delete Button: `text-destructive hover:text-destructive hover:bg-destructive/10`
+- Toggle Group: `rounded-lg border border-border/60 bg-card/70 p-0.5`
+- Hover Effects: `hover:bg-muted/50` or `hover:bg-secondary/50`
 
 ## Project Overview
 
@@ -62,4 +72,19 @@ pnpm tauri build
 - CSS: Tailwind CSS preferred
 - No dynamic imports or setTimeout unless necessary
 - Extract shared components when patterns repeat across multiple components
-- 不要执行pnpm build等，因为本地在运行 pnpm tauri dev
+
+## Work Style
+
+- Act as senior architect: clarify ambiguous needs, think systemically, flag risks
+- Prefer progressive refactors over disruptive changes
+- Ask when requirements are unclear; avoid assumptions
+
+## UI/UX Guidelines
+
+- Avoid generic layouts; make interfaces intentional and distinctive
+- Default to dense layouts (`density_dense`); reduce padding/margins
+- Shrink buttons/toggles before shrinking text; keep controls compact
+- Use meaningful animations (page load, staggered reveal), not generic micro-motions
+- Avoid flat single-color backgrounds; use gradients, shapes, or subtle patterns
+- Icon-only actions in compact spaces; always include aria labels/tooltips
+- For drag-reorder, make the card/blank area draggable (avoid separate drag handles)

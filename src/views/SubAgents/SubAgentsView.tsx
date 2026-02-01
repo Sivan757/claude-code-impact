@@ -42,11 +42,13 @@ export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
       />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-4">
-        <SearchInput
-          placeholder={t('sub_agents.search_placeholder')}
-          value={search}
-          onChange={setSearch}
-        />
+        <div className="flex items-center justify-between gap-3">
+          <SearchInput
+            placeholder={t('sub_agents.search_placeholder')}
+            value={search}
+            onChange={setSearch}
+          />
+        </div>
 
         {filtered.length > 0 && (
           <div className="space-y-2 overflow-y-auto min-h-0">

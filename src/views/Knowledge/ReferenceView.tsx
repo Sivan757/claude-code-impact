@@ -221,7 +221,7 @@ export function ReferenceView({
                 onClick={() => handleSourceClick(source)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${expandedSource === source.name
                   ? "bg-primary/10 text-primary"
-                  : "bg-card hover:bg-card-alt"
+                  : "bg-card hover:bg-card-alt border border-border shadow-sm"
                   }`}
               >
                 <BookmarkIcon className="w-5 h-5" />

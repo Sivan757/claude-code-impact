@@ -43,8 +43,15 @@ export function ContextFilesView() {
         }
       />
 
-      <div className="flex-1 flex flex-col space-y-4">
-        <SearchInput placeholder={t('context_files.search_placeholder')} value={search} onChange={setSearch} />
+      <div className="flex-1 flex flex-col space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <SearchInput
+            placeholder={t('context_files.search_placeholder')}
+            value={search}
+            onChange={setSearch}
+            className="w-1/2 px-3.5 py-2 text-sm bg-card border border-border/60 rounded-xl text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
+          />
+        </div>
 
         {contextFiles.length === 0 && !search && (
           <EmptyState
@@ -55,8 +62,8 @@ export function ContextFilesView() {
         )}
 
         {filteredContextFiles.length > 0 && (
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <div className="px-4 py-2 border-b border-border">
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+            <div className="px-3 py-2 border-b border-border">
               <span className="text-sm font-medium text-ink">
                 {t('context_files.files_count', { count: filteredContextFiles.length })}
               </span>

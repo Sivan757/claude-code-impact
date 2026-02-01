@@ -1760,28 +1760,6 @@ async fn update_plugin(plugin_id: String) -> Result<String, String> {
     run_plugin_cli_action("update", plugin_id).await
 }
 
-// Disabled hooks storage path
-fn get_disabled_hooks_path() -> std::path::PathBuf {
-    get_claudecodeimpact_dir().join("disabled_hooks.json")
-}
-
-fn load_disabled_hooks() -> Result<Value, String> {
-    let path = get_disabled_hooks_path();
-    if path.exists() {
-        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).map_err(|e| e.to_string())
-    } else {
-        Ok(serde_json::json!({}))
-    }
-}
-
-fn save_disabled_hooks(disabled_hooks: &Value) -> Result<(), String> {
-    let path = get_disabled_hooks_path();
-    let output = serde_json::to_string_pretty(disabled_hooks).map_err(|e| e.to_string())?;
-    fs::write(&path, output).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 // Generate a unique key for a hook based on its content
 fn get_hook_content_key(hook: &Value) -> String {
     // Use command or prompt as the key, with type prefix for uniqueness
@@ -1816,7 +1794,7 @@ fn toggle_hook_item(
     let mut disabled_hooks = load_disabled_hooks()?;
 
     if disabled {
-        // Disable: Remove from settings.json and backup to disabled_hooks.json
+        // Disable: Remove from settings.json and backup to data.db
         // First get matcher info (immutable borrow)
         let matcher = settings
             .get("hooks")
@@ -1859,7 +1837,7 @@ fn toggle_hook_item(
 
         save_disabled_hooks(&disabled_hooks)?;
     } else {
-        // Enable: Restore from disabled_hooks.json to settings.json
+        // Enable: Restore from data.db to settings.json
         // First, get the hook to restore based on index in disabled list
         let hooks_arr = settings
             .get_mut("hooks")

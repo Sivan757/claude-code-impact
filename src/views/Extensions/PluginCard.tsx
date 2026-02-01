@@ -8,6 +8,7 @@ import { ComponentBadgeRow } from "./ComponentBadgeRow";
 
 interface PluginCardProps {
   plugin: ScannedPlugin;
+  variant?: "card" | "list";
   onSelect: () => void;
   onInstall: () => void;
   onUninstall: () => void;
@@ -20,6 +21,7 @@ interface PluginCardProps {
 
 export function PluginCard({
   plugin,
+  variant = "card",
   onSelect,
   onInstall,
   onUninstall,
@@ -49,60 +51,224 @@ export function PluginCard({
     }
   };
 
+  const statusChips = (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full ${plugin.isInstalled ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
+          }`}
+      >
+        {plugin.isInstalled ? t("extensions_view.installed") : t("extensions_view.not_installed")}
+      </span>
+      {plugin.isInstalled && (
+        <span
+          className={`text-xs px-2 py-0.5 rounded-full ${plugin.isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+            }`}
+        >
+          {plugin.isEnabled ? t("extensions_view.enabled") : t("extensions_view.disabled")}
+        </span>
+      )}
+      {plugin.version && (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-card-alt text-muted-foreground">
+          v{plugin.version}
+        </span>
+      )}
+    </div>
+  );
+
+  const toggleControlList = plugin.isInstalled && (
+    <div
+      className="flex items-center shrink-0"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {isToggleLoading ? (
+        <ReloadIcon className="w-4 h-4 animate-spin text-primary" />
+      ) : (
+        <Switch
+          checked={plugin.isEnabled}
+          onCheckedChange={(checked) => onToggle(checked)}
+          disabled={isToggleLoading}
+          aria-label={t("extensions_view.enabled")}
+        />
+      )}
+    </div>
+  );
+
+  const toggleControlCard = plugin.isInstalled && (
+    <div className="flex items-center" onClick={(event) => event.stopPropagation()}>
+      {isToggleLoading ? (
+        <ReloadIcon className="w-4 h-4 animate-spin text-primary" />
+      ) : (
+        <Switch
+          checked={plugin.isEnabled}
+          onCheckedChange={(checked) => onToggle(checked)}
+          disabled={isToggleLoading}
+        />
+      )}
+    </div>
+  );
+
+  const listActions = plugin.isInstalled ? (
+    <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUpdate}
+        disabled={isUpdateLoading}
+        title={t("extensions_view.update")}
+        aria-label={t("extensions_view.update")}
+        className="h-6 w-6"
+      >
+        <ReloadIcon className={`w-4 h-4 ${isUpdateLoading ? "animate-spin" : ""}`} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUninstall}
+        disabled={isActionLoading}
+        title={t("extensions_view.uninstall")}
+        aria-label={t("extensions_view.uninstall")}
+        className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+      >
+        {isActionLoading ? (
+          <ReloadIcon className="w-4 h-4 animate-spin" />
+        ) : (
+          <TrashIcon className="w-4 h-4" />
+        )}
+      </Button>
+    </div>
+  ) : (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={(event) => {
+        event.stopPropagation();
+        onInstall();
+      }}
+      disabled={isActionLoading}
+      title={t("extensions_view.install")}
+      aria-label={t("extensions_view.install")}
+      className="h-6 w-6"
+    >
+      {isActionLoading ? (
+        <ReloadIcon className="w-4 h-4 animate-spin" />
+      ) : (
+        <DownloadIcon className="w-4 h-4" />
+      )}
+    </Button>
+  );
+
+  const cardActions = plugin.isInstalled ? (
+    <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUpdate}
+        disabled={isUpdateLoading}
+        title={t("extensions_view.update")}
+        aria-label={t("extensions_view.update")}
+        className="h-6 w-6"
+      >
+        <ReloadIcon className={`w-4 h-4 ${isUpdateLoading ? "animate-spin" : ""}`} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUninstall}
+        disabled={isActionLoading}
+        title={t("extensions_view.uninstall")}
+        aria-label={t("extensions_view.uninstall")}
+        className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+      >
+        {isActionLoading ? (
+          <ReloadIcon className="w-4 h-4 animate-spin" />
+        ) : (
+          <TrashIcon className="w-4 h-4" />
+        )}
+      </Button>
+    </div>
+  ) : (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={(event) => {
+        event.stopPropagation();
+        onInstall();
+      }}
+      disabled={isActionLoading}
+      title={t("extensions_view.install")}
+      aria-label={t("extensions_view.install")}
+      className="h-6 w-6"
+    >
+      {isActionLoading ? (
+        <ReloadIcon className="w-4 h-4 animate-spin" />
+      ) : (
+        <DownloadIcon className="w-4 h-4" />
+      )}
+    </Button>
+  );
+
+  if (variant === "list") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={handleKeyDown}
+        className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-left transition hover:bg-muted/50 hover:shadow-sm"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-ink leading-snug truncate">
+                {plugin.name}
+              </h3>
+              {statusChips}
+            </div>
+            {plugin.description && (
+              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
+                {plugin.description}
+              </p>
+            )}
+            <div className="mt-1.5">
+              {componentCount > 0 ? (
+                <ComponentBadgeRow components={plugin.components} />
+              ) : (
+                <p className="text-xs text-muted-foreground">{componentsHint}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {toggleControlList}
+            {listActions}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
-      className="h-full w-full rounded-xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:shadow-sm"
+      className="h-full w-full rounded-lg border border-border bg-card p-2 text-left transition hover:bg-muted/50 hover:shadow-sm"
     >
-      <div className="flex h-full flex-col gap-3">
+      <div className="flex h-full flex-col gap-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold text-ink leading-snug line-clamp-2">
               {plugin.name}
             </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full ${plugin.isInstalled ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
-                  }`}
-              >
-                {plugin.isInstalled ? t("extensions_view.installed") : t("extensions_view.not_installed")}
-              </span>
-              {plugin.isInstalled && (
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full ${plugin.isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                    }`}
-                >
-                  {plugin.isEnabled ? t("extensions_view.enabled") : t("extensions_view.disabled")}
-                </span>
-              )}
-              {plugin.version && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-card-alt text-muted-foreground">
-                  v{plugin.version}
-                </span>
-              )}
+            <div className="mt-1">
+              {statusChips}
             </div>
           </div>
 
-          {plugin.isInstalled && (
-            <div
-              className="flex items-center gap-2 text-xs text-muted-foreground shrink-0"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {isToggleLoading ? (
-                <ReloadIcon className="w-4 h-4 animate-spin text-primary" />
-              ) : (
-                <Switch
-                  checked={plugin.isEnabled}
-                  onCheckedChange={(checked) => onToggle(checked)}
-                  disabled={isToggleLoading}
-                />
-              )}
-              <span>{plugin.isEnabled ? t("extensions_view.enabled") : t("extensions_view.disabled")}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {toggleControlCard}
+            {cardActions}
+          </div>
         </div>
 
         {plugin.description && (
@@ -114,60 +280,7 @@ export function PluginCard({
           <p className="text-xs text-muted-foreground">{componentsHint}</p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3">
-          {plugin.isInstalled ? (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onUpdate();
-                }}
-                disabled={isUpdateLoading}
-              >
-                <ReloadIcon className={`w-4 h-4 mr-1 ${isUpdateLoading ? "animate-spin" : ""}`} />
-                {t("extensions_view.update")}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onUninstall();
-                }}
-                disabled={isActionLoading}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                {isActionLoading ? (
-                  <ReloadIcon className="w-4 h-4 mr-1 animate-spin" />
-                ) : (
-                  <TrashIcon className="w-4 h-4 mr-1" />
-                )}
-                {t("extensions_view.uninstall")}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex w-full justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onInstall();
-                }}
-                disabled={isActionLoading}
-              >
-                {isActionLoading ? (
-                  <ReloadIcon className="w-4 h-4 mr-1 animate-spin" />
-                ) : (
-                  <DownloadIcon className="w-4 h-4 mr-1" />
-                )}
-                {t("extensions_view.install")}
-              </Button>
-            </div>
-          )}
-        </div>
+        <div className="mt-auto" />
       </div>
     </div>
   );

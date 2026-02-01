@@ -16,7 +16,7 @@ fn get_settings(path: Option<String>) -> Result<ClaudeSettings, String> {
         (Value::Null, None, None)
     };
 
-    // Overlay disabled env from ~/.claudecodeimpact/claudecodeimpact (do not persist in settings.json)
+    // Overlay disabled env from ~/.claudecodeimpact/data.db (do not persist in settings.json)
     if let Ok(disabled_env) = load_disabled_env() {
         if !disabled_env.is_empty() {
             if let Some(obj) = raw.as_object_mut() {
@@ -34,7 +34,7 @@ fn get_settings(path: Option<String>) -> Result<ClaudeSettings, String> {
         }
     }
 
-    // Overlay custom env keys from ~/.claudecodeimpact/claudecodeimpact (do not persist in settings.json)
+    // Overlay custom env keys from ~/.claudecodeimpact/data.db (do not persist in settings.json)
     let mut custom_keys = load_custom_keys().unwrap_or_default();
 
     // Merge legacy keys from settings if present

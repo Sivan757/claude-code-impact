@@ -1,4 +1,4 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage } from "@/store/persistence";
 
 export const commandsSortKeyAtom = atomWithStorage<"name" | "usage" | "modified">("claudecodeimpact:commands:sortKey", "usage");
 export const commandsSortDirAtom = atomWithStorage<"asc" | "desc">("claudecodeimpact:commands:sortDir", "desc");

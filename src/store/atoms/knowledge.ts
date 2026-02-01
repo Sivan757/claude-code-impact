@@ -1,4 +1,4 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage } from "@/store/persistence";
 
 // ReferenceView
 export const referenceCollapsedGroupsAtom = atomWithStorage<Record<string, string[]>>(
