@@ -7,13 +7,19 @@ import { Button } from "../../components/ui/button";
 import type { McpServer, ClaudeSettings } from "../../types";
 import {
   LoadingState,
-  EmptyState,
-  SearchInput,
   PageHeader,
   ConfigPage,
 } from "../../components/config";
+import {
+  ActionToolbar,
+  ListItemCard,
+  SettingsEmptyState,
+  StatusBadge,
+  ViewModeToggle,
+} from "../../components/Settings";
 import { FilePath } from "../../components/shared/FilePath";
-import { useInvokeQuery, useQueryClient } from "../../hooks";
+import { useInvokeQuery, useQueryClient, useViewMode } from "../../hooks";
+import { cn } from "../../lib/utils";
 
 export function McpView() {
   const { t } = useTranslation();
@@ -23,6 +29,8 @@ export function McpView() {
   const { data: mcpConfigPath = "" } = useInvokeQuery<string>(["mcpConfigPath"], "get_mcp_config_path");
   const servers = settings?.mcp_servers ?? [];
   const [search, setSearch] = useState("");
+  const { mode, setMode } = useViewMode("mcp");
+  const [expandedServer, setExpandedServer] = useState<string | null>(null);
   const [editingEnv, setEditingEnv] = useState<{ server: string; key: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [uninstallingServer, setUninstallingServer] = useState<string | null>(null);
@@ -31,7 +39,8 @@ export function McpView() {
     queryClient.invalidateQueries({ queryKey: settingsKey });
   };
 
-  const handleUninstall = async (serverName: string) => {
+  const handleUninstall = async (serverName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     setUninstallingServer(serverName);
     try {
       await invoke("uninstall_mcp_template", { name: serverName });
@@ -65,6 +74,16 @@ export function McpView() {
     return null;
   };
 
+  const getServerSubtitle = (server: McpServer): string => {
+    if (server.url) return server.url;
+    if (server.command) {
+      return server.args?.length > 0
+        ? `${server.command} ${server.args.join(" ")}`
+        : server.command;
+    }
+    return t('mcp.no_command');
+  };
+
   if (settingsLoading) return <LoadingState message={t('mcp.loading')} />;
 
   const filtered = servers.filter(
@@ -72,6 +91,10 @@ export function McpView() {
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.description?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const toggleExpand = (serverName: string) => {
+    setExpandedServer(expandedServer === serverName ? null : serverName);
+  };
 
   return (
     <ConfigPage>
@@ -88,110 +111,133 @@ export function McpView() {
         }
       />
 
-      <div className="flex-1 flex flex-col min-h-0 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <SearchInput
-            placeholder={t('mcp.search_placeholder')}
-            value={search}
-            onChange={setSearch}
-          />
-        </div>
+      <div className="flex-1 flex flex-col min-h-0 space-y-3">
+        <ActionToolbar
+          searchPlaceholder={t('mcp.search_placeholder')}
+          searchValue={search}
+          onSearchChange={setSearch}
+          primaryAction={
+            <ViewModeToggle mode={mode} onChange={setMode} />
+          }
+        />
 
-        {filtered.length > 0 && (
-          <div className="space-y-3 overflow-y-auto min-h-0">
-            {filtered.map((server) => (
-              <div key={server.name} className="bg-card rounded-xl p-4 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div>
-                    <p className="font-medium text-ink flex items-center gap-2">
-                      {server.name}
-                      {getMcpUrl(server) && (
-                        <button
-                          onClick={() => openUrl(getMcpUrl(server)!)}
-                          className="text-muted-foreground hover:text-primary transition-colors"
-                          title={t('mcp.open_npm')}
-                        >
-                          <ExternalLinkIcon className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </p>
-                    {server.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{server.description}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleUninstall(server.name)}
-                    disabled={uninstallingServer === server.name}
-                    className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
-                    title={t('common.delete')}
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="bg-card-alt rounded-lg p-3 font-mono text-xs">
-                  {server.url ? (
-                    <p className="text-muted-foreground">
-                      <span className="text-primary/60">{server.type || "http"}</span>
-                      <span className="text-ink ml-2">{server.url}</span>
-                    </p>
-                  ) : server.command ? (
-                    <p className="text-muted-foreground">
-                      <span className="text-ink">{server.command}</span>
-                      {server.args.length > 0 && (
-                        <span className="text-muted-foreground"> {server.args.join(" ")}</span>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="text-muted-foreground italic">{t('mcp.no_command')}</p>
-                  )}
-                </div>
-                {Object.keys(server.env).length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {Object.entries(server.env).map(([key, value]) =>
-                      editingEnv?.server === server.name && editingEnv?.key === key ? (
-                        <div key={key} className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">{key}=</span>
-                          <input
-                            autoFocus
-                            className="text-xs px-2 py-1 rounded bg-canvas border border-border text-ink w-40"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleEnvSave();
-                              if (e.key === "Escape") setEditingEnv(null);
-                            }}
-                            onBlur={handleEnvSave}
-                          />
+        <div className="flex-1 overflow-y-auto min-h-0 pb-3">
+          {filtered.length > 0 ? (
+            <div
+              className={cn(
+                mode === "card"
+                  ? "grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+                  : "flex flex-col gap-2"
+              )}
+            >
+              {filtered.map((server) => {
+                const mcpUrl = getMcpUrl(server);
+                const envCount = Object.keys(server.env).length;
+                const isExpanded = expandedServer === server.name;
+
+                return (
+                  <div key={server.name} className="flex flex-col">
+                    <ListItemCard
+                      avatarFallback={server.name}
+                      title={server.name}
+                      subtitle={getServerSubtitle(server)}
+                      badges={
+                        <>
+                          <StatusBadge variant="muted">
+                            {server.type || (server.url ? "http" : "stdio")}
+                          </StatusBadge>
+                          {envCount > 0 && (
+                            <StatusBadge variant="purple">
+                              {envCount} env
+                            </StatusBadge>
+                          )}
+                        </>
+                      }
+                      actions={
+                        <>
+                          {mcpUrl && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-lg hover:text-primary hover:bg-primary/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openUrl(mcpUrl);
+                              }}
+                              title={t('mcp.open_npm')}
+                            >
+                              <ExternalLinkIcon className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
+                            onClick={(e) => handleUninstall(server.name, e)}
+                            disabled={uninstallingServer === server.name}
+                            title={t('common.delete')}
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      }
+                      onClick={envCount > 0 ? () => toggleExpand(server.name) : undefined}
+                      className={mode === "list" ? "p-2" : undefined}
+                    />
+
+                    {/* Expandable env section */}
+                    {envCount > 0 && isExpanded && (
+                      <div className="mt-1 ml-12 p-3 bg-card/60 rounded-xl border border-border/40">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                          {t('mcp.environment_variables', 'Environment Variables')}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(server.env).map(([key, value]) =>
+                            editingEnv?.server === server.name && editingEnv?.key === key ? (
+                              <div key={key} className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">{key}=</span>
+                                <input
+                                  autoFocus
+                                  className="text-xs px-2 py-1 rounded-lg bg-secondary/40 border border-border/50 text-ink w-40 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 outline-none"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleEnvSave();
+                                    if (e.key === "Escape") setEditingEnv(null);
+                                  }}
+                                  onBlur={handleEnvSave}
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                key={key}
+                                onClick={() => handleEnvClick(server.name, key, value)}
+                                className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary/20 transition-colors cursor-pointer"
+                                title={`${t('common.edit')} ${key}`}
+                              >
+                                {key}
+                              </button>
+                            )
+                          )}
                         </div>
-                      ) : (
-                        <button
-                          key={key}
-                          onClick={() => handleEnvClick(server.name, key, value)}
-                          className="text-xs bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20 transition-colors cursor-pointer"
-                          title={t('common.edit') + ' ' + key}
-                        >
-                          {key}
-                        </button>
-                      )
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {filtered.length === 0 && !search && (
-          <EmptyState
-            icon={Component1Icon}
-            message={t('mcp.no_servers')}
-            hint={t('mcp.browse_marketplace')}
-          />
-        )}
-
-        {filtered.length === 0 && search && (
-          <p className="text-muted-foreground text-sm">{t('commands.no_match', { search })}</p>
-        )}
+                );
+              })}
+            </div>
+          ) : search ? (
+            <p className="text-muted-foreground text-sm py-4">
+              {t('commands.no_match', { search })}
+            </p>
+          ) : (
+            <SettingsEmptyState
+              icon={Component1Icon}
+              title={t('mcp.no_servers')}
+              description={t('mcp.browse_marketplace')}
+            />
+          )}
+        </div>
       </div>
     </ConfigPage>
   );
