@@ -14,7 +14,6 @@ use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
-use crate::services::platform::get_default_unix_shell;
 
 /// Maximum scrollback buffer size per session (256KB)
 const SCROLLBACK_MAX_BYTES: usize = 256 * 1024;

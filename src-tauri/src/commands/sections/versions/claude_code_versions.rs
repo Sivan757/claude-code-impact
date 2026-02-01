@@ -319,13 +319,15 @@ async fn install_claude_code_version(
         };
 
         #[cfg(not(windows))]
-        let shell = crate::services::platform::get_default_unix_shell();
-        let mut child = Command::new(&shell)
-            .args(["-c", &cmd])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn: {}", e))?;
+        let mut child = {
+            let shell = crate::services::platform::get_default_unix_shell();
+            Command::new(&shell)
+                .args(["-c", &cmd])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("Failed to spawn: {}", e))?
+        };
 
         // Store PID for cancellation support
         CC_INSTALL_PID.store(child.id(), std::sync::atomic::Ordering::SeqCst);
