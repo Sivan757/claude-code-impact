@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "bump": "node scripts/bump-version.cjs",
-    "version": "changeset version"
+    "release": "changeset version && node scripts/sync-cargo-version.cjs",
+    "changeset": "changeset"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

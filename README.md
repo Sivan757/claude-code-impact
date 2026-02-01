@@ -99,7 +99,7 @@ pnpm tauri build
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=markshawn2020/claudecodeimpact&type=Date)](https://star-history.com/#markshawn2020/claudecodeimpact&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=sivan757/claudecodeimpact&type=Date)](https://star-history.com/#markshawn2020/claudecodeimpact&Date)
 
 ## License
 
