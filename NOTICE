@@ -1,0 +1,22 @@
+Claude Code Impact
+Copyright 2024-2026 Sivan
+
+This product is based on Claude Code Impact by MarkShawn2020
+Original source: https://github.com/markshawn2020/claudecodeimpact
+Licensed under the Apache License 2.0
+
+================================================================================
+
+This product includes software developed by third parties:
+
+- Tauri (https://tauri.app) - MIT/Apache-2.0
+- React (https://react.dev) - MIT
+- Tailwind CSS (https://tailwindcss.com) - MIT
+- shadcn/ui (https://ui.shadcn.com) - MIT
+
+================================================================================
+
+MODIFICATIONS FROM ORIGINAL:
+
+This is a modified version of the original Claude Code Impact project.
+See CHANGELOG.md for detailed changes.
