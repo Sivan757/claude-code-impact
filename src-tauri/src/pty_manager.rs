@@ -185,7 +185,7 @@ pub fn create_session(
     #[cfg(not(windows))]
     let mut cmd = {
         // On Unix, use user's default shell, fallback to common shells
-        let shell_cmd = shell.unwrap_or_else(get_default_unix_shell);
+        let shell_cmd = shell.unwrap_or_else(crate::services::platform::get_default_unix_shell);
 
         // Build command: either run custom command via login shell, or just start shell
         // Use -ilc (interactive + login) to load user's shell config (~/.zshrc, ~/.bashrc)

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const DATA_DB_FILENAME: &str = "data.db";
-const DATA_DB_DIRNAME: &str = "claudecodeimpact";
+const DATA_DB_DIRNAME: &str = ".claudecodeimpact";
 
 pub(crate) fn get_data_db_path() -> PathBuf {
     dirs::home_dir()
@@ -12,8 +12,26 @@ pub(crate) fn get_data_db_path() -> PathBuf {
         .join(DATA_DB_FILENAME)
 }
 
+fn get_legacy_data_db_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("claudecodeimpact")
+        .join(DATA_DB_FILENAME)
+}
+
 fn load_data_db() -> Result<Value, String> {
     let path = get_data_db_path();
+    if !path.exists() {
+        let legacy_path = get_legacy_data_db_path();
+        if legacy_path.exists() {
+            if let Some(parent) = path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if fs::rename(&legacy_path, &path).is_err() {
+                let _ = fs::copy(&legacy_path, &path);
+            }
+        }
+    }
     if !path.exists() {
         return Ok(Value::Object(Map::new()));
     }
