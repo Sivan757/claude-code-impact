@@ -28,7 +28,7 @@ if (!bumpArg) {
   console.log('  patch        递增补丁版本 (0.0.3 → 0.0.4)');
   console.log('  minor        递增次版本 (0.0.3 → 0.1.0)');
   console.log('  major        递增主版本 (0.0.3 → 1.0.0)');
-  console.log('  snapshot     快照版本 (0.0.3 → 0.0.4-snapshot.20260201)');
+  console.log('  snapshot     快照版本 (0.0.3 → 0.0.4-26032)');
   console.log('  x.y.z        设置指定版本');
   console.log('\n标志:');
   console.log('  --no-git     跳过 git commit 和 tag');
@@ -49,9 +49,13 @@ switch (bumpArg) {
     newVersion = `${major + 1}.0.0`;
     break;
   case 'snapshot': {
+    // MSI requires pre-release identifiers to be numeric-only and <= 65535.
+    // Use a compact date code: (year % 100) * 1000 + dayOfYear (max ~65366).
     const now = new Date();
-    const timestamp = now.toISOString().slice(0, 10).replace(/-/g, '');
-    newVersion = `${major}.${minor}.${patch + 1}-snapshot.${timestamp}`;
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1;
+    const compactDate = (now.getFullYear() % 100) * 1000 + dayOfYear;
+    newVersion = `${major}.${minor}.${patch + 1}-${compactDate}`;
     break;
   }
   default:

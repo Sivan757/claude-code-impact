@@ -70,8 +70,8 @@ pnpm tauri dev
 
 ### Snapshot builds (push to main)
 
-- Every push to `main` builds cross-platform snapshots.
-- Artifacts are uploaded to the GitHub Actions run (no changelog, no Release).
+- Every push to `main` publishes a cross-platform **pre-release** snapshot.
+- Snapshots appear in GitHub Releases with the tag format `snapshot-<run_id>`.
 
 ### Releases (tag or manual)
 

@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: read
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -65,12 +65,28 @@ jobs:
 
       - run: pnpm install
 
-      - name: Build snapshot
-        run: pnpm tauri build --target ${{ matrix.target }}
+      - name: Prepare snapshot metadata
+        id: snapshot
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="snapshot-${GITHUB_RUN_ID}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
-      - name: Upload bundle artifacts
-        uses: actions/upload-artifact@v4
+      - name: Publish snapshot prerelease
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: snapshot-${{ matrix.target }}-${{ github.sha }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/**
-          if-no-files-found: error
+          tagName: ${{ steps.snapshot.outputs.tag }}
+          releaseName: "Snapshot ${{ steps.snapshot.outputs.tag }} (${{ steps.snapshot.outputs.short_sha }})"
+          releaseBody: |
+            Automated snapshot build.
+
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          releaseDraft: false
+          prerelease: true
+          args: --target ${{ matrix.target }}
