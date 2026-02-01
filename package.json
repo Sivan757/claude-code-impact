@@ -1,7 +1,7 @@
 {
   "name": "claude-code-impact",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4-snapshot.20260201",
   "type": "module",
   "packageManager": "pnpm@10.18.1",
   "scripts": {

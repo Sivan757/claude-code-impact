@@ -563,7 +563,7 @@ dependencies = [
 
 [[package]]
 name = "claude-code-impact"
-version = "0.0.3"
+version = "0.0.4-snapshot.20260201"
 dependencies = [
  "arboard",
  "base64 0.22.1",
