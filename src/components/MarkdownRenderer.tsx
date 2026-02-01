@@ -10,8 +10,8 @@ interface MarkdownRendererProps {
 
 function convertImageSrc(src: string | undefined): string {
   if (!src) return "";
-  // Local file path (absolute path starting with /)
-  if (src.startsWith("/")) {
+  // Local file path (absolute path: /... on Unix, C:\... on Windows)
+  if (src.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(src)) {
     return convertFileSrc(src);
   }
   return src;

@@ -19,7 +19,6 @@ import {
   DropdownMenuSeparator,
 } from "../../components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { useAppConfig } from "../../context";
 
 interface DistillMenuProps {
   watchEnabled: boolean;
@@ -29,19 +28,30 @@ interface DistillMenuProps {
 
 export function DistillMenu({ watchEnabled, onWatchToggle, onRefresh }: DistillMenuProps) {
   const { t } = useTranslation();
-  const { homeDir } = useAppConfig();
   const [helpOpen, setHelpOpen] = useState(false);
   const [commandContent, setCommandContent] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [distillDir, setDistillDir] = useState("");
 
   useEffect(() => {
     if (helpOpen && !commandContent) {
-      const path = `${homeDir}/.claude/commands/distill.md`;
-      invoke<string>("read_file", { path })
-        .then(setCommandContent)
-        .catch(() => setCommandContent(null));
+      (async () => {
+        try {
+          const path = await invoke<string>("get_distill_command_path");
+          const content = await invoke<string>("read_file", { path });
+          setCommandContent(content);
+        } catch {
+          setCommandContent(null);
+        }
+      })();
     }
-  }, [helpOpen, commandContent, homeDir]);
+  }, [helpOpen, commandContent]);
+
+  useEffect(() => {
+    invoke<string>("get_docs_distill_dir_path")
+      .then(setDistillDir)
+      .catch(() => setDistillDir(""));
+  }, []);
 
   const handleCopy = async () => {
     if (commandContent) {
@@ -78,7 +88,9 @@ export function DistillMenu({ watchEnabled, onWatchToggle, onRefresh }: DistillM
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() =>
-              invoke("open_in_editor", { path: `${homeDir}/.claudecodeimpact/docs/distill` })
+              invoke("open_in_editor", {
+                path: distillDir || "~/.claudecodeimpact/docs/distill",
+              })
             }
           >
             <FolderOpen className="w-4 h-4 mr-2" />
@@ -115,10 +127,12 @@ export function DistillMenu({ watchEnabled, onWatchToggle, onRefresh }: DistillM
                 <code className="text-xs bg-card-alt px-2 py-1 rounded">
                   ~/.claudecodeimpact/docs/distill/
                 </code>
-                <button
-                  onClick={() =>
-                    invoke("open_in_editor", { path: `${homeDir}/.claudecodeimpact/docs/distill` })
-                  }
+                  <button
+                    onClick={() =>
+                      invoke("open_in_editor", {
+                        path: distillDir || "~/.claudecodeimpact/docs/distill",
+                      })
+                    }
                   className="p-1.5 rounded text-muted-foreground hover:text-ink hover:bg-card-alt transition-colors"
                   title={t('distill.open_directory')}
                 >

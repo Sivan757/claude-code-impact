@@ -11,6 +11,7 @@ import {
   ContextMenuCheckboxItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import { useRevealLabel } from "@/hooks";
 
 export interface SessionMenuConfig {
   projectId: string;
@@ -29,8 +30,7 @@ export function useSessionMenuHandlers(projectId: string, sessionId: string) {
   const handleReveal = () => invoke("reveal_session_file", { projectId, sessionId });
   const handleOpenInEditor = () => invoke("open_session_in_editor", { projectId, sessionId });
   const handleCopyPath = async () => {
-    const homeDir = await invoke<string>("get_home_dir");
-    const path = `${homeDir}/.claude/projects/${projectId}/${sessionId}.jsonl`;
+    const path = await invoke<string>("get_session_file_path", { projectId, sessionId });
     await invoke("copy_to_clipboard", { text: path });
   };
   const handleCopySessionId = () => invoke("copy_to_clipboard", { text: sessionId });
@@ -51,6 +51,7 @@ export function SessionDropdownMenuItems({
 }: SessionMenuConfig) {
   const { handleReveal, handleOpenInEditor, handleCopyPath, handleCopySessionId } =
     useSessionMenuHandlers(projectId, sessionId);
+  const revealLabel = useRevealLabel();
 
   return (
     <>
@@ -69,7 +70,7 @@ export function SessionDropdownMenuItems({
       )}
       <DropdownMenuItem onClick={handleReveal} className="gap-2">
         <FolderOpen size={14} />
-        Reveal in Finder
+        {revealLabel}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={handleOpenInEditor} className="gap-2">
         <ExternalLinkIcon width={14} />
@@ -120,6 +121,7 @@ export function SessionContextMenuItems({
 }: SessionMenuConfig) {
   const { handleReveal, handleOpenInEditor, handleCopyPath, handleCopySessionId } =
     useSessionMenuHandlers(projectId, sessionId);
+  const revealLabel = useRevealLabel();
 
   return (
     <>
@@ -138,7 +140,7 @@ export function SessionContextMenuItems({
       )}
       <ContextMenuItem onClick={handleReveal} className="gap-2">
         <FolderOpen size={14} />
-        Reveal in Finder
+        {revealLabel}
       </ContextMenuItem>
       <ContextMenuItem onClick={handleOpenInEditor} className="gap-2">
         <ExternalLinkIcon width={14} />

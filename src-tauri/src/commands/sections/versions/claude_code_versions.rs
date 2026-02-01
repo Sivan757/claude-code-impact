@@ -28,15 +28,24 @@ fn run_shell_command(cmd: &str) -> std::io::Result<std::process::Output> {
     #[cfg(windows)]
     {
         // On Windows, use PowerShell to run commands (better PATH handling than cmd.exe)
-        std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", cmd])
-            .output()
+        let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string());
+        let shell_lower = shell.to_lowercase();
+
+        if shell_lower.contains("powershell") {
+            std::process::Command::new(&shell)
+                .args(["-NoProfile", "-Command", cmd])
+                .output()
+        } else {
+            std::process::Command::new(&shell)
+                .args(["/C", cmd])
+                .output()
+        }
     }
 
     #[cfg(not(windows))]
     {
-        // Use user's default shell from $SHELL, fallback to /bin/zsh (macOS default)
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        // Use user's default shell from $SHELL, fallback to common shells
+        let shell = crate::services::platform::get_default_unix_shell();
         std::process::Command::new(&shell)
             .args(["-ilc", cmd]) // -i for interactive (loads .zshrc), -l for login, -c for command
             .output()
@@ -280,9 +289,14 @@ async fn install_claude_code_version(
 
             // Download script, patch to show progress bar for binary download, then run
             // Change 'curl -fsSL -o' to 'curl -fL --progress-bar -o' for visible download progress
+            let temp_script_path = std::env::temp_dir().join("cc-install.sh");
+            let temp_script = temp_script_path
+                .to_string_lossy()
+                .replace('"', "\\\"");
             format!(
-                r#"echo "Downloading install script..." && curl -fsSL https://claude.ai/install.sh | sed 's/"$binary_path" install/"$binary_path" install --force/' | sed 's/curl -fsSL -o/curl -fL --progress-bar -o/g' > /tmp/cc-install.sh && echo "Downloading Claude Code (~170MB)..." && CI=1 bash /tmp/cc-install.sh {} </dev/null && echo "Done!" || echo "Installation failed"; rm -f /tmp/cc-install.sh"#,
-                version_arg
+                r#"echo "Downloading install script..." && curl -fsSL https://claude.ai/install.sh | sed 's/"$binary_path" install/"$binary_path" install --force/' | sed 's/curl -fsSL -o/curl -fL --progress-bar -o/g' > "{temp_script}" && echo "Downloading Claude Code (~170MB)..." && CI=1 bash "{temp_script}" {version_arg} </dev/null && echo "Done!" || echo "Installation failed"; rm -f "{temp_script}""#,
+                temp_script = temp_script,
+                version_arg = version_arg,
             )
         };
 
@@ -305,7 +319,8 @@ async fn install_claude_code_version(
         };
 
         #[cfg(not(windows))]
-        let mut child = Command::new("/bin/bash")
+        let shell = crate::services::platform::get_default_unix_shell();
+        let mut child = Command::new(&shell)
             .args(["-c", &cmd])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

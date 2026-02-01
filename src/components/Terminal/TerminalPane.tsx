@@ -68,7 +68,7 @@ const getCommandKind = (command?: string): CommandKind | null => {
   const trimmed = command.trim();
   if (!trimmed) return null;
   const firstToken = trimmed.split(/\s+/)[0]?.replace(/^['"]|['"]$/g, "");
-  const base = firstToken?.split("/").pop();
+  const base = firstToken?.split(/[/\\]/).pop();
   if (base === "claude") return base;
   return null;
 };
@@ -100,7 +100,9 @@ async function runCommandDiagnostics(command: string, cwd: string): Promise<Comm
 
   try {
     const output = await invoke<string>("exec_shell_command", {
-      command: `command -v ${commandKind} 2>/dev/null`,
+      command: navigator.userAgent.includes("Windows")
+        ? `where ${commandKind}`
+        : `command -v ${commandKind} 2>/dev/null`,
       cwd,
     });
     const trimmed = output.trim();

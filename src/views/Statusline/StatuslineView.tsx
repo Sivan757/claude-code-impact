@@ -68,8 +68,7 @@ export function StatuslineView() {
       setLoadingScript(true);
       (async () => {
         try {
-          const homeDir = await invoke<string>("get_home_dir");
-          const scriptPath = statusLine.command.replace(/^~/, homeDir);
+          const scriptPath = await invoke<string>("resolve_user_path", { path: statusLine.command });
           const content = await invoke<string>("read_file", { path: scriptPath });
           setScriptContent(content);
         } catch {
@@ -128,8 +127,7 @@ export function StatuslineView() {
       refreshSettings();
       setHasPrevious(false);
       // Reload script content
-      const homeDir = await invoke<string>("get_home_dir");
-      const scriptPath = "~/.claude/statusline.sh".replace(/^~/, homeDir);
+      const scriptPath = await invoke<string>("resolve_user_path", { path: "~/.claude/statusline.sh" });
       const content = await invoke<string>("read_file", { path: scriptPath });
       setScriptContent(content);
     } catch (e) {

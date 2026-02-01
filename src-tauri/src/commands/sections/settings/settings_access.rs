@@ -294,15 +294,10 @@ fn reveal_session_file(project_id: String, session_id: String) -> Result<(), Str
 
 #[tauri::command]
 fn reveal_path(path: String) -> Result<(), String> {
-    let expanded = if path.starts_with("~") {
-        let home = dirs::home_dir().ok_or("Cannot get home dir")?;
-        home.join(&path[2..])
-    } else {
-        std::path::PathBuf::from(&path)
-    };
+    let expanded = crate::services::platform::resolve_user_path(&path);
 
     if !expanded.exists() {
-        return Err(format!("Path not found: {}", path));
+        return Err(format!("Path not found: {}", expanded.to_string_lossy()));
     }
 
     let path_str = expanded.to_string_lossy().to_string();
@@ -333,15 +328,10 @@ fn reveal_path(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn open_path(path: String) -> Result<(), String> {
-    let expanded = if path.starts_with("~") {
-        let home = dirs::home_dir().ok_or("Cannot get home dir")?;
-        home.join(&path[2..])
-    } else {
-        std::path::PathBuf::from(&path)
-    };
+    let expanded = crate::services::platform::resolve_user_path(&path);
 
     if !expanded.exists() {
-        return Err(format!("Path not found: {}", path));
+        return Err(format!("Path not found: {}", expanded.to_string_lossy()));
     }
 
     let path_str = expanded.to_string_lossy().to_string();
@@ -372,24 +362,26 @@ fn open_path(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn open_in_editor(path: String) -> Result<(), String> {
+    let expanded = crate::services::platform::resolve_user_path(&path);
+    let expanded_str = expanded.to_string_lossy().to_string();
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .arg(&path)
+            .arg(&expanded_str)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("cmd")
-            .args(["/C", "start", "", &path])
+            .args(["/C", "start", "", &expanded_str])
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
-            .arg(&path)
+            .arg(&expanded_str)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
@@ -398,13 +390,15 @@ fn open_in_editor(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn open_file_at_line(path: String, line: usize) -> Result<(), String> {
+    let expanded = crate::services::platform::resolve_user_path(&path);
+    let expanded_str = expanded.to_string_lossy().to_string();
     // 尝试用 cursor，失败则用 code (VSCode)
     let editors = ["cursor", "code", "zed"];
 
     for editor in editors {
         let result = std::process::Command::new(editor)
             .arg("--goto")
-            .arg(format!("{}:{}", path, line))
+            .arg(format!("{}:{}", expanded_str, line))
             .spawn();
 
         if result.is_ok() {
@@ -413,7 +407,56 @@ fn open_file_at_line(path: String, line: usize) -> Result<(), String> {
     }
 
     // 都失败则用系统默认方式打开
-    open_in_editor(path)
+    open_in_editor(expanded_str)
+}
+
+#[tauri::command]
+fn resolve_user_path(path: String) -> Result<String, String> {
+    Ok(crate::services::platform::resolve_user_path(&path)
+        .to_string_lossy()
+        .to_string())
+}
+
+#[tauri::command]
+fn get_platform_kind() -> String {
+    crate::services::platform::platform_kind().to_string()
+}
+
+#[tauri::command]
+fn get_reveal_label() -> String {
+    crate::services::platform::reveal_label().to_string()
+}
+
+#[tauri::command]
+fn get_path_separator() -> String {
+    crate::services::platform::path_separator().to_string()
+}
+
+#[tauri::command]
+fn get_distill_command_path() -> String {
+    get_claude_dir()
+        .join("commands")
+        .join("distill.md")
+        .to_string_lossy()
+        .to_string()
+}
+
+#[tauri::command]
+fn get_docs_distill_dir_path() -> String {
+    get_docs_distill_dir().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn get_docs_reference_dir_path() -> String {
+    get_docs_reference_dir().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn get_docs_distill_file_path(file: String) -> String {
+    get_docs_distill_dir()
+        .join(file)
+        .to_string_lossy()
+        .to_string()
 }
 
 #[tauri::command]

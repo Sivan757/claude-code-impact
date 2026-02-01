@@ -11,7 +11,7 @@ interface QuickActionsProps {
 export function QuickActions({ lastProject, onContinue, onSearch }: QuickActionsProps) {
   const { t } = useTranslation();
   const getProjectName = (path: string): string => {
-    return path.split("/").pop() || path;
+    return path.split(/[/\\]/).pop() || path;
   };
 
   return (

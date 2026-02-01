@@ -6,6 +6,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "../ui/context-menu";
+import { useRevealLabel } from "@/hooks";
 
 interface FilePathProps {
   path: string;
@@ -16,11 +17,13 @@ interface FilePathProps {
 }
 
 export function FilePath({ path, basePath, className = "", showIcon = false, filenameOnly = false }: FilePathProps) {
+  const revealLabel = useRevealLabel();
+
   // 显示文件名或相对路径，hover 显示绝对路径
   const displayPath = filenameOnly
-    ? path.split('/').pop() || path
+    ? path.split(/[/\\]/).pop() || path
     : basePath && path.startsWith(basePath)
-      ? path.slice(basePath.length).replace(/^\//, '')
+      ? path.slice(basePath.length).replace(/^[/\\]/, '')
       : path;
 
   const handleReveal = async () => {
@@ -61,7 +64,7 @@ export function FilePath({ path, basePath, className = "", showIcon = false, fil
       <ContextMenuContent>
         <ContextMenuItem onClick={handleReveal}>
           <ExternalLinkIcon className="w-4 h-4 mr-2" />
-          Reveal in Finder
+          {revealLabel}
         </ContextMenuItem>
         <ContextMenuItem onClick={handleOpen}>
           <FileIcon className="w-4 h-4 mr-2" />

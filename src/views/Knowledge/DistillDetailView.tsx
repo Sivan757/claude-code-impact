@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { DistillDocument, Session } from "../../types";
-import { useAppConfig } from "../../context";
 import {
   LoadingState,
   DetailHeader,
@@ -23,16 +22,20 @@ export function DistillDetailView({
   onNavigateSession,
 }: DistillDetailViewProps) {
   const { t } = useTranslation();
-  const { homeDir } = useAppConfig();
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const path = `${homeDir}/.claudecodeimpact/docs/distill/${document.file}`;
-    invoke<string>("read_file", { path })
-      .then(setContent)
-      .finally(() => setLoading(false));
-  }, [document.file, homeDir]);
+    (async () => {
+      try {
+        const path = await invoke<string>("get_docs_distill_file_path", { file: document.file });
+        const fileContent = await invoke<string>("read_file", { path });
+        setContent(fileContent);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [document.file]);
 
   const handleNavigateSession = async () => {
     if (!document.session) return;
@@ -56,7 +59,7 @@ export function DistillDetailView({
         backLabel={t('knowledge_sidebar.distill')}
         onBack={onBack}
         path={distillPath}
-        onOpenPath={(p) => invoke("open_in_editor", { path: p.replace("~", homeDir) })}
+        onOpenPath={(p) => invoke("open_in_editor", { path: p })}
         onNavigateSession={handleNavigateSession}
       />
       <div className="space-y-4">

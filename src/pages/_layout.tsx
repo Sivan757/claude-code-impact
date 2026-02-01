@@ -79,8 +79,13 @@ export default function RootLayout() {
   }, [location]);
 
   const formatPath = useCallback((path: string) => {
-    if (shortenPaths && homeDir && path.startsWith(homeDir)) {
-      return "~" + path.slice(homeDir.length);
+    if (shortenPaths && homeDir) {
+      // Case-insensitive comparison for Windows paths
+      const normalizedPath = path.toLowerCase();
+      const normalizedHome = homeDir.toLowerCase();
+      if (normalizedPath.startsWith(normalizedHome)) {
+        return "~" + path.slice(homeDir.length);
+      }
     }
     return path;
   }, [shortenPaths, homeDir]);

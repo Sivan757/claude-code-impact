@@ -183,17 +183,11 @@ fn execute_statusbar_script(
     use std::io::Write;
     use std::process::{Command, Stdio};
 
-    // Expand ~ to home dir
-    let home = dirs::home_dir().unwrap_or_default();
-    let expanded_path = if script_path.starts_with("~") {
-        script_path.replacen("~", &home.to_string_lossy(), 1)
-    } else {
-        script_path
-    };
-
+    let expanded_path = crate::services::platform::resolve_user_path(&script_path);
+    let expanded_path_str = expanded_path.to_string_lossy().to_string();
     let path = std::path::Path::new(&expanded_path);
     if !path.exists() {
-        return Err(format!("Script not found: {}", expanded_path));
+        return Err(format!("Script not found: {}", expanded_path_str));
     }
 
     // Serialize context to JSON
@@ -201,7 +195,7 @@ fn execute_statusbar_script(
 
     // Determine how to execute the script
     #[cfg(unix)]
-    let mut child = Command::new(&expanded_path)
+    let mut child = Command::new(&expanded_path_str)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -210,7 +204,7 @@ fn execute_statusbar_script(
 
     #[cfg(windows)]
     let mut child = Command::new("powershell")
-        .args(["-ExecutionPolicy", "Bypass", "-File", &expanded_path])
+        .args(["-ExecutionPolicy", "Bypass", "-File", &expanded_path_str])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

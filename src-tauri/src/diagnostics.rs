@@ -379,7 +379,7 @@ pub fn scan_file_lines(project_path: &str, limit: usize, ignored_paths: &[String
     if !ignored_paths.is_empty() {
         files.retain(|f| {
             !ignored_paths.iter().any(|ignored| {
-                f.file == *ignored || f.file.starts_with(&format!("{}/", ignored))
+                f.file == *ignored || f.file.starts_with(&format!("{}{}", ignored, std::path::MAIN_SEPARATOR))
             })
         });
     }

@@ -7,7 +7,7 @@ use std::time::Duration;
 use tauri::{Emitter, Manager};
 
 use crate::infra::{
-    ensure_parent_dir, get_claude_dir, get_claude_json_path, get_claudecodeimpact_dir,
+    ensure_parent_dir, get_claude_dir, get_claude_json_path,
     get_docs_distill_dir, get_docs_reference_dir, get_statusbar_dir, get_statusline_dir,
     load_custom_keys, load_disabled_env, load_disabled_hooks, read_data_key, remove_data_key,
     resolve_settings_path, save_custom_keys, save_disabled_env, save_disabled_hooks, write_data_key,
@@ -103,6 +103,14 @@ pub fn build_invoke_handler(
         open_path,
         get_session_file_path,
         get_session_summary,
+        resolve_user_path,
+        get_platform_kind,
+        get_reveal_label,
+        get_path_separator,
+        get_distill_command_path,
+        get_docs_distill_dir_path,
+        get_docs_reference_dir_path,
+        get_docs_distill_file_path,
         copy_to_clipboard,
         get_settings_path,
         get_mcp_config_path,

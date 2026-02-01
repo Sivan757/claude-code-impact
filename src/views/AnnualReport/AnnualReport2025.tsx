@@ -370,7 +370,7 @@ function getProjectName(path: string): string {
     name = parts[parts.length - 1] || path;
   } else {
     // Handle normal path format
-    const parts = path.split("/").filter(Boolean);
+    const parts = path.split(/[/\\]/).filter(Boolean);
     name = parts[parts.length - 1] || path;
   }
   return toTitleCase(name);
@@ -387,7 +387,7 @@ function getUserName(path: string, t: (key: string) => string): string {
     }
   }
   // Handle normal path format: /Users/mark/... -> mark
-  const parts = path.split("/").filter(Boolean);
+  const parts = path.split(/[/\\]/).filter(Boolean);
   if (parts[0]?.toLowerCase() === "users" && parts[1]) {
     return parts[1];
   }

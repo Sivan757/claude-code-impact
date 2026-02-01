@@ -52,7 +52,7 @@ export function RecentActivity({
   };
 
   const getProjectName = (path: string): string => {
-    return path.split("/").pop() || path;
+    return path.split(/[/\\]/).pop() || path;
   };
 
   if (activities.length === 0) {

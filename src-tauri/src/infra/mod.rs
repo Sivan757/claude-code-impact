@@ -93,12 +93,7 @@ pub(crate) fn resolve_settings_path(path: Option<String>) -> PathBuf {
         .filter(|p| !p.is_empty());
 
     if let Some(path) = input {
-        if path == "~" || path.starts_with("~/") {
-            let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-            let suffix = path.trim_start_matches('~').trim_start_matches('/');
-            return home.join(suffix);
-        }
-        return PathBuf::from(path);
+        return crate::services::platform::resolve_user_path(&path);
     }
 
     get_claude_dir().join("settings.json")
@@ -259,22 +254,35 @@ pub(crate) fn save_statusbar_settings(settings: &Value) -> Result<(), String> {
 pub(crate) async fn exec_shell_command(command: String, cwd: String) -> Result<String, String> {
     use tokio::process::Command;
 
-    #[cfg(windows)]
+#[cfg(windows)]
     let output = {
-        Command::new("powershell")
-            .args([
+        let shell = std::env::var("COMSPEC")
+            .or_else(|_| std::env::var("SHELL"))
+            .unwrap_or_else(|_| "powershell.exe".to_string());
+        let shell_lower = shell.to_lowercase();
+        let mut cmd = Command::new(&shell);
+
+        if shell_lower.contains("powershell") {
+            cmd.args([
                 "-NoProfile",
                 "-Command",
                 &format!("Set-Location '{}'; {}", cwd, command),
-            ])
-            .output()
+            ]);
+        } else {
+            cmd.args([
+                "/C",
+                &format!("cd /d \"{}\" && {}", cwd, command),
+            ]);
+        }
+
+        cmd.output()
             .await
             .map_err(|e| format!("Failed to run command: {}", e))?
     };
 
     #[cfg(not(windows))]
     let output = {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        let shell = crate::services::platform::get_default_unix_shell();
         Command::new(&shell)
             .args(["-ilc", &format!("cd '{}' && {}", cwd, command)])
             .output()

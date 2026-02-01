@@ -1,6 +1,6 @@
 [package]
 name = "claude-code-impact"
-version = "0.0.4-snapshot.20260201"
+version = "0.0.4-26032"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -42,4 +42,3 @@ libc = "0.2.179"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"
 objc = "0.2"
-
