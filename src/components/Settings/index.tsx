@@ -10,6 +10,10 @@
 import { ReactNode, ComponentType, HTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 
+// Re-export shared components
+export { ViewModeToggle, type ViewMode } from "./ViewModeToggle";
+export { SourceBadge } from "./SourceBadge";
+
 // =============================================================================
 // Section Components (Pattern A: Form Sections)
 // =============================================================================
