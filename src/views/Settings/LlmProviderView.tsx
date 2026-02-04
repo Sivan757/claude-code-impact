@@ -46,7 +46,6 @@ import {
 } from "../../components/ui/dialog";
 import {
   LoadingState,
-  PageHeader,
   ConfigPage,
 } from "../../components/config";
 import {
@@ -158,7 +157,9 @@ export function LlmProviderView({
 
   const [search, setSearch] = useState("");
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
-  const [viewMode, setViewMode] = useState<ProviderViewMode>("list");
+  const [viewMode, setViewMode] = useState<ProviderViewMode>(() => {
+    return (localStorage.getItem("llm_provider_view_mode") as ProviderViewMode) || "list";
+  });
   const [profilesLoaded, setProfilesLoaded] = useState(false);
   const didBootstrapFromConfig = useRef(false);
 
@@ -187,10 +188,14 @@ export function LlmProviderView({
       try {
         const state = await invoke<LlmProfilesState>("get_llm_profiles_state");
         if (!active) return;
-        const nextViewMode = state?.viewMode ?? "list";
+
+        // If we don't have a local preference, use the one from backend
+        if (!localStorage.getItem("llm_provider_view_mode") && state?.viewMode) {
+          setViewMode(state.viewMode as ProviderViewMode);
+        }
+
         if (state?.profiles?.length) {
           setProfiles(state.profiles);
-          setViewMode(nextViewMode);
           return;
         }
 
@@ -209,14 +214,14 @@ export function LlmProviderView({
 
         if (migratedProfiles.length > 0) {
           setProfiles(migratedProfiles);
-          setViewMode(nextViewMode);
+          // Don't overwrite viewMode here, keep current (from local or backend)
           await invoke("save_llm_profiles_state", {
-            state: { profiles: migratedProfiles, viewMode: nextViewMode },
+            state: { profiles: migratedProfiles, viewMode: viewMode },
           });
           localStorage.removeItem(STORAGE_KEY);
         } else {
           setProfiles([]);
-          setViewMode(nextViewMode);
+          // No need to setViewMode here, it's already initialized
         }
       } finally {
         if (active) setProfilesLoaded(true);
@@ -249,7 +254,7 @@ export function LlmProviderView({
 
     didBootstrapFromConfig.current = true;
     setProfiles([bootstrapProfile]);
-    persistProfilesState([bootstrapProfile]).catch(() => {});
+    persistProfilesState([bootstrapProfile]).catch(() => { });
   }, [
     env.ANTHROPIC_AUTH_TOKEN,
     env.ANTHROPIC_BASE_URL,
@@ -274,7 +279,7 @@ export function LlmProviderView({
   const updateProfilesState = useCallback(
     (nextProfiles: ProviderProfile[]) => {
       setProfiles(nextProfiles);
-      persistProfilesState(nextProfiles).catch(() => {});
+      persistProfilesState(nextProfiles).catch(() => { });
     },
     [persistProfilesState]
   );
@@ -327,7 +332,8 @@ export function LlmProviderView({
   const handleViewModeChange = useCallback(
     (mode: ProviderViewMode) => {
       setViewMode(mode);
-      persistProfilesState(profiles, mode).catch(() => {});
+      localStorage.setItem("llm_provider_view_mode", mode);
+      persistProfilesState(profiles, mode).catch(() => { });
     },
     [persistProfilesState, profiles]
   );
@@ -493,18 +499,18 @@ export function LlmProviderView({
                       {({ dragHandleProps, setActivatorNodeRef }) => {
                         const dragActivatorProps = isDragEnabled
                           ? {
-                              ...dragHandleProps,
-                              title: t("llm.reorder"),
-                              "aria-label": t("llm.reorder"),
-                              className:
-                                "cursor-grab active:cursor-grabbing touch-none",
-                            }
+                            ...dragHandleProps,
+                            title: t("llm.reorder"),
+                            "aria-label": t("llm.reorder"),
+                            className:
+                              "cursor-grab active:cursor-grabbing touch-none",
+                          }
                           : {
-                              "aria-disabled": true,
-                              title: t("llm.drag_disabled"),
-                              "aria-label": t("llm.drag_disabled"),
-                              className: "cursor-not-allowed opacity-40",
-                            };
+                            "aria-disabled": true,
+                            title: t("llm.drag_disabled"),
+                            "aria-label": t("llm.drag_disabled"),
+                            className: "cursor-not-allowed opacity-40",
+                          };
 
                         const applyButton = !active && (
                           <Button
@@ -664,15 +670,7 @@ export function LlmProviderView({
 
   return (
     <ConfigPage>
-      <PageHeader
-        title={t("llm.title")}
-        subtitle={t("llm.subtitle")}
-        action={
-          <Button variant="ghost" size="icon" onClick={refreshSettings} title={t("common.refresh")}>
-            <ReloadIcon className="w-4 h-4" />
-          </Button>
-        }
-      />
+
       {listContent}
     </ConfigPage>
   );

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { ReloadIcon, FileTextIcon, CopyIcon, Pencil1Icon } from "@radix-ui/react-icons";
+import { FileTextIcon, CopyIcon, Pencil1Icon } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
 import {
   Dialog,
@@ -10,10 +10,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "../../components/ui/dialog";
-import { useInvokeQuery, useQueryClient, useViewMode } from "../../hooks";
+import { useInvokeQuery, useViewMode } from "../../hooks";
 import {
   LoadingState,
-  PageHeader,
   ConfigPage,
 } from "../../components/config";
 import {
@@ -28,7 +27,7 @@ import { cn } from "../../lib/utils";
 
 export function ContextFilesView() {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
+
   const { data: allContextFiles = [], isLoading } = useInvokeQuery<ContextFile[]>(["contextFiles"], "get_context_files");
   const contextFiles = useMemo(() => allContextFiles.filter((f) => f.scope === "global"), [allContextFiles]);
 
@@ -37,9 +36,7 @@ export function ContextFilesView() {
   const [selectedFile, setSelectedFile] = useState<ContextFile | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["contextFiles"] });
-  };
+
 
   const handleCopy = async (e: React.MouseEvent, content: string) => {
     e.stopPropagation();
@@ -72,15 +69,6 @@ export function ContextFilesView() {
 
   return (
     <ConfigPage>
-      <PageHeader
-        title={t('context_files.title')}
-        subtitle={t('context_files.subtitle')}
-        action={
-          <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
-            <ReloadIcon className="w-4 h-4" />
-          </Button>
-        }
-      />
 
       <div className="flex-1 flex flex-col min-h-0 space-y-3">
         <ActionToolbar
@@ -171,7 +159,7 @@ export function ContextFilesView() {
                 variant="outline"
                 size="sm"
                 className="rounded-xl"
-                onClick={() => selectedFile && handleCopy({ stopPropagation: () => {} } as React.MouseEvent, selectedFile.content)}
+                onClick={() => selectedFile && handleCopy({ stopPropagation: () => { } } as React.MouseEvent, selectedFile.content)}
               >
                 <CopyIcon className="w-3.5 h-3.5 mr-2" />
                 {t('common.copy')}
@@ -180,7 +168,7 @@ export function ContextFilesView() {
                 variant="outline"
                 size="sm"
                 className="rounded-xl"
-                onClick={() => selectedFile && handleOpenInEditor({ stopPropagation: () => {} } as React.MouseEvent, selectedFile.path)}
+                onClick={() => selectedFile && handleOpenInEditor({ stopPropagation: () => { } } as React.MouseEvent, selectedFile.path)}
               >
                 <Pencil1Icon className="w-3.5 h-3.5 mr-2" />
                 {t('common.open_in_editor', 'Open in editor')}

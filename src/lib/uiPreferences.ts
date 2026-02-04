@@ -18,7 +18,6 @@ export const UI_PREFERENCE_KEYS = [
   "claudecodeimpact:allProjects:sortBy",
   "claudecodeimpact-hide-empty-sessions-all",
   // App
-  "claudecodeimpact:sidebarCollapsed",
   "claudecodeimpact:marketplaceCategory",
   "claudecodeimpact:shortenPaths",
   "claudecodeimpact:profile",

@@ -11,14 +11,18 @@ import {
 import { Switch } from "../../components/ui/switch";
 import {
     LoadingState,
-    PageHeader,
     ConfigPage,
 } from "../../components/config";
 import {
-    SettingSection,
+    ActionToolbar,
+    ListItemCard,
     SettingsEmptyState,
     StatusBadge,
+    ViewModeToggle,
 } from "../../components/Settings";
+import { useViewMode } from "../../hooks";
+import { cn } from "../../lib/utils";
+import { Button } from "../../components/ui/button";
 import type { ClaudeSettings } from "../../types";
 
 interface HookItem {
@@ -50,6 +54,8 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
         "get_disabled_hooks"
     );
 
+    const [search, setSearch] = useState("");
+    const { mode, setMode } = useViewMode("hooks");
     const [expandedHookEvents, setExpandedHookEvents] = useState<Set<string>>(new Set());
 
     const raw = (settings?.raw as Record<string, unknown>) || {};
@@ -98,33 +104,63 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
 
     if (isLoading) return <LoadingState message={t('settings.loading')} />;
 
+    // Filter logic
+    const filteredEvents = [...new Set([...Object.keys(hooks), ...Object.keys(disabledHooks)])].filter(eventType => {
+        if (!search) return true;
+        // Basic filter: check if event type matches
+        if (eventType.toLowerCase().includes(search.toLowerCase())) return true;
+
+        // Advanced: check if any hook command matches
+        const matchers = hooks[eventType] || [];
+        const disabledForEvent = disabledHooks[eventType] || [];
+
+        const hasMatchingActive = matchers.some(m =>
+            m.matcher.toLowerCase().includes(search.toLowerCase()) ||
+            m.hooks.some(h => (h.command || h.type).toLowerCase().includes(search.toLowerCase()))
+        );
+
+        const hasMatchingDisabled = disabledForEvent.some(item =>
+            item.matcher.toLowerCase().includes(search.toLowerCase()) ||
+            (item.hook.command || item.hook.type).toLowerCase().includes(search.toLowerCase())
+        );
+
+        return hasMatchingActive || hasMatchingDisabled;
+    });
+
     const mainContent = (
-        <div className="flex-1 flex flex-col min-h-0 space-y-3 overflow-y-auto pb-3">
-            {!settings?.raw ? (
-                <SettingsEmptyState
-                    icon={Link2Icon}
-                    title={t('settings.no_settings')}
-                    description={t('settings.create_hint')}
-                />
-            ) : (
-                <>
-                    {(Object.keys(hooks).length > 0 || Object.keys(disabledHooks).length > 0) ? (
-                        <SettingSection
-                            title={t('settings.hooks')}
-                            density="dense"
-                            action={
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs text-muted-foreground">{t('settings.disable_all')}</span>
-                                    <Switch
-                                        checked={disableAllHooks}
-                                        onCheckedChange={(checked) => updateField("disableAllHooks", checked)}
-                                    />
-                                </div>
-                            }
-                        >
-                            <div className={`space-y-1.5 ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
-                                {[...new Set([...Object.keys(hooks), ...Object.keys(disabledHooks)])].map((eventType) => {
-                                    const isExpanded = expandedHookEvents.has(eventType);
+        <div className="flex-1 flex flex-col min-h-0 space-y-3">
+            <ActionToolbar
+                searchPlaceholder={t('settings.hooks_search_placeholder', 'Search hooks...')}
+                searchValue={search}
+                onSearchChange={setSearch}
+                primaryAction={
+                    <ViewModeToggle mode={mode} onChange={setMode} />
+                }
+                secondaryAction={
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border/60 rounded-xl">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{t('settings.disable_all')}</span>
+                        <Switch
+                            checked={disableAllHooks}
+                            onCheckedChange={(checked) => updateField("disableAllHooks", checked)}
+                            className="scale-75"
+                        />
+                    </div>
+                }
+            />
+
+            <div className={`flex-1 overflow-y-auto min-h-0 pb-3 ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
+                {!settings?.raw ? (
+                    <SettingsEmptyState
+                        icon={Link2Icon}
+                        title={t('settings.no_settings')}
+                        description={t('settings.create_hint')}
+                    />
+                ) : (
+                    <>
+                        {filteredEvents.length > 0 ? (
+                            <div className="space-y-3">
+                                {filteredEvents.map((eventType) => {
+                                    const isExpanded = expandedHookEvents.has(eventType) || search.length > 0;
                                     const matchers = hooks[eventType] || [];
                                     const disabledForEvent = disabledHooks[eventType] || [];
                                     const activeCount = matchers.reduce((acc, m) => acc + m.hooks.length, 0);
@@ -150,84 +186,99 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                             </button>
 
                                             {isExpanded && (
-                                                <div className="px-3 pb-3 pt-1 border-t border-border/30 space-y-1.5">
+                                                <div className="px-3 pb-3 pt-1 border-t border-border/30 space-y-2">
                                                     {/* Active hooks */}
                                                     {matchers.map((matcher, matcherIndex) => (
-                                                        <div key={matcherIndex} className="space-y-1.5">
+                                                        <div key={matcherIndex} className="space-y-2">
                                                             {matcher.matcher && (
-                                                                <p className="text-xs text-muted-foreground pl-6">
-                                                                    matcher: <code className="bg-secondary/60 px-1.5 py-0.5 rounded text-foreground">{matcher.matcher}</code>
+                                                                <p className="text-xs text-muted-foreground pl-2 flex items-center gap-2">
+                                                                    <span>matcher:</span>
+                                                                    <code className="bg-secondary/60 px-1.5 py-0.5 rounded text-foreground font-mono">{matcher.matcher}</code>
                                                                 </p>
                                                             )}
-                                                            {matcher.hooks.map((hook, hookIndex) => (
-                                                                <div
-                                                                    key={hookIndex}
-                                                                    className="flex items-center justify-between pl-6 pr-2 py-1.5 bg-card/80 rounded-lg group hover:bg-card transition-colors"
-                                                                >
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-xs font-mono text-foreground truncate">
-                                                                            {hook.command || hook.type}
-                                                                        </p>
-                                                                        {hook.timeout && (
-                                                                            <p className="text-[10px] text-muted-foreground">
-                                                                                timeout: {hook.timeout}s
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <button
-                                                                            onClick={() => deleteHookItem(eventType, matcherIndex, hookIndex)}
-                                                                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-500/10 hover:text-red-500 text-muted-foreground transition-all"
-                                                                        >
-                                                                            <TrashIcon className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                        <Switch
-                                                                            checked={true}
-                                                                            onCheckedChange={() =>
-                                                                                toggleHookItem(eventType, matcherIndex, hookIndex, true)
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                            <div className={cn(
+                                                                mode === "card"
+                                                                    ? "grid gap-2 sm:grid-cols-2"
+                                                                    : "flex flex-col gap-2"
+                                                            )}>
+                                                                {matcher.hooks.map((hook, hookIndex) => (
+                                                                    <ListItemCard
+                                                                        key={hookIndex}
+                                                                        avatar={<Link2Icon className="w-4 h-4" />}
+                                                                        title={hook.command || hook.type}
+                                                                        subtitle={hook.timeout ? `${t('settings.timeout', 'Timeout')}: ${hook.timeout}s` : undefined}
+                                                                        actions={
+                                                                            <>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
+                                                                                    onClick={() => deleteHookItem(eventType, matcherIndex, hookIndex)}
+                                                                                    title={t('common.delete')}
+                                                                                >
+                                                                                    <TrashIcon className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                                <Switch
+                                                                                    checked={true}
+                                                                                    onCheckedChange={() =>
+                                                                                        toggleHookItem(eventType, matcherIndex, hookIndex, true)
+                                                                                    }
+                                                                                    className="scale-75"
+                                                                                />
+                                                                            </>
+                                                                        }
+                                                                        className="bg-card"
+                                                                    />
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     ))}
 
                                                     {/* Disabled hooks */}
                                                     {disabledForEvent.length > 0 && (
-                                                        <div className="space-y-1.5 pt-2 border-t border-border/30">
-                                                            <p className="text-xs text-muted-foreground pl-6 italic">Disabled</p>
-                                                            {disabledForEvent.map((item, disabledIndex) => (
-                                                                <div
-                                                                    key={`disabled-${disabledIndex}`}
-                                                                    className="flex items-center justify-between pl-6 pr-2 py-1.5 bg-card/40 rounded-lg opacity-60 group hover:opacity-80 transition-opacity"
-                                                                >
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-xs font-mono text-foreground truncate">
-                                                                            {item.hook.command || item.hook.type}
-                                                                        </p>
-                                                                        {item.hook.timeout && (
-                                                                            <p className="text-[10px] text-muted-foreground">
-                                                                                timeout: {item.hook.timeout}s
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <button
-                                                                            onClick={() => deleteDisabledHook(eventType, disabledIndex)}
-                                                                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-500/10 hover:text-red-500 text-muted-foreground transition-all"
-                                                                        >
-                                                                            <TrashIcon className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                        <Switch
-                                                                            checked={false}
-                                                                            onCheckedChange={() =>
-                                                                                toggleHookItem(eventType, 0, disabledIndex, false)
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                        <div className="space-y-2 pt-2 border-t border-border/30">
+                                                            <p className="text-xs text-muted-foreground pl-2 italic">Disabled</p>
+                                                            <div className={cn(
+                                                                mode === "card"
+                                                                    ? "grid gap-2 sm:grid-cols-2"
+                                                                    : "flex flex-col gap-2"
+                                                            )}>
+                                                                {disabledForEvent.map((item, disabledIndex) => (
+                                                                    <ListItemCard
+                                                                        key={`disabled-${disabledIndex}`}
+                                                                        avatar={<Link2Icon className="w-4 h-4" />}
+                                                                        title={item.hook.command || item.hook.type}
+                                                                        subtitle={item.hook.timeout ? `${t('settings.timeout', 'Timeout')}: ${item.hook.timeout}s` : undefined}
+                                                                        isDisabled={true} // Visual opacity
+                                                                        badges={<StatusBadge variant="warning">Disabled</StatusBadge>}
+                                                                        actions={
+                                                                            <>
+                                                                                <div className="pointer-events-auto">
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
+                                                                                        onClick={() => deleteDisabledHook(eventType, disabledIndex)}
+                                                                                        title={t('common.delete')}
+                                                                                    >
+                                                                                        <TrashIcon className="w-3.5 h-3.5" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                                <div className="pointer-events-auto">
+                                                                                    <Switch
+                                                                                        checked={false}
+                                                                                        onCheckedChange={() =>
+                                                                                            toggleHookItem(eventType, 0, disabledIndex, false)
+                                                                                        }
+                                                                                        className="scale-75"
+                                                                                    />
+                                                                                </div>
+                                                                            </>
+                                                                        }
+                                                                        className="bg-card/40"
+                                                                    />
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -236,16 +287,18 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                     );
                                 })}
                             </div>
-                        </SettingSection>
-                    ) : (
-                        <SettingsEmptyState
-                            icon={Link2Icon}
-                            title={t('settings.no_hooks', "No hooks defined")}
-                            description={t('settings.no_hooks_hint', "Hooks allow you to run commands in response to events")}
-                        />
-                    )}
-                </>
-            )}
+                        ) : (
+                            <SettingsEmptyState
+                                icon={Link2Icon}
+                                title={t('settings.no_hooks', "No hooks defined")}
+                                description={search
+                                    ? t('settings.no_match', { search })
+                                    : t('settings.no_hooks_hint', "Hooks allow you to run commands in response to events")}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
         </div>
     );
 
@@ -259,7 +312,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
 
     return (
         <ConfigPage>
-            <PageHeader title={t('settings.hooks')} subtitle={t('settings.hooks_subtitle', 'Manage command hooks')} />
+
             {mainContent}
         </ConfigPage>
     );

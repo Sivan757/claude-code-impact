@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Cross2Icon, DownloadIcon } from "@radix-ui/react-icons";
-import { ConfigPage, EmptyState, LoadingState, PageHeader } from "../../components/config";
+import { ConfigPage, EmptyState, LoadingState } from "../../components/config";
 import type { ScannedPlugin } from "../../types";
 import { Button } from "../../components/ui/button";
 import { getUiPreference, setUiPreference } from "../../lib/uiPreferences";
@@ -238,7 +238,7 @@ export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <ConfigPage>
-      <PageHeader title={t("extensions_view.title")} subtitle={t("extensions_view.subtitle")} />
+
       {content}
     </ConfigPage>
   );

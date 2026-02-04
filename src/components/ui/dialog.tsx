@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Cross2Icon } from "@radix-ui/react-icons";
 
 interface DialogContextValue {
@@ -54,11 +55,11 @@ export function DialogContent({ children, className = "" }: DialogContentProps) 
 
   if (!context.open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/50 animate-in fade-in-0"
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm"
         onClick={() => context.onOpenChange(false)}
       />
 
@@ -82,7 +83,8 @@ export function DialogContent({ children, className = "" }: DialogContentProps) 
           <span className="sr-only">Close</span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

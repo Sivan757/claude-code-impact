@@ -12,6 +12,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
 import { differenceInMinutes, differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths } from "date-fns";
+import { cn } from "../../lib/utils";
 
 /** Parse YAML frontmatter from markdown content */
 function parseFrontmatter(content: string): { meta: Record<string, string>; body: string } {
@@ -431,8 +432,8 @@ export function ContentCard({
 // Layout Components
 // ============================================================================
 
-export function ConfigPage({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col h-full px-6 py-4 config-page-container overflow-hidden">{children}</div>;
+export function ConfigPage({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("flex flex-col h-full w-full overflow-hidden p-6", className)}>{children}</div>;
 }
 
 // ============================================================================

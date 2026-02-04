@@ -1,23 +1,19 @@
 import { type ReactNode, useEffect } from "react";
 import { useAtom } from "jotai";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  PersonIcon, ChevronLeftIcon, ChevronRightIcon,
-  CounterClockwiseClockIcon, LayersIcon,
+  PersonIcon,
+  CounterClockwiseClockIcon, GearIcon,
 } from "@radix-ui/react-icons";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-import { sidebarCollapsedAtom, profileAtom, primaryFeatureAtom } from "@/store";
+import { profileAtom, primaryFeatureAtom } from "@/store";
 import { useTranslation } from "react-i18next";
 
 import type { View, FeatureType } from "@/types";
 
 interface GlobalHeaderProps {
   currentFeature: FeatureType | null;
-  canGoBack: boolean;
-  canGoForward: boolean;
-  onGoBack: () => void;
-  onGoForward: () => void;
   onNavigate: (view: View) => void;
   onFeatureClick: (feature: FeatureType) => void;
   onShowProfileDialog: () => void;
@@ -26,17 +22,12 @@ interface GlobalHeaderProps {
 
 export function GlobalHeader({
   currentFeature,
-  canGoBack,
-  canGoForward,
-  onGoBack,
-  onGoForward,
   onNavigate,
   onFeatureClick,
   onShowProfileDialog,
-  onShowSettings,
+  // onShowSettings, // Kept in interface but removed from used props to avoid lint error.
 }: GlobalHeaderProps) {
   const { t } = useTranslation();
-  const [sidebarCollapsed] = useAtom(sidebarCollapsedAtom);
   const [profile] = useAtom(profileAtom);
 
   const [primaryFeature, setPrimaryFeature] = useAtom(primaryFeatureAtom);
@@ -45,7 +36,7 @@ export function GlobalHeader({
 
 
   // Main nav features - use primaryFeature for active state (not affected by profile menu clicks)
-  const mainNavFeatures = ["chat"] as const;
+  const mainNavFeatures = ["chat", "settings"] as const;
   const isMainNavFeature = (f: string | null) => f && (mainNavFeatures.includes(f as typeof mainNavFeatures[number]) || f.startsWith("kb-"));
 
   // Handle main nav click - updates primaryFeature
@@ -61,91 +52,36 @@ export function GlobalHeader({
     }
   }, [currentFeature]);
 
-  if (sidebarCollapsed) {
-    // Collapsed layout - full nav in header
-    return (
-      <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center pl-[80px]">
-          <div className="flex items-center gap-0.5">
-            <NavButton
-              isActive={primaryFeature === null}
-              onClick={() => { setPrimaryFeature(null); onNavigate({ type: "home" }); }}
-              icon={<img src="/logo.png" alt="Claude Code Impact" className="w-4 h-4" />}
-              label="Claude Code Impact"
-            />
-
-            <NavButton
-              isActive={primaryFeature === "features"}
-              onClick={() => handleMainNavClick("features")}
-              icon={<LayersIcon className="w-4 h-4" />}
-              label={t('features.common_settings')}
-            />
-            <NavButton
-              isActive={primaryFeature === "chat"}
-              onClick={() => handleMainNavClick("chat")}
-              icon={<CounterClockwiseClockIcon className="w-4 h-4" />}
-              label={t('features.history')}
-            />
-
-          </div>
-          <div className="h-4 border-l border-border mx-2" />
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={onGoBack}
-              disabled={!canGoBack}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-ink hover:bg-card-alt disabled:opacity-30 disabled:pointer-events-none"
-              title={t('common.go_back')}
-            >
-              <ChevronLeftIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={onGoForward}
-              disabled={!canGoForward}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-ink hover:bg-card-alt disabled:opacity-30 disabled:pointer-events-none"
-              title={t('common.go_forward')}
-            >
-              <ChevronRightIcon className="w-5 h-5" />
-            </button>
-          </div>
-
+  return (
+    <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <div className="flex items-center pl-[80px]">
+        <div className="flex items-center gap-0.5">
+          <NavButton
+            isActive={primaryFeature === null}
+            onClick={() => { setPrimaryFeature(null); onNavigate({ type: "home" }); }}
+            icon={<img src="/logo.png" alt="Claude Code Impact" className="w-4 h-4" />}
+            label="Claude Code Impact"
+          />
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <NavButton
+          isActive={primaryFeature === "chat"}
+          onClick={() => handleMainNavClick("chat")}
+          icon={<CounterClockwiseClockIcon className="w-4 h-4" />}
+          label={t('features.history')}
+        />
+        <NavButton
+          isActive={primaryFeature === "settings"}
+          onClick={() => handleMainNavClick("settings")}
+          icon={<GearIcon className="w-4 h-4" />}
+          label={t('features.common_settings')}
+        />
         <ProfileMenu
           profile={profile}
           onShowProfileDialog={onShowProfileDialog}
-          onShowSettings={onShowSettings}
         />
       </div>
-    );
-  }
-
-  // Expanded layout - minimal header (nav is in sidebar)
-  return (
-    <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="flex items-center gap-0.5 pl-3">
-        <button
-          onClick={onGoBack}
-          disabled={!canGoBack}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-ink hover:bg-card-alt disabled:opacity-30 disabled:pointer-events-none"
-          title={t('common.go_back')}
-        >
-          <ChevronLeftIcon className="w-5 h-5" />
-        </button>
-        <button
-          onClick={onGoForward}
-          disabled={!canGoForward}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-ink hover:bg-card-alt disabled:opacity-30 disabled:pointer-events-none"
-          title={t('common.go_forward')}
-        >
-          <ChevronRightIcon className="w-5 h-5" />
-        </button>
-
-
-      </div>
-      <ProfileMenu
-        profile={profile}
-        onShowProfileDialog={onShowProfileDialog}
-        onShowSettings={onShowSettings}
-      />
     </div>
   );
 }
@@ -153,11 +89,9 @@ export function GlobalHeader({
 function ProfileMenu({
   profile,
   onShowProfileDialog,
-  onShowSettings,
 }: {
   profile: { nickname: string; avatarUrl: string };
   onShowProfileDialog: () => void;
-  onShowSettings: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -181,12 +115,6 @@ function ProfileMenu({
               className="w-full text-left px-2 py-1.5 text-sm text-muted-foreground hover:text-ink hover:bg-card-alt rounded-md transition-colors"
             >
               {t('profile_dialog.title')}
-            </button>
-            <button
-              onClick={onShowSettings}
-              className="w-full text-left px-2 py-1.5 text-sm text-muted-foreground hover:text-ink hover:bg-card-alt rounded-md transition-colors"
-            >
-              {t('settings_dialog.title')}
             </button>
           </div>
         </PopoverContent>
@@ -219,20 +147,6 @@ function NavButton({
       transition={{ duration: 0.2, ease: "easeOut" }}
     >
       {icon}
-      <AnimatePresence mode="wait">
-        {isActive && (
-          <motion.span
-            key={label}
-            className="text-sm whitespace-nowrap"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: "auto", opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            {label}
-          </motion.span>
-        )}
-      </AnimatePresence>
     </motion.button>
   );
 }

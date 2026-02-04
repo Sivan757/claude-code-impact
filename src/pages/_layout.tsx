@@ -103,10 +103,6 @@ export default function RootLayout() {
       <div className="h-screen bg-canvas flex flex-col">
         <GlobalHeader
           currentFeature={currentFeature}
-          canGoBack={window.history.length > 1}
-          canGoForward={false}
-          onGoBack={() => navigate(-1)}
-          onGoForward={() => navigate(1)}
           onNavigate={(view) => {
             if (view.type === "home") navigate("/");
           }}

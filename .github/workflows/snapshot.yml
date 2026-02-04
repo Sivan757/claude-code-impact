@@ -70,9 +70,12 @@ jobs:
         shell: bash
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="snapshot-${GITHUB_RUN_ID}"
+          VERSION="$(node -p \"require('./package.json').version\")"
+          DATE_UTC="$(date -u +%Y-%m-%d)"
+          TAG="v${VERSION}-${DATE_UTC}-${GITHUB_RUN_ID}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "release_name=Snapshot v${VERSION} (${DATE_UTC})" >> $GITHUB_OUTPUT
 
       - name: Publish snapshot prerelease
         uses: tauri-apps/tauri-action@v0
@@ -80,7 +83,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ steps.snapshot.outputs.tag }}
-          releaseName: "Snapshot ${{ steps.snapshot.outputs.tag }} (${{ steps.snapshot.outputs.short_sha }})"
+          releaseName: "${{ steps.snapshot.outputs.release_name }}"
           releaseBody: |
             Automated snapshot build.
 

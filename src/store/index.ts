@@ -1,8 +1,7 @@
 // App atoms
 // App atoms (updated)
 export {
-  sidebarCollapsedAtom, marketplaceCategoryAtom, shortenPathsAtom, profileAtom,
-  primaryFeatureAtom
+  marketplaceCategoryAtom, shortenPathsAtom, profileAtom, primaryFeatureAtom
 } from "./atoms/app";
 
 // Chat atoms

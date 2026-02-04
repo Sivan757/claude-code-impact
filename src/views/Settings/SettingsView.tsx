@@ -264,7 +264,10 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
       ) : (
         <>
           {/* General Section */}
-          <SettingSection title={t('settings.general')} density={denseLayout.sectionDensity}>
+          <SettingSection
+            title={t('settings.general')}
+            density={denseLayout.sectionDensity}
+          >
             {/* Model */}
             <SettingRow
               label={t('settings.default_model')}

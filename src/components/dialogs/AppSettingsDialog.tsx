@@ -1,71 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { getAutoCopyOnSelect, setAutoCopyOnSelect } from "@/components/Terminal";
 import { useAppConfig } from "@/context";
 
-interface StatusBarSettings {
-  enabled: boolean;
-  scriptPath?: string;
-}
-
-type SettingsSection = "display" | "terminal" | "statusbar";
+type SettingsSection = "display";
 
 const settingsSections: { id: SettingsSection; labelKey: string }[] = [
   { id: "display", labelKey: "settings_dialog.sections.display" },
-  { id: "terminal", labelKey: "settings_dialog.sections.terminal" },
-  { id: "statusbar", labelKey: "settings_dialog.sections.statusbar" },
 ];
 
 export function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const { shortenPaths, setShortenPaths } = useAppConfig();
-  const [autoCopy, setAutoCopy] = useState(getAutoCopyOnSelect);
-  const [statusBarEnabled, setStatusBarEnabled] = useState(false);
-  const [statusBarScript, setStatusBarScript] = useState("~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh");
   const [activeSection, setActiveSection] = useState<SettingsSection>("display");
-
-  // Load statusbar settings on open
-  useEffect(() => {
-    if (!open) return;
-    invoke<StatusBarSettings | null>("get_statusbar_settings").then((settings) => {
-      if (settings) {
-        setStatusBarEnabled(settings.enabled);
-        setStatusBarScript(settings.scriptPath || "~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh");
-      }
-    }).catch(() => { });
-  }, [open]);
-
-  const handleAutoCopyChange = (checked: boolean) => {
-    setAutoCopy(checked);
-    setAutoCopyOnSelect(checked);
-  };
-
-  const handleStatusBarEnabledChange = async (checked: boolean) => {
-    setStatusBarEnabled(checked);
-    try {
-      await invoke("save_statusbar_settings", {
-        settings: { enabled: checked, scriptPath: statusBarScript },
-      });
-    } catch (e) {
-      console.error("Failed to save statusbar settings:", e);
-    }
-  };
-
-  const handleStatusBarScriptChange = async (path: string) => {
-    setStatusBarScript(path);
-    if (statusBarEnabled) {
-      try {
-        await invoke("save_statusbar_settings", {
-          settings: { enabled: true, scriptPath: path },
-        });
-      } catch (e) {
-        console.error("Failed to save statusbar settings:", e);
-      }
-    }
-  };
 
   if (!open) return null;
 
@@ -106,44 +53,6 @@ export function AppSettingsDialog({ open, onClose }: { open: boolean; onClose: (
                   </div>
                   <Switch checked={shortenPaths} onCheckedChange={setShortenPaths} />
                 </div>
-              </div>
-            )}
-            {activeSection === "terminal" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-ink">{t("settings_dialog.terminal.auto_copy")}</p>
-                    <p className="text-xs text-muted-foreground">{t("settings_dialog.terminal.auto_copy_desc")}</p>
-                  </div>
-                  <Switch checked={autoCopy} onCheckedChange={handleAutoCopyChange} />
-                </div>
-              </div>
-            )}
-            {activeSection === "statusbar" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-ink">{t("settings_dialog.statusbar.custom_script")}</p>
-                    <p className="text-xs text-muted-foreground">{t("settings_dialog.statusbar.custom_script_desc")}</p>
-                  </div>
-                  <Switch checked={statusBarEnabled} onCheckedChange={handleStatusBarEnabledChange} />
-                </div>
-                {statusBarEnabled && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-ink">{t("settings_dialog.statusbar.script_path")}</label>
-                    <Input
-                      className="text-xs font-mono"
-                      placeholder="~/.claudecodeimpact/claudecodeimpact/statusbar/default.sh"
-                      value={statusBarScript}
-                      onChange={(e) => handleStatusBarScriptChange(e.target.value)}
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                      {t("settings_dialog.statusbar.script_desc")}
-                      <br />
-                      <span className="text-muted-foreground/70">{t("settings_dialog.statusbar.ansi_support")}</span>
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>

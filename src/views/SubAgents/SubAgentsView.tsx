@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { PersonIcon, ReloadIcon, Pencil1Icon, TrashIcon } from "@radix-ui/react-icons";
+import { PersonIcon, Pencil1Icon, TrashIcon } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
 import type { LocalAgent } from "../../types";
 import {
   LoadingState,
-  PageHeader,
   ConfigPage,
   useSearch,
 } from "../../components/config";
@@ -32,9 +31,7 @@ export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
   const { mode, setMode } = useViewMode("subagents");
   const [uninstallingAgent, setUninstallingAgent] = useState<string | null>(null);
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["agents"] });
-  };
+
 
   const handleOpenInEditor = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
@@ -60,15 +57,7 @@ export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
 
   return (
     <ConfigPage>
-      <PageHeader
-        title={t('sub_agents.title')}
-        subtitle={t('sub_agents.subtitle', { count: agents.length })}
-        action={
-          <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
-            <ReloadIcon className="w-4 h-4" />
-          </Button>
-        }
-      />
+
 
       <div className="flex-1 flex flex-col min-h-0 space-y-3">
         <ActionToolbar

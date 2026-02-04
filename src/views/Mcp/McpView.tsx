@@ -2,12 +2,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Component1Icon, ExternalLinkIcon, TrashIcon, ReloadIcon } from "@radix-ui/react-icons";
+import { Component1Icon, ExternalLinkIcon, TrashIcon } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
 import type { McpServer, ClaudeSettings } from "../../types";
 import {
   LoadingState,
-  PageHeader,
   ConfigPage,
 } from "../../components/config";
 import {
@@ -17,7 +16,7 @@ import {
   StatusBadge,
   ViewModeToggle,
 } from "../../components/Settings";
-import { FilePath } from "../../components/shared/FilePath";
+
 import { useInvokeQuery, useQueryClient, useViewMode } from "../../hooks";
 import { cn } from "../../lib/utils";
 
@@ -26,7 +25,7 @@ export function McpView() {
   const queryClient = useQueryClient();
   const settingsKey = ["settings", "default"];
   const { data: settings, isLoading: settingsLoading } = useInvokeQuery<ClaudeSettings>(settingsKey, "get_settings");
-  const { data: mcpConfigPath = "" } = useInvokeQuery<string>(["mcpConfigPath"], "get_mcp_config_path");
+
   const servers = settings?.mcp_servers ?? [];
   const [search, setSearch] = useState("");
   const { mode, setMode } = useViewMode("mcp");
@@ -34,10 +33,6 @@ export function McpView() {
   const [editingEnv, setEditingEnv] = useState<{ server: string; key: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [uninstallingServer, setUninstallingServer] = useState<string | null>(null);
-
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: settingsKey });
-  };
 
   const handleUninstall = async (serverName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -98,18 +93,7 @@ export function McpView() {
 
   return (
     <ConfigPage>
-      <PageHeader
-        title={t('mcp.title')}
-        subtitle={t('mcp.servers_count', { count: servers.length })}
-        action={
-          <div className="flex items-center gap-2">
-            {mcpConfigPath && <FilePath path={mcpConfigPath} showIcon filenameOnly />}
-            <Button variant="ghost" size="icon" onClick={refresh} title={t('common.refresh')}>
-              <ReloadIcon className="w-4 h-4" />
-            </Button>
-          </div>
-        }
-      />
+
 
       <div className="flex-1 flex flex-col min-h-0 space-y-3">
         <ActionToolbar

@@ -8,7 +8,7 @@ export const FEATURE_ROUTES: Record<FeatureType, string> = {
   commands: "/commands",
   context: "/context",
   extensions: "/extensions",
-  features: "/features",
+  features: "/settings",
   "kb-distill": "/knowledge/distill",
   "kb-reference": "/knowledge/reference",
   marketplace: "/marketplace",

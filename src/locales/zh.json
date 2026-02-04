@@ -10,6 +10,7 @@
         "select_language": "选择语言"
     },
     "common": {
+        "dashboard": "仪表盘",
         "go_back": "返回",
         "go_forward": "前进",
         "cancel": "取消",
@@ -118,7 +119,7 @@
         "sub-agents": "子代理",
         "output-styles": "输出样式",
         "statusline": "状态栏",
-        "extensions": "扩展",
+        "extensions": "插件",
         "plugins": "插件",
         "common_settings": "通用"
     },
@@ -646,6 +647,8 @@
         "add_project_tip": "添加项目",
         "hide_sidebar_btn": "隐藏",
         "hide_sidebar_tip": "隐藏侧边栏",
+        "collapse_menu": "收起菜单",
+        "expand_menu": "展开菜单",
         "untitled_session": "未命名",
         "no_sessions": "无会话",
         "yesterday": "昨天",

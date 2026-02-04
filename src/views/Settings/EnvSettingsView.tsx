@@ -9,7 +9,6 @@ import {
   PlusCircledIcon,
   MinusCircledIcon,
   TrashIcon,
-  ReloadIcon,
   ChevronDownIcon,
   MixIcon,
 } from "@radix-ui/react-icons";
@@ -21,7 +20,6 @@ import {
 } from "../../components/ui/popover";
 import {
   LoadingState,
-  PageHeader,
   ConfigPage,
 } from "../../components/config";
 import {
@@ -172,17 +170,6 @@ export function EnvSettingsView({
         searchPlaceholder={t('env.search_placeholder')}
         searchValue={search}
         onSearchChange={setSearch}
-        primaryAction={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full w-9 h-9"
-            onClick={refreshSettings}
-            title={t('env.refresh')}
-          >
-            <ReloadIcon className="w-4 h-4" />
-          </Button>
-        }
       />
 
       {/* Add New Row */}
@@ -346,7 +333,7 @@ export function EnvSettingsView({
 
   return (
     <ConfigPage>
-      <PageHeader title={t('env.title')} subtitle={t('env.subtitle')} />
+
       {content}
     </ConfigPage >
   );

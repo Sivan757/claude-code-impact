@@ -60,13 +60,12 @@ export function SettingSection({
   return (
     <section
       className={cn(
-        "bg-card rounded-2xl border border-border/60 shadow-sm",
-        "transition-shadow duration-200 hover:shadow-md",
+        "mb-8", // Add spacing between sections instead of card containment
         className
       )}
     >
       {/* Section Header */}
-      <div className={cn("flex items-center justify-between border-b border-border/40", spacing.header)}>
+      <div className={cn("flex items-center justify-between mb-2", spacing.header, "px-0")}>
         <div>
           <h3 className="text-sm font-semibold text-foreground tracking-tight">
             {title}
@@ -77,8 +76,8 @@ export function SettingSection({
         </div>
         {action}
       </div>
-      {/* Section Content */}
-      <div className={cn(spacing.body, spacing.bodyGap)}>{children}</div>
+      {/* Section Content - styled as a simple grouping now */}
+      <div className={cn("", spacing.bodyGap)}>{children}</div>
     </section>
   );
 }

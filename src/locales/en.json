@@ -10,6 +10,7 @@
         "select_language": "Select Language"
     },
     "common": {
+        "dashboard": "Dashboard",
         "go_back": "Go back",
         "go_forward": "Go forward",
         "cancel": "Cancel",
@@ -647,6 +648,8 @@
         "add_project_tip": "Add project",
         "hide_sidebar_btn": "Hide",
         "hide_sidebar_tip": "Hide sidebar",
+        "collapse_menu": "Collapse menu",
+        "expand_menu": "Expand menu",
         "untitled_session": "Untitled",
         "no_sessions": "No sessions",
         "yesterday": "Yesterday",

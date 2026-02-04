@@ -1,9 +1,6 @@
 import { atomWithStorage } from "@/store/persistence";
 import type { FeatureType, TemplateCategory, UserProfile } from "@/types";
 
-// 侧边栏折叠状态 (always true - expanded sidebar removed from legacy layout)
-export const sidebarCollapsedAtom = atomWithStorage("claudecodeimpact:sidebarCollapsed", true);
-
 // Marketplace 分类
 export const marketplaceCategoryAtom = atomWithStorage<TemplateCategory>("claudecodeimpact:marketplaceCategory", "skills");
 
