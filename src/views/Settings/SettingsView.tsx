@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { useInvokeQuery, useQueryClient } from "../../hooks";
 import {
   GearIcon,
   DotsHorizontalIcon,
@@ -41,8 +40,10 @@ import {
   SettingSection,
   SettingRow,
   SettingsEmptyState,
+  ScopeSelector,
 } from "../../components/Settings";
-import type { ClaudeSettings } from "../../types";
+import { ConfigScope, ConfigFileKind } from "../../config/types";
+import { useConfigMerged, useConfigWrite } from "../../config/hooks/useConfig";
 import { cn } from "../../lib/utils";
 
 type PermissionMode = "bypassPermissions" | "allowEdits" | "normal";
@@ -57,18 +58,17 @@ const DEFAULT_ATTRIBUTION_COAUTHOR = `${DEFAULT_ATTRIBUTION_FOOTER}\n\nCo-Author
 export function SettingsView(props: { embedded?: boolean; settingsPath?: string }) {
   const { embedded = false, settingsPath } = props;
   const { t } = useTranslation();
-  /* Restore missing state/queries */
-  const settingsKey = ["settings", settingsPath ?? "default"];
-  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
-    settingsKey,
-    "get_settings",
-    settingsPath ? { path: settingsPath } : undefined
-  );
-  const { data: defaultSettingsPath = "" } = useInvokeQuery<string>(["settingsPath"], "get_settings_path");
-  const effectiveSettingsPath = settingsPath ?? defaultSettingsPath ?? "";
+
+  // Multi-scope editing state
+  const [selectedScope, setSelectedScope] = useState<ConfigScope>(ConfigScope.User);
+
+  // Fetch merged config
+  const { data: mergedConfig, isLoading } = useConfigMerged(settingsPath);
+
+  // Mutations
+  const writeMutation = useConfigWrite();
 
   const [showRawJson, setShowRawJson] = useState(false);
-  const queryClient = useQueryClient();
   const didNormalizeAttribution = useRef(false);
 
   const PERMISSION_MODES: { value: PermissionMode; label: string; desc: string }[] = useMemo(() => [
@@ -115,11 +115,13 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
     permissionMode: "settings-permission-mode-label",
   };
 
-  const raw = (settings?.raw as Record<string, unknown>) || {};
+  // Extract settings from merged config
+  const raw = (mergedConfig?.effective || {}) as Record<string, unknown>;
   const model = (raw.model as ModelType) || "sonnet";
   const alwaysThinkingEnabled = raw.alwaysThinkingEnabled === true;
   const spinnerTipsEnabled = raw.spinnerTipsEnabled !== false; // default true
   const cleanupPeriodDays = (raw.cleanupPeriodDays as number) ?? 0;
+
   const resolveAttributionMode = (value: unknown): AttributionMode => {
     if (typeof value === "string") {
       if (value === "none" || value === "footer" || value === "coauthor") {
@@ -142,22 +144,23 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
     }
     return "coauthor";
   };
+
   const attribution = resolveAttributionMode(raw.attribution);
   const permissions = (raw.permissions as Record<string, unknown>) || {};
   const defaultMode = (permissions.defaultMode as PermissionMode) || "normal";
   const additionalDirectories = (permissions.additionalDirectories as string[]) || [];
 
-  const refreshSettings = () => {
-    queryClient.invalidateQueries({ queryKey: settingsKey });
-  };
+  // Get effective settings path from provenance
+  const effectiveSettingsPath = settingsPath || "~/.claude/settings.json";
 
   const updateField = async (field: string, value: unknown) => {
-    await invoke("update_settings_field", {
-      field,
+    await writeMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: field,
       value,
-      path: settingsPath || undefined,
     });
-    refreshSettings();
   };
 
   const getAttributionPr = () => {
@@ -197,54 +200,65 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   if (isLoading) return <LoadingState message={t('settings.loading')} />;
 
   const updatePermissionField = async (field: string, value: unknown) => {
-    await invoke("update_settings_permission_field", {
-      field,
+    await writeMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: `permissions.${field}`,
       value,
-      path: settingsPath || undefined,
     });
-    refreshSettings();
   };
 
   const addDirectory = async (path: string) => {
-    await invoke("add_permission_directory", {
-      path,
-      settings_path: settingsPath || undefined,
+    const updatedDirectories = [...additionalDirectories, path];
+    await writeMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: "permissions.additionalDirectories",
+      value: updatedDirectories,
     });
-    refreshSettings();
   };
 
   const removeDirectory = async (path: string) => {
-    await invoke("remove_permission_directory", {
-      path,
-      settings_path: settingsPath || undefined,
+    const updatedDirectories = additionalDirectories.filter((d) => d !== path);
+    await writeMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: "permissions.additionalDirectories",
+      value: updatedDirectories,
     });
-    refreshSettings();
   };
 
-
-
   const headerAction = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={t('settings.more_actions')}>
-          <DotsHorizontalIcon className="w-4 h-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => invoke("open_in_editor", { path: effectiveSettingsPath })}>
-          <ExternalLinkIcon className="w-4 h-4 mr-2" />
-          {t('settings.open_in_editor')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(effectiveSettingsPath)}>
-          <CopyIcon className="w-4 h-4 mr-2" />
-          {t('settings.copy_path')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setShowRawJson(true)}>
-          <CodeIcon className="w-4 h-4 mr-2" />
-          {t('settings.view_raw_json')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2">
+      <ScopeSelector
+        value={selectedScope}
+        onChange={setSelectedScope}
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label={t('settings.more_actions')}>
+            <DotsHorizontalIcon className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => invoke("open_in_editor", { path: effectiveSettingsPath })}>
+            <ExternalLinkIcon className="w-4 h-4 mr-2" />
+            {t('settings.open_in_editor')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigator.clipboard.writeText(effectiveSettingsPath)}>
+            <CopyIcon className="w-4 h-4 mr-2" />
+            {t('settings.copy_path')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowRawJson(true)}>
+            <CodeIcon className="w-4 h-4 mr-2" />
+            {t('settings.view_raw_json')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 
   const mainContent = (
@@ -255,7 +269,7 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
         denseLayout.contentPadding
       )}
     >
-      {!settings?.raw ? (
+      {!mergedConfig?.effective ? (
         <SettingsEmptyState
           icon={GearIcon}
           title={t('settings.no_settings')}
@@ -472,7 +486,7 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
 
   return (
     <ConfigPage>
-      <PageHeader title={t('settings.title')} subtitle={effectiveSettingsPath || "~/.claude/settings.json"} action={headerAction} />
+      <PageHeader title={t('settings.title')} subtitle={effectiveSettingsPath} action={headerAction} />
       {mainContent}
       {dialogs}
     </ConfigPage>

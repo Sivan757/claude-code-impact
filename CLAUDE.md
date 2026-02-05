@@ -6,8 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This project uses **claudecodeimpact Warm Academic Style **
 
-Reference complete design guide: file:///Users/mark/@claudecodeimpact/design/design-guide.md
-
 ### Quick Rules
 1. **No Hardcoded Colors**: Must use semantic class names (e.g., `bg-primary`, `text-muted-foreground`)
 2. **Font Pairing**: Use `font-serif` for Dialog titles, `font-mono` for technical text, and default `font-sans` for body text
@@ -72,19 +70,16 @@ pnpm tauri build
 - CSS: Tailwind CSS preferred
 - No dynamic imports or setTimeout unless necessary
 - Extract shared components when patterns repeat across multiple components
+- Do not output reports arbitrarily unless I request them.
 
 ## Work Style
 
 - Act as senior architect: clarify ambiguous needs, think systemically, flag risks
-- Prefer progressive refactors over disruptive changes
 - Ask when requirements are unclear; avoid assumptions
 
 ## UI/UX Guidelines
 
-- Avoid generic layouts; make interfaces intentional and distinctive
 - Default to dense layouts (`density_dense`); reduce padding/margins
-- Shrink buttons/toggles before shrinking text; keep controls compact
 - Use meaningful animations (page load, staggered reveal), not generic micro-motions
-- Avoid flat single-color backgrounds; use gradients, shapes, or subtle patterns
 - Icon-only actions in compact spaces; always include aria labels/tooltips
 - For drag-reorder, make the card/blank area draggable (avoid separate drag handles)
