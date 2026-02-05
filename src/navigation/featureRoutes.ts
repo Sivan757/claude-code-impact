@@ -6,6 +6,7 @@ export const FEATURE_ROUTES: Record<FeatureType, string> = {
   "basic-version": "/settings/version",
   chat: "/chat",
   commands: "/commands",
+  config: "/config",
   context: "/context",
   extensions: "/extensions",
   features: "/settings",
@@ -55,6 +56,7 @@ export function featureFromPath(pathname: string): FeatureType | null {
   if (segment === "output-styles") return "output-styles";
   if (segment === "statusline") return "statusline";
   if (segment === "commands") return "commands";
+  if (segment === "config") return "config";
   if (segment === "context") return "context";
   if (segment === "chat") return "chat";
   if (segment === "skills") return "skills";

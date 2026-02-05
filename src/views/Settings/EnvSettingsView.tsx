@@ -1,13 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
-import { useInvokeQuery, useQueryClient } from "../../hooks";
 import {
   CheckIcon,
   Cross1Icon,
   Pencil1Icon,
-  PlusCircledIcon,
-  MinusCircledIcon,
   TrashIcon,
   ChevronDownIcon,
   MixIcon,
@@ -27,9 +23,11 @@ import {
   SettingsEmptyState,
   StatusBadge,
   AddFormRow,
+  ScopeSelector,
 } from "../../components/Settings";
-import type { ClaudeSettings } from "../../types";
 import { ENV_VAR_SUGGESTIONS } from "../../constants/env-vars";
+import { ConfigScope, ConfigFileKind } from "../../config/types";
+import { useConfigMerged, useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
 
 export function EnvSettingsView({
   embedded = false,
@@ -39,129 +37,106 @@ export function EnvSettingsView({
   settingsPath?: string;
 }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const settingsKey = ["settings", settingsPath ?? "default"];
-  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
-    settingsKey,
-    "get_settings",
-    settingsPath ? { path: settingsPath } : undefined
-  );
+
+  // Multi-scope editing state
+  const [selectedScope, setSelectedScope] = useState<ConfigScope>(ConfigScope.User);
+
+  // Fetch merged config to see effective values with provenance
+  const { data: mergedConfig, isLoading } = useConfigMerged(settingsPath);
+
+  // Mutations
+  const writeMutation = useConfigWrite();
+  const deleteMutation = useConfigDeleteKey();
 
   const [search, setSearch] = useState("");
   const [editingEnvKey, setEditingEnvKey] = useState<string | null>(null);
   const [envEditValue, setEnvEditValue] = useState("");
   const [newEnvKey, setNewEnvKey] = useState("");
   const [newEnvValue, setNewEnvValue] = useState("");
-
-  const [editingEnvIsDisabled, setEditingEnvIsDisabled] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   if (isLoading) return <LoadingState message={t('env.loading')} />;
 
-  const getRawEnvFromSettings = (value: ClaudeSettings | null | undefined) => {
-    const envValue =
-      value?.raw && typeof value.raw === "object"
-        ? (value.raw as Record<string, unknown>).env
-        : null;
-    if (!envValue || typeof envValue !== "object" || Array.isArray(envValue)) return {};
-    return Object.fromEntries(
-      Object.entries(envValue as Record<string, unknown>).map(([key, v]) => [key, String(v ?? "")])
-    );
+  // Extract env from merged config
+  const getEnvFromMerged = (): Record<string, { value: string; scope: ConfigScope }> => {
+    if (!mergedConfig?.effective.env || typeof mergedConfig.effective.env !== "object") {
+      return {};
+    }
+
+    const envObj = mergedConfig.effective.env as Record<string, string>;
+    const result: Record<string, { value: string; scope: ConfigScope }> = {};
+
+    for (const [key, value] of Object.entries(envObj)) {
+      const provenance = mergedConfig.provenance[`env.${key}`];
+      result[key] = {
+        value: String(value),
+        scope: provenance?.scope || ConfigScope.Default,
+      };
+    }
+
+    return result;
   };
 
+  const envEntries = getEnvFromMerged();
+  const allEnvArray = Object.entries(envEntries)
+    .map(([key, data]) => ({ key, ...data }))
+    .sort((a, b) => a.key.localeCompare(b.key));
 
+  const filteredEnvArray = !search
+    ? allEnvArray
+    : allEnvArray.filter(({ key }) => key.toLowerCase().includes(search.toLowerCase()));
 
-  const getDisabledEnvFromSettings = (value: ClaudeSettings | null | undefined): Record<string, string> => {
-    const disabled =
-      value?.raw && typeof value.raw === "object"
-        ? (value.raw as Record<string, unknown>)._claudecodeimpact_disabled_env
-        : null;
-    if (!disabled || typeof disabled !== "object" || Array.isArray(disabled)) return {};
-    return Object.fromEntries(
-      Object.entries(disabled as Record<string, unknown>).map(([key, v]) => [key, String(v ?? "")])
-    );
-  };
-
-  const rawEnv = getRawEnvFromSettings(settings);
-  const disabledEnv = getDisabledEnvFromSettings(settings);
-
-  const allEnvEntries: Array<[string, string, boolean]> = [
-    ...Object.entries(rawEnv).map(([k, v]) => [k, v, false] as [string, string, boolean]),
-    ...Object.entries(disabledEnv).map(([k, v]) => [k, v, true] as [string, string, boolean]),
-  ].sort((a, b) => a[0].localeCompare(b[0]));
-
-  const filteredEnvEntries = !search
-    ? allEnvEntries
-    : allEnvEntries.filter(([key]) => key.toLowerCase().includes(search.toLowerCase()));
-
-  const refreshSettings = () => {
-    queryClient.invalidateQueries({ queryKey: settingsKey });
-  };
-
-  const handleEnvEdit = (key: string, value: string, isDisabled = false) => {
+  const handleEnvEdit = (key: string, value: string) => {
     setEditingEnvKey(key);
     setEnvEditValue(value);
-    setEditingEnvIsDisabled(isDisabled);
   };
 
   const handleEnvSave = async () => {
     if (!editingEnvKey) return;
-    if (editingEnvIsDisabled) {
-      await invoke("update_disabled_settings_env", {
-        envKey: editingEnvKey,
-        envValue: envEditValue,
-        path: settingsPath || undefined,
-      });
-    } else {
-      await invoke("update_settings_env", {
-        envKey: editingEnvKey,
-        envValue: envEditValue,
-        path: settingsPath || undefined,
-      });
-    }
-    await refreshSettings();
+
+    await writeMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: `env.${editingEnvKey}`,
+      value: envEditValue,
+    });
+
     setEditingEnvKey(null);
-    setEditingEnvIsDisabled(false);
   };
 
   const handleEnvDelete = async (key: string) => {
-    await invoke("delete_settings_env", { envKey: key, path: settingsPath || undefined });
-    await refreshSettings();
-    if (editingEnvKey === key) setEditingEnvKey(null);
-  };
+    if (!confirm(t('env.confirm_delete', `Delete environment variable "${key}"?`))) return;
 
-  const handleEnvDisable = async (key: string) => {
-    await invoke("disable_settings_env", { envKey: key, path: settingsPath || undefined });
-    await refreshSettings();
-    if (editingEnvKey === key) setEditingEnvKey(null);
-  };
+    await deleteMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: `env.${key}`,
+    });
 
-  const handleEnvEnable = async (key: string) => {
-    await invoke("enable_settings_env", { envKey: key, path: settingsPath || undefined });
-    await refreshSettings();
+    if (editingEnvKey === key) setEditingEnvKey(null);
   };
 
   const handleEnvCreate = async () => {
     const key = newEnvKey.trim();
     if (!key) return;
-    await invoke("update_settings_env", {
-      envKey: key,
-      envValue: newEnvValue,
-      isNew: true,
-      path: settingsPath || undefined,
+
+    await writeMutation.mutateAsync({
+      kind: ConfigFileKind.Settings,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key: `env.${key}`,
+      value: newEnvValue,
     });
-    await refreshSettings();
+
     setNewEnvKey("");
     setNewEnvValue("");
   };
 
-
-
   const filteredSuggestions = !newEnvKey
     ? ENV_VAR_SUGGESTIONS
     : ENV_VAR_SUGGESTIONS.filter(item => item.key.toLowerCase().includes(newEnvKey.toLowerCase()));
-
-
 
   const content = (
     <div className="flex-1 flex flex-col space-y-3">
@@ -170,6 +145,12 @@ export function EnvSettingsView({
         searchPlaceholder={t('env.search_placeholder')}
         searchValue={search}
         onSearchChange={setSearch}
+        secondaryAction={
+          <ScopeSelector
+            value={selectedScope}
+            onChange={setSelectedScope}
+          />
+        }
       />
 
       {/* Add New Row */}
@@ -230,24 +211,25 @@ export function EnvSettingsView({
       </AddFormRow>
 
       {/* Environment Variables Table */}
-      {filteredEnvEntries.length > 0 ? (
+      {filteredEnvArray.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
           {/* Table Header */}
-          <div className="grid grid-cols-[minmax(180px,1fr)_2fr_auto] gap-3 px-3 py-2 border-b border-border/40 bg-muted/30">
+          <div className="grid grid-cols-[minmax(180px,1fr)_2fr_120px_auto] gap-3 px-3 py-2 border-b border-border/40 bg-muted/30">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('env.key_label')}</span>
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('env.value_label')}</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('common.source', 'Source')}</span>
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">{t('env.actions')}</span>
           </div>
           {/* Table Body */}
           <div className="divide-y divide-border/30">
-            {filteredEnvEntries.map(([key, value, isDisabled]) => (
+            {filteredEnvArray.map(({ key, value, scope }) => (
               <div
                 key={key}
-                className={`grid grid-cols-[minmax(180px,1fr)_2fr_auto] gap-3 px-3 py-2 items-center hover:bg-muted/20 transition-colors group ${isDisabled ? "opacity-60" : ""}`}
+                className="grid grid-cols-[minmax(180px,1fr)_2fr_120px_auto] gap-3 px-3 py-2 items-center hover:bg-muted/20 transition-colors group"
               >
                 {/* Key */}
                 <div>
-                  <StatusBadge variant={isDisabled ? "muted" : "active"} className={isDisabled ? "line-through" : ""}>
+                  <StatusBadge variant="active">
                     {key}
                   </StatusBadge>
                 </div>
@@ -272,6 +254,25 @@ export function EnvSettingsView({
                   )}
                 </div>
 
+                {/* Source Scope */}
+                <div>
+                  <StatusBadge
+                    variant={
+                      scope === ConfigScope.User ? "blue" :
+                      scope === ConfigScope.Project ? "success" :
+                      scope === ConfigScope.ProjectLocal ? "warning" :
+                      "muted"
+                    }
+                    className="text-[10px] px-1.5 py-0.5"
+                  >
+                    {scope === ConfigScope.User ? "User" :
+                     scope === ConfigScope.UserLocal ? "User Local" :
+                     scope === ConfigScope.Project ? "Project" :
+                     scope === ConfigScope.ProjectLocal ? "Project Local" :
+                     scope}
+                  </StatusBadge>
+                </div>
+
                 {/* Actions */}
                 <div className="flex items-center justify-end gap-1">
                   {editingEnvKey === key ? (
@@ -283,25 +284,10 @@ export function EnvSettingsView({
                         <Cross1Icon className="w-4 h-4" />
                       </Button>
                     </>
-                  ) : isDisabled ? (
-                    <>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEnvEdit(key, value, true)} title={t('env.edit')}>
-                        <Pencil1Icon className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-green-600 hover:bg-green-500/10" onClick={() => handleEnvEnable(key)} title={t('env.enable')}>
-                        <PlusCircledIcon className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 hover:bg-red-500/10" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
-                        <TrashIcon className="w-4 h-4" />
-                      </Button>
-                    </>
                   ) : (
                     <>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEnvEdit(key, value, false)} title={t('env.edit')}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEnvEdit(key, value)} title={t('env.edit')}>
                         <Pencil1Icon className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-600 hover:bg-amber-500/10" onClick={() => handleEnvDisable(key)} title={t('env.disable')}>
-                        <MinusCircledIcon className="w-4 h-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 hover:bg-red-500/10" onClick={() => handleEnvDelete(key)} title={t('env.delete')}>
                         <TrashIcon className="w-4 h-4" />
@@ -333,8 +319,7 @@ export function EnvSettingsView({
 
   return (
     <ConfigPage>
-
       {content}
-    </ConfigPage >
+    </ConfigPage>
   );
 }

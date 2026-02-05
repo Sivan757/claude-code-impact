@@ -12,6 +12,7 @@ export type FeatureType =
   | "context"
   | "settings"
   | "commands"
+  | "config"
   | "mcp"
   | "skills"
   | "hooks"

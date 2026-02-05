@@ -13,6 +13,7 @@ import { cn } from "../../lib/utils";
 // Re-export shared components
 export { ViewModeToggle, type ViewMode } from "./ViewModeToggle";
 export { SourceBadge } from "./SourceBadge";
+export { ScopeSelector } from "./ScopeSelector";
 
 // =============================================================================
 // Section Components (Pattern A: Form Sections)

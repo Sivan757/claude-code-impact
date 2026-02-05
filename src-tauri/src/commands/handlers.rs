@@ -45,6 +45,9 @@ include!("sections/git/git_commands.rs");
 include!("sections/diagnostics/diagnostics_commands.rs");
 include!("sections/lsp/lsp_commands.rs");
 
+// Config module commands
+use crate::config::commands::*;
+
 pub fn build_invoke_handler(
 ) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
@@ -217,6 +220,17 @@ pub fn build_invoke_handler(
         get_lsp_config_path_cmd,
         add_lsp_server,
         remove_lsp_server,
-        update_lsp_server_env
+        update_lsp_server_env,
+        // Config management commands
+        config_read,
+        config_read_merged,
+        config_write,
+        config_write_markdown,
+        config_delete_key,
+        config_validate,
+        config_get_paths,
+        config_list_backups,
+        config_restore_backup,
+        config_init_watcher
     ]
 }

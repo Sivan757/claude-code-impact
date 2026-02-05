@@ -6,9 +6,10 @@ import { LlmProviderView } from "./LlmProviderView";
 import { EnvSettingsView } from "./EnvSettingsView";
 import { ExtensionsView } from "../Extensions/ExtensionsView";
 import { HooksSettingsView } from "./HooksSettingsView";
+import { ConfigEditor } from "../../config";
 
 interface GlobalSettingsViewProps {
-    defaultTab?: "general" | "provider" | "plugins" | "env" | "hooks";
+    defaultTab?: "general" | "provider" | "plugins" | "env" | "hooks" | "advanced";
     settingsPath?: string;
 }
 
@@ -46,6 +47,9 @@ export function GlobalSettingsView({ defaultTab = "general", settingsPath }: Glo
                         </TabsContent>
                         <TabsContent value="hooks" className="h-full m-0 data-[state=active]:flex flex-col overflow-y-auto outline-none scrollbar-thin px-6 py-6">
                             <HooksSettingsView embedded settingsPath={settingsPath} />
+                        </TabsContent>
+                        <TabsContent value="advanced" className="h-full m-0 data-[state=active]:flex flex-col overflow-y-auto outline-none scrollbar-thin px-6 py-6">
+                            <ConfigEditor projectPath={undefined} />
                         </TabsContent>
                     </div>
                 </Tabs>
