@@ -35,8 +35,10 @@ import {
   ReloadIcon,
   PlayIcon,
 } from "@radix-ui/react-icons";
-import { useInvokeQuery, useQueryClient } from "../../hooks";
+import { useInvokeQuery } from "../../hooks";
 import { Button } from "../../components/ui/button";
+import { ConfigScope, ConfigFileKind } from "../../config/types";
+import { useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
 import {
   Dialog,
   DialogContent,
@@ -142,7 +144,6 @@ export function LlmProviderView({
   settingsPath?: string;
 }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const settingsKey = ["settings", settingsPath ?? "default"];
 
   const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
@@ -150,6 +151,10 @@ export function LlmProviderView({
     "get_settings",
     settingsPath ? { path: settingsPath } : undefined
   );
+
+  // Config mutations
+  const writeMutation = useConfigWrite();
+  const deleteMutation = useConfigDeleteKey();
 
   const env = useMemo(() => getEnvFromSettings(settings), [settings]);
   const currentToken = (env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
@@ -264,8 +269,6 @@ export function LlmProviderView({
     profilesLoaded,
     t,
   ]);
-
-  const refreshSettings = () => queryClient.invalidateQueries({ queryKey: settingsKey });
 
   const displayBaseUrl = (baseUrl: string) => baseUrl.trim() || DEFAULT_ANTHROPIC_BASE_URL;
 
@@ -416,33 +419,42 @@ export function LlmProviderView({
       const token = profile.authToken.trim();
       const baseUrl = profile.baseUrl.trim();
 
+      // Use config system with User scope for provider settings
       if (token) {
-        await invoke("update_settings_env", {
-          envKey: "ANTHROPIC_AUTH_TOKEN",
-          envValue: token,
-          path: settingsPath || undefined,
+        await writeMutation.mutateAsync({
+          kind: ConfigFileKind.Settings,
+          scope: ConfigScope.User,
+          projectPath: settingsPath,
+          key: "env.ANTHROPIC_AUTH_TOKEN",
+          value: token,
         });
       } else {
-        await invoke("delete_settings_env", {
-          envKey: "ANTHROPIC_AUTH_TOKEN",
-          path: settingsPath || undefined,
+        await deleteMutation.mutateAsync({
+          kind: ConfigFileKind.Settings,
+          scope: ConfigScope.User,
+          projectPath: settingsPath,
+          key: "env.ANTHROPIC_AUTH_TOKEN",
         });
       }
 
       if (baseUrl) {
-        await invoke("update_settings_env", {
-          envKey: "ANTHROPIC_BASE_URL",
-          envValue: baseUrl,
-          path: settingsPath || undefined,
+        await writeMutation.mutateAsync({
+          kind: ConfigFileKind.Settings,
+          scope: ConfigScope.User,
+          projectPath: settingsPath,
+          key: "env.ANTHROPIC_BASE_URL",
+          value: baseUrl,
         });
       } else {
-        await invoke("delete_settings_env", {
-          envKey: "ANTHROPIC_BASE_URL",
-          path: settingsPath || undefined,
+        await deleteMutation.mutateAsync({
+          kind: ConfigFileKind.Settings,
+          scope: ConfigScope.User,
+          projectPath: settingsPath,
+          key: "env.ANTHROPIC_BASE_URL",
         });
       }
 
-      refreshSettings();
+      // Mutations auto-invalidate queries, no manual refresh needed
     } catch (err) {
       setApplyError(String(err));
     } finally {
