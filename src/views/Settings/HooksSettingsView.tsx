@@ -17,13 +17,13 @@ import {
     SettingsEmptyState,
     StatusBadge,
     ViewModeToggle,
-    ScopeSelector,
 } from "../../components/Settings";
-import { useViewMode } from "../../hooks";
+import { useViewMode, useSettingsScope } from "../../hooks";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
-import { ConfigScope, ConfigFileKind } from "../../config/types";
 import { useConfigMerged, useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
+import { getSettingsFileKindForScope } from "../../config/utils";
+import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
 
 interface HookItem {
     type: string;
@@ -40,9 +40,9 @@ interface HookMatcher {
 export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: string }) {
     const { embedded = false, settingsPath } = props;
     const { t } = useTranslation();
+    const confirmDialog = useConfirmDialog();
 
-    // Multi-scope editing state
-    const [selectedScope, setSelectedScope] = useState<ConfigScope>(ConfigScope.User);
+    const { configScope: selectedScope } = useSettingsScope(settingsPath);
 
     // Fetch merged config
     const { data: mergedConfig, isLoading } = useConfigMerged(settingsPath);
@@ -54,6 +54,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
     const [search, setSearch] = useState("");
     const { mode, setMode } = useViewMode("hooks");
     const [expandedHookEvents, setExpandedHookEvents] = useState<Set<string>>(new Set());
+    const settingsKind = getSettingsFileKindForScope(selectedScope);
 
     if (isLoading) return <LoadingState message={t('settings.loading')} />;
 
@@ -63,7 +64,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
 
     const toggleGlobalHooks = async (disabled: boolean) => {
         await writeMutation.mutateAsync({
-            kind: ConfigFileKind.Settings,
+            kind: settingsKind,
             scope: selectedScope,
             projectPath: settingsPath,
             key: "disable_all_hooks",
@@ -72,7 +73,13 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
     };
 
     const deleteHookItem = async (eventType: string, matcherIndex: number, hookIndex: number) => {
-        if (!confirm(t('settings.delete_hook_confirm'))) return;
+        const confirmed = await confirmDialog({
+            title: t("common.delete", "Delete"),
+            description: t('settings.delete_hook_confirm'),
+            variant: "destructive",
+            confirmText: t("common.delete", "Delete"),
+        });
+        if (!confirmed) return;
 
         const eventMatchers = hooks[eventType];
         if (!eventMatchers || !eventMatchers[matcherIndex]) return;
@@ -87,7 +94,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
             if (updatedMatchers.length === 0) {
                 // Remove the entire event type
                 await deleteMutation.mutateAsync({
-                    kind: ConfigFileKind.Settings,
+                    kind: settingsKind,
                     scope: selectedScope,
                     projectPath: settingsPath,
                     key: `hooks.${eventType}`,
@@ -95,7 +102,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
             } else {
                 // Update the event type with remaining matchers
                 await writeMutation.mutateAsync({
-                    kind: ConfigFileKind.Settings,
+                    kind: settingsKind,
                     scope: selectedScope,
                     projectPath: settingsPath,
                     key: `hooks.${eventType}`,
@@ -108,7 +115,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
             updatedMatchers[matcherIndex] = { ...matcher, hooks: updatedHooks };
 
             await writeMutation.mutateAsync({
-                kind: ConfigFileKind.Settings,
+                kind: settingsKind,
                 scope: selectedScope,
                 projectPath: settingsPath,
                 key: `hooks.${eventType}`,
@@ -158,10 +165,6 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                 }
                 secondaryAction={
                     <>
-                        <ScopeSelector
-                            value={selectedScope}
-                            onChange={setSelectedScope}
-                        />
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border/60 rounded-xl">
                             <span className="text-xs text-muted-foreground whitespace-nowrap">{t('settings.disable_all')}</span>
                             <Switch
@@ -174,7 +177,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                 }
             />
 
-            <div className={`flex-1 overflow-y-auto min-h-0 pb-3 ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-3 pr-3 [scrollbar-gutter:stable] ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
                 {eventTypes.length === 0 ? (
                     <SettingsEmptyState
                         icon={Link2Icon}

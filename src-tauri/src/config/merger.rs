@@ -1,7 +1,7 @@
 use crate::config::{
-    get_all_config_paths, read_config_file, resolve_config_path, ClaudeMdSource, ClaudeMdView,
-    ConfigError, ConfigFileKind, ConfigScope, ConfigValue, McpServerConfig, MergedConfigView,
-    MergedMcpView, ParseError, ProvenanceEntry,
+    read_config_file, resolve_config_path, ClaudeMdSource, ClaudeMdView, ConfigError,
+    ConfigFileKind, ConfigScope, ConfigValue, McpServerConfig, MergedConfigView, MergedMcpView,
+    ParseError, ProvenanceEntry,
 };
 use std::collections::HashMap;
 
@@ -13,9 +13,6 @@ pub fn build_merged_config(
     let mut effective = serde_json::json!({});
     let mut provenance: HashMap<String, ProvenanceEntry> = HashMap::new();
     let mut parse_errors: Vec<ParseError> = Vec::new();
-
-    // Get all config paths
-    let paths = get_all_config_paths(project_path)?;
 
     // Layer configs bottom-up (lowest priority first)
     let scopes_in_order = vec![

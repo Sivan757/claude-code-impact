@@ -18,7 +18,6 @@ pub struct ConfigChangeEvent {
 pub struct ConfigWatcher {
     _watcher: RecommendedWatcher,
     _receiver: Arc<Mutex<Receiver<notify::Result<Event>>>>,
-    project_path: Option<String>,
 }
 
 impl ConfigWatcher {
@@ -94,7 +93,6 @@ impl ConfigWatcher {
         Ok(ConfigWatcher {
             _watcher: watcher,
             _receiver: receiver,
-            project_path,
         })
     }
 }

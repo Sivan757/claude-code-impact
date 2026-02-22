@@ -10,6 +10,7 @@ import type { LocalSkill, TemplateComponent, TemplatesCatalog } from "../../type
 import { TemplateDetailView } from "../../views/Marketplace";
 import { FeaturesLayout } from "../../views/Features";
 import { LoadingState } from "../../components/config";
+import { useSettingsPath } from "../../hooks";
 
 function skillToTemplate(skill: LocalSkill): TemplateComponent {
   return {
@@ -31,11 +32,15 @@ export default function SkillDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isMarketplace = searchParams.get("source") === "marketplace";
+  const settingsPath = useSettingsPath();
 
   const { data: localSkill, isLoading: localLoading } = useQuery({
-    queryKey: ["skill", name],
+    queryKey: ["skill", name, settingsPath ?? "global"],
     queryFn: async () => {
-      const skills = await invoke<LocalSkill[]>("list_local_skills");
+      const skills = await invoke<LocalSkill[]>(
+        "list_local_skills",
+        settingsPath ? { projectPath: settingsPath } : undefined
+      );
       return skills.find(s => s.name === name) ?? null;
     },
     enabled: !!name && !isMarketplace,
@@ -79,6 +84,7 @@ export default function SkillDetailPage() {
           template={marketplaceTemplate}
           category="skills"
           onBack={() => navigate("/skills")}
+          settingsPath={settingsPath}
         />
       </FeaturesLayout>
     );
@@ -105,6 +111,7 @@ export default function SkillDetailPage() {
         onBack={() => navigate("/skills")}
         localPath={localSkill.path}
         isInstalled={true}
+        settingsPath={settingsPath}
       />
     </FeaturesLayout>
   );

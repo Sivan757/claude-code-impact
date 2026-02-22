@@ -23,11 +23,12 @@ import {
   SettingsEmptyState,
   StatusBadge,
   AddFormRow,
-  ScopeSelector,
 } from "../../components/Settings";
 import { ENV_VAR_SUGGESTIONS } from "../../constants/env-vars";
-import { ConfigScope, ConfigFileKind } from "../../config/types";
 import { useConfigMerged, useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
+import { getSettingsFileKindForScope } from "../../config/utils";
+import { useSettingsScope } from "../../hooks";
+import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
 
 export function EnvSettingsView({
   embedded = false,
@@ -37,9 +38,9 @@ export function EnvSettingsView({
   settingsPath?: string;
 }) {
   const { t } = useTranslation();
+  const confirmDialog = useConfirmDialog();
 
-  // Multi-scope editing state
-  const [selectedScope, setSelectedScope] = useState<ConfigScope>(ConfigScope.User);
+  const { configScope: selectedScope } = useSettingsScope(settingsPath);
 
   // Fetch merged config to see effective values with provenance
   const { data: mergedConfig, isLoading } = useConfigMerged(settingsPath);
@@ -55,23 +56,21 @@ export function EnvSettingsView({
   const [newEnvValue, setNewEnvValue] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
 
+  const settingsKind = getSettingsFileKindForScope(selectedScope);
+
   if (isLoading) return <LoadingState message={t('env.loading')} />;
 
   // Extract env from merged config
-  const getEnvFromMerged = (): Record<string, { value: string; scope: ConfigScope }> => {
+  const getEnvFromMerged = (): Record<string, string> => {
     if (!mergedConfig?.effective.env || typeof mergedConfig.effective.env !== "object") {
       return {};
     }
 
     const envObj = mergedConfig.effective.env as Record<string, string>;
-    const result: Record<string, { value: string; scope: ConfigScope }> = {};
+    const result: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(envObj)) {
-      const provenance = mergedConfig.provenance[`env.${key}`];
-      result[key] = {
-        value: String(value),
-        scope: provenance?.scope || ConfigScope.Default,
-      };
+      result[key] = String(value);
     }
 
     return result;
@@ -79,7 +78,7 @@ export function EnvSettingsView({
 
   const envEntries = getEnvFromMerged();
   const allEnvArray = Object.entries(envEntries)
-    .map(([key, data]) => ({ key, ...data }))
+    .map(([key, value]) => ({ key, value }))
     .sort((a, b) => a.key.localeCompare(b.key));
 
   const filteredEnvArray = !search
@@ -95,7 +94,7 @@ export function EnvSettingsView({
     if (!editingEnvKey) return;
 
     await writeMutation.mutateAsync({
-      kind: ConfigFileKind.Settings,
+      kind: settingsKind,
       scope: selectedScope,
       projectPath: settingsPath,
       key: `env.${editingEnvKey}`,
@@ -106,10 +105,18 @@ export function EnvSettingsView({
   };
 
   const handleEnvDelete = async (key: string) => {
-    if (!confirm(t('env.confirm_delete', `Delete environment variable "${key}"?`))) return;
+    const confirmed = await confirmDialog({
+      title: t("common.delete", "Delete"),
+      description: t("env.confirm_delete", {
+        key,
+        defaultValue: `Delete environment variable "${key}"?`,
+      }),
+      confirmText: t("common.delete", "Delete"),
+    });
+    if (!confirmed) return;
 
     await deleteMutation.mutateAsync({
-      kind: ConfigFileKind.Settings,
+      kind: settingsKind,
       scope: selectedScope,
       projectPath: settingsPath,
       key: `env.${key}`,
@@ -123,7 +130,7 @@ export function EnvSettingsView({
     if (!key) return;
 
     await writeMutation.mutateAsync({
-      kind: ConfigFileKind.Settings,
+      kind: settingsKind,
       scope: selectedScope,
       projectPath: settingsPath,
       key: `env.${key}`,
@@ -145,12 +152,6 @@ export function EnvSettingsView({
         searchPlaceholder={t('env.search_placeholder')}
         searchValue={search}
         onSearchChange={setSearch}
-        secondaryAction={
-          <ScopeSelector
-            value={selectedScope}
-            onChange={setSelectedScope}
-          />
-        }
       />
 
       {/* Add New Row */}
@@ -174,20 +175,28 @@ export function EnvSettingsView({
               </button>
             </PopoverTrigger>
           </div>
-          <PopoverContent align="start" className="w-[320px] p-0 overflow-hidden shadow-xl border-border/50 rounded-xl">
-            <div className="max-h-[280px] overflow-y-auto">
+          <PopoverContent
+            align="start"
+            className="w-[320px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden shadow-xl border-border/50 rounded-xl"
+          >
+            <div className="max-h-[280px] overflow-y-auto overflow-x-hidden">
               {filteredSuggestions.length > 0 ? (
                 filteredSuggestions.map((item) => (
                   <button
                     key={item.key}
-                    className="w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors border-b border-border/30 last:border-0 flex flex-col gap-0.5"
+                    className="w-full min-w-0 text-left px-3 py-2 hover:bg-muted/60 transition-colors border-b border-border/30 last:border-0 flex flex-col gap-0.5"
                     onClick={() => {
                       setNewEnvKey(item.key);
                       setPopoverOpen(false);
                     }}
+                    title={item.key}
                   >
-                    <span className="text-sm font-mono text-primary font-medium">{item.key}</span>
-                    <span className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{item.desc}</span>
+                    <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-mono text-primary font-medium">
+                      {item.key}
+                    </span>
+                    <span className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-words">
+                      {item.desc}
+                    </span>
                   </button>
                 ))
               ) : (
@@ -214,22 +223,24 @@ export function EnvSettingsView({
       {filteredEnvArray.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
           {/* Table Header */}
-          <div className="grid grid-cols-[minmax(180px,1fr)_2fr_120px_auto] gap-3 px-3 py-2 border-b border-border/40 bg-muted/30">
+          <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,2.2fr)_auto] gap-3 px-3 py-2 border-b border-border/40 bg-muted/30">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('env.key_label')}</span>
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('env.value_label')}</span>
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('common.source', 'Source')}</span>
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">{t('env.actions')}</span>
           </div>
           {/* Table Body */}
           <div className="divide-y divide-border/30">
-            {filteredEnvArray.map(({ key, value, scope }) => (
+            {filteredEnvArray.map(({ key, value }) => (
               <div
                 key={key}
-                className="grid grid-cols-[minmax(180px,1fr)_2fr_120px_auto] gap-3 px-3 py-2 items-center hover:bg-muted/20 transition-colors group"
+                className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,2.2fr)_auto] gap-3 px-3 py-2 items-center hover:bg-muted/20 transition-colors group"
               >
                 {/* Key */}
-                <div>
-                  <StatusBadge variant="active">
+                <div className="min-w-0" title={key}>
+                  <StatusBadge
+                    variant="active"
+                    className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
+                  >
                     {key}
                   </StatusBadge>
                 </div>
@@ -252,25 +263,6 @@ export function EnvSettingsView({
                       {value || <em className="text-muted-foreground/50">{t('env.empty')}</em>}
                     </span>
                   )}
-                </div>
-
-                {/* Source Scope */}
-                <div>
-                  <StatusBadge
-                    variant={
-                      scope === ConfigScope.User ? "blue" :
-                      scope === ConfigScope.Project ? "success" :
-                      scope === ConfigScope.ProjectLocal ? "warning" :
-                      "muted"
-                    }
-                    className="text-[10px] px-1.5 py-0.5"
-                  >
-                    {scope === ConfigScope.User ? "User" :
-                     scope === ConfigScope.UserLocal ? "User Local" :
-                     scope === ConfigScope.Project ? "Project" :
-                     scope === ConfigScope.ProjectLocal ? "Project Local" :
-                     scope}
-                  </StatusBadge>
                 </div>
 
                 {/* Actions */}

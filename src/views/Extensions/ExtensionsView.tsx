@@ -10,12 +10,30 @@ import { MarketplaceSidebar } from "./MarketplaceSidebar";
 import { PluginCard } from "./PluginCard";
 import { PluginDetailModal } from "./PluginDetailModal";
 import { PluginFilterBar } from "./PluginFilterBar";
-import { usePluginLibrary } from "./usePluginLibrary";
+import { usePluginLibrary, type PluginScope } from "./usePluginLibrary";
 
 type PluginViewMode = "card" | "list";
 const EXTENSIONS_VIEW_MODE_KEY = "claudecodeimpact:extensions:viewMode";
+const EXTENSIONS_SCOPE_KEY = "claudecodeimpact:extensions:scope";
 
-export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
+export function ExtensionsView({
+  embedded = false,
+  settingsPath,
+  projectPath,
+  allowScope = true,
+}: {
+  embedded?: boolean;
+  settingsPath?: string;
+  projectPath?: string;
+  allowScope?: boolean;
+}) {
+  const [scope, setScope] = useState<PluginScope>(
+    () => getUiPreference<PluginScope>(EXTENSIONS_SCOPE_KEY) ?? "user"
+  );
+  const hasProjectContext = Boolean(projectPath);
+  const effectiveScope: PluginScope =
+    allowScope && !(scope !== "user" && !hasProjectContext) ? scope : "user";
+
   const { t } = useTranslation();
   const {
     scanResult,
@@ -45,7 +63,7 @@ export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
     updateMarketplace,
     addMarketplace,
     removeMarketplace,
-  } = usePluginLibrary();
+  } = usePluginLibrary({ settingsPath, scope: effectiveScope, projectPath });
 
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -57,6 +75,12 @@ export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
     () => plugins.find((plugin) => plugin.id === selectedPluginId) ?? null,
     [plugins, selectedPluginId]
   );
+
+  useEffect(() => {
+    if (scope !== "user" && !projectPath) {
+      setScope("user");
+    }
+  }, [projectPath, scope]);
 
   const activeMarketplaceLabel = useMemo(() => {
     if (activeMarketplace === "all") {
@@ -83,6 +107,14 @@ export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
     setUiPreference(EXTENSIONS_VIEW_MODE_KEY, nextMode);
   };
 
+  const handleScopeChange = (nextScope: PluginScope) => {
+    if (nextScope !== "user" && !hasProjectContext) {
+      return;
+    }
+    setScope(nextScope);
+    setUiPreference(EXTENSIONS_SCOPE_KEY, nextScope);
+  };
+
   const showEmpty =
     !isScanning &&
     filteredPlugins.length === 0 &&
@@ -105,6 +137,10 @@ export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
             stats={stats}
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
+            scope={effectiveScope}
+            onScopeChange={handleScopeChange}
+            allowScope={allowScope}
+            projectScopeEnabled={Boolean(projectPath)}
           />
         </div>
 
@@ -221,6 +257,7 @@ export function ExtensionsView({ embedded = false }: { embedded?: boolean }) {
         onUninstall={() => selectedPlugin && uninstallPlugin(selectedPlugin.id)}
         onToggle={(enabled) => selectedPlugin && togglePlugin(selectedPlugin.id, enabled)}
         onUpdate={() => selectedPlugin && updatePlugin(selectedPlugin.id)}
+        scope={effectiveScope}
         isActionLoading={Boolean(selectedPlugin && actionPluginId === selectedPlugin.id)}
         isToggleLoading={Boolean(selectedPlugin && togglingPluginId === selectedPlugin.id)}
         isUpdateLoading={Boolean(selectedPlugin && updatingPluginId === selectedPlugin.id)}

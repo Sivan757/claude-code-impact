@@ -27,8 +27,8 @@ pub struct LocalSkill {
 }
 
 #[tauri::command]
-fn list_local_skills() -> Result<Vec<LocalSkill>, String> {
-    let skills_dir = get_claude_dir().join("skills");
+fn list_local_skills(project_path: Option<String>) -> Result<Vec<LocalSkill>, String> {
+    let skills_dir = resolve_claude_dir(project_path.as_deref()).join("skills");
 
     if !skills_dir.exists() {
         return Ok(vec![]);
@@ -72,4 +72,3 @@ fn list_local_skills() -> Result<Vec<LocalSkill>, String> {
     skills.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(skills)
 }
-

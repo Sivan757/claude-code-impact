@@ -22,6 +22,7 @@ export const UI_PREFERENCE_KEYS = [
   "claudecodeimpact:shortenPaths",
   "claudecodeimpact:profile",
   "claudecodeimpact:primaryFeature",
+  "claudecodeimpact:workspaces",
   // Components
   "claudecodeimpact:collapsibleStates",
   "claudecodeimpact:docReader:collapsedGroups",
@@ -49,6 +50,8 @@ export const UI_PREFERENCE_KEYS = [
   "claudecodeimpact:analytics:clientId",
   // Terminal
   "terminal:autoCopyOnSelect",
+  // Launcher
+  "claudecodeimpact:launcher:lastTemplateByProject",
 ];
 
 const RAW_STRING_KEYS = new Set<string>(["claudecodeimpact:analytics:clientId"]);

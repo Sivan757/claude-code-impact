@@ -22,7 +22,9 @@ export type FeatureType =
   | "output-styles"
   | "statusline"
   | "kb-distill"
-  | "kb-reference";
+  | "kb-reference"
+  | "projects"
+  | "templates";
 
 export interface FeatureConfig {
   type: FeatureType;
@@ -290,6 +292,14 @@ export interface AnnualReport2025 {
 export interface UserProfile {
   nickname: string;
   avatarUrl: string;
+  terminalPreference?: TerminalPreference;
+}
+
+export type TerminalPreferenceMode = "system" | "custom";
+
+export interface TerminalPreference {
+  mode: TerminalPreferenceMode;
+  customPath: string;
 }
 
 // ============================================================================
@@ -373,6 +383,7 @@ export interface PluginComponents {
   commands: PluginComponent[];
   skills: PluginComponent[];
   hooks: PluginComponent[];
+  claudeMd: PluginComponent[];
   mcps: PluginComponent[];
   lsps: PluginComponent[];
 }
@@ -382,6 +393,8 @@ export interface ScannedPlugin {
   name: string;
   description: string | null;
   version: string | null;
+  repositoryVersion: string | null;
+  lastUpdated: string | null;
   author: string | null;
   repository: string | null;
   marketplace: string;

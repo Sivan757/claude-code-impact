@@ -33,6 +33,12 @@ export function ComponentBadgeRow({ components, size = "md" }: ComponentBadgeRow
         className: "bg-amber-500/10 text-amber-700",
       },
       {
+        key: "claudeMd",
+        label: t("extensions_view.claude_md"),
+        count: components.claudeMd.length,
+        className: "bg-rose-500/10 text-rose-700",
+      },
+      {
         key: "agents",
         label: t("features.sub-agents"),
         count: components.agents.length,

@@ -147,76 +147,6 @@ fn get_settings(path: Option<String>) -> Result<ClaudeSettings, String> {
     })
 }
 
-#[derive(Debug, Deserialize)]
-struct LaunchSettingsProvider {
-    provider_type: String,
-    env: HashMap<String, String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LaunchSettingsRequest {
-    provider: Option<LaunchSettingsProvider>,
-    enabled_plugins: Option<Vec<String>>,
-}
-
-#[tauri::command]
-fn create_launch_settings(request: LaunchSettingsRequest) -> Result<String, String> {
-    let settings_path = get_claude_dir().join("settings.json");
-    let mut settings: Value = if settings_path.exists() {
-        let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).map_err(|e| e.to_string())?
-    } else {
-        serde_json::json!({})
-    };
-
-    if !settings.is_object() {
-        settings = serde_json::json!({});
-    }
-
-    if let Some(obj) = settings.as_object_mut() {
-        obj.remove("_claudecodeimpact_disabled_env");
-        obj.remove("_claudecodeimpact_custom_env_keys");
-
-        if let Some(provider) = request.provider {
-            let mut env_obj = obj
-                .get("env")
-                .and_then(|v| v.as_object())
-                .cloned()
-                .unwrap_or_default();
-
-            for (key, value) in provider.env {
-                env_obj.insert(key, Value::String(value));
-            }
-
-            obj.insert("env".to_string(), Value::Object(env_obj));
-
-            let mut cci_obj = obj
-                .get("claudecodeimpact")
-                .and_then(|v| v.as_object())
-                .cloned()
-                .unwrap_or_default();
-
-            cci_obj.insert(
-                "activeProvider".to_string(),
-                Value::String(provider.provider_type),
-            );
-            obj.insert("claudecodeimpact".to_string(), Value::Object(cci_obj));
-        }
-
-        if let Some(enabled_plugins) = request.enabled_plugins {
-            let mut plugins_obj = serde_json::Map::new();
-            for plugin_id in enabled_plugins {
-                plugins_obj.insert(plugin_id, Value::Bool(true));
-            }
-            obj.insert("enabledPlugins".to_string(), Value::Object(plugins_obj));
-        }
-    }
-
-    // Return JSON string directly for inline --settings argument
-    let output = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
-    Ok(output)
-}
-
 fn get_session_path(project_id: &str, session_id: &str) -> PathBuf {
     get_claude_dir()
         .join("projects")
@@ -585,28 +515,46 @@ fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn update_mcp_env(server_name: String, env_key: String, env_value: String) -> Result<(), String> {
-    let claude_json_path = get_claude_json_path();
+fn update_mcp_env(
+    server_name: String,
+    env_key: String,
+    env_value: String,
+    project_path: Option<String>,
+) -> Result<(), String> {
+    let mcp_config_path = resolve_mcp_config_path(project_path.as_deref());
 
-    let mut claude_json: serde_json::Value = if claude_json_path.exists() {
-        let content = fs::read_to_string(&claude_json_path).map_err(|e| e.to_string())?;
+    let mut mcp_json: serde_json::Value = if mcp_config_path.exists() {
+        let content = fs::read_to_string(&mcp_config_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else if project_path.is_some() {
+        return Err(".mcp.json not found".to_string());
     } else {
         return Err("~/.claude.json not found".to_string());
     };
 
-    let server = claude_json
-        .get_mut("mcpServers")
-        .and_then(|s| s.get_mut(&server_name))
-        .ok_or_else(|| format!("MCP server '{}' not found", server_name))?;
+    if project_path.is_some() {
+        let server = mcp_json
+            .get_mut(&server_name)
+            .ok_or_else(|| format!("MCP server '{}' not found", server_name))?;
 
-    if !server.get("env").is_some() {
-        server["env"] = serde_json::json!({});
+        if !server.get("env").is_some() {
+            server["env"] = serde_json::json!({});
+        }
+        server["env"][&env_key] = serde_json::Value::String(env_value);
+    } else {
+        let server = mcp_json
+            .get_mut("mcpServers")
+            .and_then(|s| s.get_mut(&server_name))
+            .ok_or_else(|| format!("MCP server '{}' not found", server_name))?;
+
+        if !server.get("env").is_some() {
+            server["env"] = serde_json::json!({});
+        }
+        server["env"][&env_key] = serde_json::Value::String(env_value);
     }
-    server["env"][&env_key] = serde_json::Value::String(env_value);
 
-    let output = serde_json::to_string_pretty(&claude_json).map_err(|e| e.to_string())?;
-    fs::write(&claude_json_path, output).map_err(|e| e.to_string())?;
+    let output = serde_json::to_string_pretty(&mcp_json).map_err(|e| e.to_string())?;
+    fs::write(&mcp_config_path, output).map_err(|e| e.to_string())?;
 
     Ok(())
 }

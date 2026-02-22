@@ -16,7 +16,7 @@ import {
   SourceBadge,
   ViewModeToggle,
 } from "../../components/Settings";
-import { useInvokeQuery, useQueryClient, useViewMode } from "../../hooks";
+import { useInvokeQuery, useQueryClient, useViewMode, useSettingsPath } from "../../hooks";
 import { cn } from "../../lib/utils";
 
 interface SkillsViewProps {
@@ -26,7 +26,12 @@ interface SkillsViewProps {
 export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: skills = [], isLoading } = useInvokeQuery<LocalSkill[]>(["skills"], "list_local_skills");
+  const settingsPath = useSettingsPath();
+  const { data: skills = [], isLoading } = useInvokeQuery<LocalSkill[]>(
+    ["skills", settingsPath ?? "global"],
+    "list_local_skills",
+    settingsPath ? { projectPath: settingsPath } : undefined
+  );
   const { search, setSearch, filtered } = useSearch(skills, ["name", "description"]);
   const { mode, setMode } = useViewMode("skills");
   const [uninstallingSkill, setUninstallingSkill] = useState<string | null>(null);
@@ -46,7 +51,7 @@ export function SkillsView({ onSelectTemplate }: SkillsViewProps) {
     e.stopPropagation();
     setUninstallingSkill(name);
     try {
-      await invoke("uninstall_skill", { name });
+      await invoke("uninstall_skill", { name, projectPath: settingsPath });
       queryClient.invalidateQueries({ queryKey: ["skills"] });
     } finally {
       setUninstallingSkill(null);

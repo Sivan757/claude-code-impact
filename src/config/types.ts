@@ -56,6 +56,7 @@ export interface HookEntry {
 
 // MCP server configuration
 export interface McpServerConfig {
+  description?: string;
   type?: string;
   command?: string;
   args?: string[];

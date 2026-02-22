@@ -5,6 +5,7 @@ import type { LocalAgent, TemplateComponent, TemplatesCatalog } from "../../type
 import { TemplateDetailView } from "../../views/Marketplace";
 import { FeaturesLayout } from "../../views/Features";
 import { LoadingState } from "../../components/config";
+import { useSettingsPath } from "../../hooks";
 
 function agentToTemplate(agent: LocalAgent): TemplateComponent {
   return {
@@ -24,11 +25,15 @@ export default function AgentDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isMarketplace = searchParams.get("source") === "marketplace";
+  const settingsPath = useSettingsPath();
 
   const { data: localAgent, isLoading: localLoading } = useQuery({
-    queryKey: ["agent", name],
+    queryKey: ["agent", name, settingsPath ?? "global"],
     queryFn: async () => {
-      const agents = await invoke<LocalAgent[]>("list_local_agents");
+      const agents = await invoke<LocalAgent[]>(
+        "list_local_agents",
+        settingsPath ? { projectPath: settingsPath } : undefined
+      );
       return agents.find(a => a.name === name) ?? null;
     },
     enabled: !!name && !isMarketplace,
@@ -72,6 +77,7 @@ export default function AgentDetailPage() {
           template={marketplaceTemplate}
           category="agents"
           onBack={() => navigate("/agents")}
+          settingsPath={settingsPath}
         />
       </FeaturesLayout>
     );
@@ -98,6 +104,7 @@ export default function AgentDetailPage() {
         onBack={() => navigate("/agents")}
         localPath={localAgent.path}
         isInstalled={true}
+        settingsPath={settingsPath}
       />
     </FeaturesLayout>
   );

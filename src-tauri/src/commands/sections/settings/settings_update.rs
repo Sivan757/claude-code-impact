@@ -26,6 +26,28 @@ fn normalize_attribution_setting(value: Value) -> Value {
     }
 }
 
+fn normalize_permission_mode_value(value: Value) -> Result<Value, String> {
+    let Some(mode) = value.as_str() else {
+        return Err("permissions.defaultMode must be a string".to_string());
+    };
+
+    let normalized = match mode {
+        "normal" => "default",
+        "allowEdits" => "acceptEdits",
+        "acceptEdits" | "bypassPermissions" | "default" | "delegate" | "dontAsk" | "plan" => {
+            mode
+        }
+        _ => {
+            return Err(format!(
+                "Invalid permissions.defaultMode '{}'. Expected one of: acceptEdits, bypassPermissions, default, delegate, dontAsk, plan",
+                mode
+            ));
+        }
+    };
+
+    Ok(Value::String(normalized.to_string()))
+}
+
 #[tauri::command]
 fn update_settings_field(field: String, value: Value, path: Option<String>) -> Result<(), String> {
     let settings_path = resolve_settings_path(path);
@@ -74,7 +96,22 @@ fn update_settings_permission_field(
     {
         settings["permissions"] = serde_json::json!({});
     }
-    settings["permissions"][&field] = value;
+    let normalized_field = if field == "default_mode" {
+        "defaultMode".to_string()
+    } else {
+        field
+    };
+
+    let normalized_value = if normalized_field == "defaultMode" {
+        normalize_permission_mode_value(value)?
+    } else {
+        value
+    };
+
+    settings["permissions"][&normalized_field] = normalized_value;
+    if let Some(permissions) = settings["permissions"].as_object_mut() {
+        permissions.remove("default_mode");
+    }
 
     if let Some(obj) = settings.as_object_mut() {
         obj.remove("_claudecodeimpact_disabled_env");

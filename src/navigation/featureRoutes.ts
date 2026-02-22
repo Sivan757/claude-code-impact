@@ -20,6 +20,8 @@ export const FEATURE_ROUTES: Record<FeatureType, string> = {
   "output-styles": "/output-styles",
   statusline: "/statusline",
   hooks: "/settings/hooks",
+  projects: "/projects",
+  templates: "/templates",
 };
 
 export const featureToPath = (feature: FeatureType): string => FEATURE_ROUTES[feature];
@@ -52,6 +54,8 @@ export function featureFromPath(pathname: string): FeatureType | null {
     if (sub === "reference") return "kb-reference";
   }
 
+  if (segment === "projects") return "projects";
+  if (segment === "templates") return "templates";
   if (segment === "agents") return "sub-agents";
   if (segment === "output-styles") return "output-styles";
   if (segment === "statusline") return "statusline";

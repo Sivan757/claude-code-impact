@@ -195,7 +195,7 @@ fn set_current_project_logo(project_path: String, logo_path: String) -> Result<(
 
 /// Delete a logo version
 #[tauri::command]
-fn delete_project_logo(project_path: String, logo_path: String) -> Result<(), String> {
+fn delete_project_logo(_project_path: String, logo_path: String) -> Result<(), String> {
     let path = PathBuf::from(&logo_path);
 
     if !path.exists() {

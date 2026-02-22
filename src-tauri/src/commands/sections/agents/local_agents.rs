@@ -11,8 +11,8 @@ pub struct LocalAgent {
 }
 
 #[tauri::command]
-fn list_local_agents() -> Result<Vec<LocalAgent>, String> {
-    let commands_dir = get_claude_dir().join("agents");
+fn list_local_agents(project_path: Option<String>) -> Result<Vec<LocalAgent>, String> {
+    let commands_dir = resolve_claude_dir(project_path.as_deref()).join("agents");
 
     if !commands_dir.exists() {
         return Ok(vec![]);
@@ -26,12 +26,14 @@ fn list_local_agents() -> Result<Vec<LocalAgent>, String> {
 }
 
 #[tauri::command]
-fn uninstall_agent(name: String) -> Result<String, String> {
+fn uninstall_agent(name: String, project_path: Option<String>) -> Result<String, String> {
     if name.is_empty() {
         return Err("Agent name cannot be empty".to_string());
     }
 
-    let agent_file = get_claude_dir().join("agents").join(format!("{}.md", name));
+    let agent_file = resolve_claude_dir(project_path.as_deref())
+        .join("agents")
+        .join(format!("{}.md", name));
     if !agent_file.exists() {
         return Err(format!("Agent '{}' not found", name));
     }

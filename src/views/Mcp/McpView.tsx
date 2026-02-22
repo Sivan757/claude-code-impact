@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Component1Icon, ExternalLinkIcon, TrashIcon } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
-import type { McpServer, ClaudeSettings } from "../../types";
+import type { McpServer } from "../../types";
 import {
   LoadingState,
   ConfigPage,
@@ -17,16 +17,30 @@ import {
   ViewModeToggle,
 } from "../../components/Settings";
 
-import { useInvokeQuery, useQueryClient, useViewMode } from "../../hooks";
+import { useQueryClient, useViewMode, useSettingsPath } from "../../hooks";
 import { cn } from "../../lib/utils";
+import { useConfigMerged } from "../../config/hooks/useConfig";
+import { ConfigScope } from "../../config/types";
 
 export function McpView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const settingsKey = ["settings", "default"];
-  const { data: settings, isLoading: settingsLoading } = useInvokeQuery<ClaudeSettings>(settingsKey, "get_settings");
+  const settingsPath = useSettingsPath();
+  const { data: mergedConfig, isLoading: settingsLoading } = useConfigMerged(settingsPath);
+  const serverSources = mergedConfig?.mcp_servers?.sources ?? {};
 
-  const servers = settings?.mcp_servers ?? [];
+  const servers = useMemo<McpServer[]>(() => {
+    const entries = mergedConfig?.mcp_servers?.servers ?? {};
+    return Object.entries(entries).map(([name, config]) => ({
+      name,
+      description: config.description ?? null,
+      type: config.type ?? null,
+      url: config.url ?? null,
+      command: config.command ?? null,
+      args: config.args ?? [],
+      env: config.env ?? {},
+    }));
+  }, [mergedConfig]);
   const [search, setSearch] = useState("");
   const { mode, setMode } = useViewMode("mcp");
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
@@ -34,12 +48,23 @@ export function McpView() {
   const [editValue, setEditValue] = useState("");
   const [uninstallingServer, setUninstallingServer] = useState<string | null>(null);
 
+  const getProjectPathForServer = (serverName: string) => {
+    const scope = serverSources[serverName];
+    if (scope === ConfigScope.Project || scope === ConfigScope.ProjectLocal) {
+      return settingsPath;
+    }
+    return undefined;
+  };
+
   const handleUninstall = async (serverName: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setUninstallingServer(serverName);
     try {
-      await invoke("uninstall_mcp_template", { name: serverName });
-      queryClient.invalidateQueries({ queryKey: settingsKey });
+      await invoke("uninstall_mcp_template", {
+        name: serverName,
+        projectPath: getProjectPathForServer(serverName),
+      });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
     } finally {
       setUninstallingServer(null);
     }
@@ -56,8 +81,9 @@ export function McpView() {
       serverName: editingEnv.server,
       envKey: editingEnv.key,
       envValue: editValue,
+      projectPath: getProjectPathForServer(editingEnv.server),
     });
-    queryClient.invalidateQueries({ queryKey: settingsKey });
+    queryClient.invalidateQueries({ queryKey: ["config"] });
     setEditingEnv(null);
   };
 

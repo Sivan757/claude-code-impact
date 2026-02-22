@@ -3,11 +3,12 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
 use crate::infra::{
-    ensure_parent_dir, get_claude_dir, get_claude_json_path,
+    ensure_parent_dir, get_claude_dir, get_claude_json_path, resolve_claude_dir,
+    resolve_mcp_config_path,
     get_docs_distill_dir, get_docs_reference_dir, get_statusbar_dir, get_statusline_dir,
     load_custom_keys, load_disabled_env, load_disabled_hooks, read_data_key, remove_data_key,
     resolve_settings_path, save_custom_keys, save_disabled_env, save_disabled_hooks, write_data_key,
@@ -26,6 +27,7 @@ include!("sections/distill/distill.rs");
 include!("sections/plugins/marketplace/catalog.rs");
 include!("sections/plugins/marketplace/install.rs");
 include!("sections/plugins/marketplace/statusline.rs");
+include!("sections/plugins/marketplace/translation.rs");
 include!("sections/context/context_files.rs");
 include!("sections/activity/activity_stats.rs");
 include!("sections/activity/annual_report.rs");
@@ -44,6 +46,9 @@ include!("sections/files/filesystem.rs");
 include!("sections/git/git_commands.rs");
 include!("sections/diagnostics/diagnostics_commands.rs");
 include!("sections/lsp/lsp_commands.rs");
+include!("sections/settings/templates.rs");
+include!("sections/settings/terminal_launcher.rs");
+include!("sections/settings/launch_settings.rs");
 
 // Config module commands
 use crate::config::commands::*;
@@ -70,12 +75,15 @@ pub fn build_invoke_handler(
         get_project_context,
         get_settings,
         create_launch_settings,
+        prepare_launch_draft,
+        cleanup_launch_settings,
         get_command_stats,
         get_command_weekly_stats,
         get_activity_stats,
         get_annual_report_2025,
         get_templates_catalog,
         install_command_template,
+        install_agent_template,
         rename_command,
         deprecate_command,
         archive_command,
@@ -141,6 +149,7 @@ pub fn build_invoke_handler(
         toggle_plugin,
         // Extensions management
         scan_plugins,
+        list_plugin_runtime_state,
         list_installed_plugins,
         list_extension_marketplaces,
         fetch_marketplace_plugins,
@@ -162,6 +171,7 @@ pub fn build_invoke_handler(
         test_anthropic_connection,
         test_openai_connection,
         test_claude_cli,
+        translate_plugin_texts,
         list_distill_documents,
         find_session_project,
         get_distill_watch_enabled,
@@ -231,6 +241,18 @@ pub fn build_invoke_handler(
         config_get_paths,
         config_list_backups,
         config_restore_backup,
-        config_init_watcher
+        config_init_watcher,
+        // Template commands
+        template_list,
+        template_get,
+        template_save,
+        template_delete,
+        template_apply,
+        template_save_from_project,
+        config_read_multi_merged,
+        config_export,
+        config_import,
+        // Terminal launcher
+        launch_system_terminal
     ]
 }

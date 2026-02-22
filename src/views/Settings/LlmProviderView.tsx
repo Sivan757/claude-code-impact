@@ -7,6 +7,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -35,10 +36,9 @@ import {
   ReloadIcon,
   PlayIcon,
 } from "@radix-ui/react-icons";
-import { useInvokeQuery } from "../../hooks";
 import { Button } from "../../components/ui/button";
-import { ConfigScope, ConfigFileKind } from "../../config/types";
-import { useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
+import { type MergedConfigView } from "../../config/types";
+import { useConfigMerged, useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
 import {
   Dialog,
   DialogContent,
@@ -56,26 +56,20 @@ import {
   ActionToolbar,
   SettingsEmptyState,
 } from "../../components/Settings";
-import type { ClaudeSettings } from "../../types";
 import { cn } from "../../lib/utils";
+import { getSettingsFileKindForScope } from "../../config/utils";
+import { useSettingsScope } from "../../hooks";
+import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
+import {
+  DEFAULT_ANTHROPIC_BASE_URL,
+  normalizeProviderBaseUrl,
+  type LlmProfilesState,
+  type ProviderProfile,
+} from "../../lib/llmProfiles";
 
-const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const STORAGE_KEY = "claudecodeimpact_llm_profiles";
 
-interface ProviderProfile {
-  id: string;
-  name: string;
-  authToken: string;
-  baseUrl: string;
-  updatedAt: number;
-}
-
 type ProviderViewMode = "list" | "card";
-
-interface LlmProfilesState {
-  profiles: ProviderProfile[];
-  viewMode: ProviderViewMode;
-}
 
 interface SortableProviderItemRenderProps {
   dragHandleProps: HTMLAttributes<HTMLDivElement>;
@@ -120,20 +114,14 @@ function SortableProviderItem({
   );
 }
 
-const getEnvFromSettings = (value: ClaudeSettings | null | undefined): Record<string, string> => {
-  const raw = value?.raw;
+const getEnvFromMerged = (value: MergedConfigView | null | undefined): Record<string, string> => {
+  const raw = value?.effective;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const envValue = (raw as Record<string, unknown>).env;
   if (!envValue || typeof envValue !== "object" || Array.isArray(envValue)) return {};
   return Object.fromEntries(
     Object.entries(envValue as Record<string, unknown>).map(([key, v]) => [key, String(v ?? "")])
   );
-};
-
-const normalizeBaseUrl = (value?: string) => {
-  const trimmed = (value ?? "").trim();
-  const resolved = trimmed || DEFAULT_ANTHROPIC_BASE_URL;
-  return resolved.replace(/\/+$/, "");
 };
 
 export function LlmProviderView({
@@ -144,21 +132,19 @@ export function LlmProviderView({
   settingsPath?: string;
 }) {
   const { t } = useTranslation();
-  const settingsKey = ["settings", settingsPath ?? "default"];
-
-  const { data: settings, isLoading } = useInvokeQuery<ClaudeSettings>(
-    settingsKey,
-    "get_settings",
-    settingsPath ? { path: settingsPath } : undefined
-  );
+  const confirmDialog = useConfirmDialog();
+  const { data: mergedConfig, isLoading } = useConfigMerged(settingsPath);
+  const { configScope: selectedScope } = useSettingsScope(settingsPath);
+  const settingsKind = getSettingsFileKindForScope(selectedScope);
 
   // Config mutations
   const writeMutation = useConfigWrite();
   const deleteMutation = useConfigDeleteKey();
+  const queryClient = useQueryClient();
 
-  const env = useMemo(() => getEnvFromSettings(settings), [settings]);
+  const env = useMemo(() => getEnvFromMerged(mergedConfig), [mergedConfig]);
   const currentToken = (env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
-  const currentBaseUrl = normalizeBaseUrl(env.ANTHROPIC_BASE_URL);
+  const currentBaseUrl = normalizeProviderBaseUrl(env.ANTHROPIC_BASE_URL);
 
   const [search, setSearch] = useState("");
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
@@ -170,6 +156,7 @@ export function LlmProviderView({
 
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [persistError, setPersistError] = useState<string | null>(null);
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorId, setEditorId] = useState<string | null>(null);
@@ -180,11 +167,16 @@ export function LlmProviderView({
 
   const persistProfilesState = useCallback(
     async (nextProfiles: ProviderProfile[], nextViewMode = viewMode) => {
+      const nextState: LlmProfilesState = {
+        profiles: nextProfiles,
+        viewMode: nextViewMode,
+      };
       await invoke("save_llm_profiles_state", {
-        state: { profiles: nextProfiles, viewMode: nextViewMode },
+        state: nextState,
       });
+      queryClient.setQueryData(["llmProfilesState"], nextState);
     },
-    [viewMode]
+    [queryClient, viewMode]
   );
 
   useEffect(() => {
@@ -275,16 +267,25 @@ export function LlmProviderView({
   const isProfileActive = (profile: ProviderProfile) => {
     return (
       profile.authToken.trim() === currentToken &&
-      normalizeBaseUrl(profile.baseUrl) === currentBaseUrl
+      normalizeProviderBaseUrl(profile.baseUrl) === currentBaseUrl
     );
   };
 
   const updateProfilesState = useCallback(
-    (nextProfiles: ProviderProfile[]) => {
+    async (nextProfiles: ProviderProfile[]) => {
+      const previousProfiles = profiles;
       setProfiles(nextProfiles);
-      persistProfilesState(nextProfiles).catch(() => { });
+      setPersistError(null);
+      try {
+        await persistProfilesState(nextProfiles);
+        return true;
+      } catch (err) {
+        setProfiles(previousProfiles);
+        setPersistError(String(err));
+        return false;
+      }
     },
-    [persistProfilesState]
+    [persistProfilesState, profiles]
   );
 
   const filteredProfiles = useMemo(() => {
@@ -309,7 +310,7 @@ export function LlmProviderView({
       const newIndex = profiles.findIndex((p) => p.id === event.over?.id);
       if (oldIndex < 0 || newIndex < 0) return;
       const nextProfiles = arrayMove(profiles, oldIndex, newIndex);
-      updateProfilesState(nextProfiles);
+      void updateProfilesState(nextProfiles);
     },
     [profiles, updateProfilesState]
   );
@@ -385,7 +386,7 @@ export function LlmProviderView({
     </Button>
   );
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!editorName.trim()) {
       alert(t("llm.name_required"));
       return;
@@ -402,13 +403,21 @@ export function LlmProviderView({
     const nextProfiles = editorId
       ? profiles.map((p) => (p.id === editorId ? profile : p))
       : [...profiles, profile];
-    updateProfilesState(nextProfiles);
-    setIsEditorOpen(false);
+    const ok = await updateProfilesState(nextProfiles);
+    if (ok) {
+      setIsEditorOpen(false);
+    }
   };
 
-  const handleDeleteProfile = (profileId: string) => {
-    if (!confirm(t("llm.confirm_delete"))) return;
-    updateProfilesState(profiles.filter((p) => p.id !== profileId));
+  const handleDeleteProfile = async (profileId: string) => {
+    const confirmed = await confirmDialog({
+      title: t("llm.delete", "Delete"),
+      description: t("llm.confirm_delete"),
+      variant: "destructive",
+      confirmText: t("llm.delete", "Delete"),
+    });
+    if (!confirmed) return;
+    await updateProfilesState(profiles.filter((p) => p.id !== profileId));
   };
 
   const applyProfile = async (profile: ProviderProfile) => {
@@ -419,19 +428,18 @@ export function LlmProviderView({
       const token = profile.authToken.trim();
       const baseUrl = profile.baseUrl.trim();
 
-      // Use config system with User scope for provider settings
       if (token) {
         await writeMutation.mutateAsync({
-          kind: ConfigFileKind.Settings,
-          scope: ConfigScope.User,
+          kind: settingsKind,
+          scope: selectedScope,
           projectPath: settingsPath,
           key: "env.ANTHROPIC_AUTH_TOKEN",
           value: token,
         });
       } else {
         await deleteMutation.mutateAsync({
-          kind: ConfigFileKind.Settings,
-          scope: ConfigScope.User,
+          kind: settingsKind,
+          scope: selectedScope,
           projectPath: settingsPath,
           key: "env.ANTHROPIC_AUTH_TOKEN",
         });
@@ -439,20 +447,28 @@ export function LlmProviderView({
 
       if (baseUrl) {
         await writeMutation.mutateAsync({
-          kind: ConfigFileKind.Settings,
-          scope: ConfigScope.User,
+          kind: settingsKind,
+          scope: selectedScope,
           projectPath: settingsPath,
           key: "env.ANTHROPIC_BASE_URL",
           value: baseUrl,
         });
       } else {
         await deleteMutation.mutateAsync({
-          kind: ConfigFileKind.Settings,
-          scope: ConfigScope.User,
+          kind: settingsKind,
+          scope: selectedScope,
           projectPath: settingsPath,
           key: "env.ANTHROPIC_BASE_URL",
         });
       }
+
+      await writeMutation.mutateAsync({
+        kind: settingsKind,
+        scope: selectedScope,
+        projectPath: settingsPath,
+        key: "claudecodeimpact.activeProvider",
+        value: profile.name,
+      });
 
       // Mutations auto-invalidate queries, no manual refresh needed
     } catch (err) {
@@ -484,9 +500,14 @@ export function LlmProviderView({
           {applyError}
         </p>
       )}
+      {persistError && (
+        <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">
+          {persistError}
+        </p>
+      )}
 
       {/* Provider List */}
-      <div className="flex-1 overflow-y-auto min-h-0 pb-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-3 pr-3 [scrollbar-gutter:stable]">
         {!profilesLoaded ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
             {t("common.loading")}

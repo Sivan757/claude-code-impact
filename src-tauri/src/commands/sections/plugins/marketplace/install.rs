@@ -12,6 +12,25 @@ fn install_command_template(name: String, content: String) -> Result<String, Str
     Ok(file_path.to_string_lossy().to_string())
 }
 
+/// Install an agent template to ~/.claude/agents/{name}.md (or project .claude)
+#[tauri::command]
+fn install_agent_template(
+    name: String,
+    content: String,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    if name.trim().is_empty() {
+        return Err("Agent name cannot be empty".to_string());
+    }
+
+    let agents_dir = resolve_claude_dir(project_path.as_deref()).join("agents");
+    let file_path = agents_dir.join(format!("{}.md", name));
+    ensure_parent_dir(&file_path)?;
+    fs::write(&file_path, content).map_err(|e| e.to_string())?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 /// Install a skill template to ~/.claude/skills/{name}/SKILL.md
 #[tauri::command]
 fn install_skill_template(
@@ -22,6 +41,7 @@ fn install_skill_template(
     author: Option<String>,
     downloads: Option<i64>,
     template_path: Option<String>,
+    project_path: Option<String>,
 ) -> Result<String, String> {
     if name.is_empty() {
         return Err("Skill name cannot be empty".to_string());
@@ -30,8 +50,10 @@ fn install_skill_template(
         return Err("Skill name contains invalid characters".to_string());
     }
 
-    // Create directory structure: ~/.claude/skills/{name}/
-    let skill_dir = get_claude_dir().join("skills").join(&name);
+    // Create directory structure: ~/.claude/skills/{name}/ (or project .claude)
+    let skill_dir = resolve_claude_dir(project_path.as_deref())
+        .join("skills")
+        .join(&name);
     fs::create_dir_all(&skill_dir)
         .map_err(|e| format!("Failed to create skill directory: {}", e))?;
 
@@ -59,12 +81,14 @@ fn install_skill_template(
 
 /// Uninstall a skill by removing its directory
 #[tauri::command]
-fn uninstall_skill(name: String) -> Result<String, String> {
+fn uninstall_skill(name: String, project_path: Option<String>) -> Result<String, String> {
     if name.is_empty() {
         return Err("Skill name cannot be empty".to_string());
     }
 
-    let skill_dir = get_claude_dir().join("skills").join(&name);
+    let skill_dir = resolve_claude_dir(project_path.as_deref())
+        .join("skills")
+        .join(&name);
     if !skill_dir.exists() {
         return Err(format!("Skill '{}' not found", name));
     }
@@ -75,15 +99,21 @@ fn uninstall_skill(name: String) -> Result<String, String> {
 
 /// Check if a skill is already installed
 #[tauri::command]
-fn check_skill_installed(name: String) -> bool {
-    let skill_file = get_claude_dir().join("skills").join(&name).join("SKILL.md");
+fn check_skill_installed(name: String, project_path: Option<String>) -> bool {
+    let skill_file = resolve_claude_dir(project_path.as_deref())
+        .join("skills")
+        .join(&name)
+        .join("SKILL.md");
     skill_file.exists()
 }
 
 #[tauri::command]
-fn install_mcp_template(name: String, config: String) -> Result<String, String> {
-    // MCP servers are stored in ~/.claude.json (not ~/.claude/settings.json)
-    let claude_json_path = get_claude_json_path();
+fn install_mcp_template(
+    name: String,
+    config: String,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    let mcp_config_path = resolve_mcp_config_path(project_path.as_deref());
 
     // Parse the MCP config
     let mcp_config: serde_json::Value = serde_json::from_str(&config).map_err(|e| e.to_string())?;
@@ -124,18 +154,13 @@ fn install_mcp_template(name: String, config: String) -> Result<String, String> 
 
     let server_config = extract_server_config(mcp_config);
 
-    // Read existing ~/.claude.json or create new
-    let mut claude_json: serde_json::Value = if claude_json_path.exists() {
-        let content = fs::read_to_string(&claude_json_path).map_err(|e| e.to_string())?;
+    // Read existing config or create new
+    let mut mcp_json: serde_json::Value = if mcp_config_path.exists() {
+        let content = fs::read_to_string(&mcp_config_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
     } else {
         serde_json::json!({})
     };
-
-    // Ensure mcpServers exists
-    if !claude_json.get("mcpServers").is_some() {
-        claude_json["mcpServers"] = serde_json::json!({});
-    }
 
     // Ensure the server config has a 'type' field (required by Claude Code)
     // Infer type from the config if not present:
@@ -157,28 +182,47 @@ fn install_mcp_template(name: String, config: String) -> Result<String, String> 
     }
 
     // Add the MCP server with the extracted config
-    claude_json["mcpServers"][&name] = server_config;
+    if project_path.is_some() {
+        if !mcp_json.is_object() {
+            mcp_json = serde_json::json!({});
+        }
+        mcp_json[&name] = server_config;
+    } else {
+        if !mcp_json.get("mcpServers").is_some() {
+            mcp_json["mcpServers"] = serde_json::json!({});
+        }
+        mcp_json["mcpServers"][&name] = server_config;
+    }
 
     // Write back
-    let output = serde_json::to_string_pretty(&claude_json).map_err(|e| e.to_string())?;
-    fs::write(&claude_json_path, output).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&mcp_config_path)?;
+    let output = serde_json::to_string_pretty(&mcp_json).map_err(|e| e.to_string())?;
+    fs::write(&mcp_config_path, output).map_err(|e| e.to_string())?;
 
     Ok(format!("Installed MCP: {}", name))
 }
 
 #[tauri::command]
-fn uninstall_mcp_template(name: String) -> Result<String, String> {
-    let claude_json_path = get_claude_json_path();
+fn uninstall_mcp_template(name: String, project_path: Option<String>) -> Result<String, String> {
+    let mcp_config_path = resolve_mcp_config_path(project_path.as_deref());
 
-    if !claude_json_path.exists() {
+    if !mcp_config_path.exists() {
         return Err("No MCP configuration found".to_string());
     }
 
-    let content = fs::read_to_string(&claude_json_path).map_err(|e| e.to_string())?;
-    let mut claude_json: serde_json::Value =
+    let content = fs::read_to_string(&mcp_config_path).map_err(|e| e.to_string())?;
+    let mut mcp_json: serde_json::Value =
         serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
-    if let Some(mcp_servers) = claude_json
+    if project_path.is_some() {
+        if let Some(mcp_servers) = mcp_json.as_object_mut() {
+            if mcp_servers.remove(&name).is_none() {
+                return Err(format!("MCP '{}' not found", name));
+            }
+        } else {
+            return Err("No mcpServers found".to_string());
+        }
+    } else if let Some(mcp_servers) = mcp_json
         .get_mut("mcpServers")
         .and_then(|v| v.as_object_mut())
     {
@@ -189,33 +233,40 @@ fn uninstall_mcp_template(name: String) -> Result<String, String> {
         return Err("No mcpServers found".to_string());
     }
 
-    let output = serde_json::to_string_pretty(&claude_json).map_err(|e| e.to_string())?;
-    fs::write(&claude_json_path, output).map_err(|e| e.to_string())?;
+    let output = serde_json::to_string_pretty(&mcp_json).map_err(|e| e.to_string())?;
+    fs::write(&mcp_config_path, output).map_err(|e| e.to_string())?;
 
     Ok(format!("Uninstalled MCP: {}", name))
 }
 
 #[tauri::command]
-fn check_mcp_installed(name: String) -> bool {
-    let claude_json_path = get_claude_json_path();
+fn check_mcp_installed(name: String, project_path: Option<String>) -> bool {
+    let mcp_config_path = resolve_mcp_config_path(project_path.as_deref());
 
-    if !claude_json_path.exists() {
+    if !mcp_config_path.exists() {
         return false;
     }
 
-    let Ok(content) = fs::read_to_string(&claude_json_path) else {
+    let Ok(content) = fs::read_to_string(&mcp_config_path) else {
         return false;
     };
 
-    let Ok(claude_json) = serde_json::from_str::<serde_json::Value>(&content) else {
+    let Ok(mcp_json) = serde_json::from_str::<serde_json::Value>(&content) else {
         return false;
     };
 
-    claude_json
-        .get("mcpServers")
-        .and_then(|v| v.as_object())
-        .map(|servers| servers.contains_key(&name))
-        .unwrap_or(false)
+    if project_path.is_some() {
+        mcp_json
+            .as_object()
+            .map(|servers| servers.contains_key(&name))
+            .unwrap_or(false)
+    } else {
+        mcp_json
+            .get("mcpServers")
+            .and_then(|v| v.as_object())
+            .map(|servers| servers.contains_key(&name))
+            .unwrap_or(false)
+    }
 }
 
 #[tauri::command]

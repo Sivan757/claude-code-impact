@@ -1,1 +1,8 @@
-{}
+{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "env": {},
+  "model": "opus"
+}

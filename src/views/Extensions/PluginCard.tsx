@@ -19,6 +19,15 @@ interface PluginCardProps {
   isUpdateLoading: boolean;
 }
 
+function getSemanticVersion(version: string | null | undefined): string | null {
+  if (!version) return null;
+  const normalized = version.trim().replace(/^v/i, "");
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
 export function PluginCard({
   plugin,
   variant = "card",
@@ -32,10 +41,12 @@ export function PluginCard({
   isUpdateLoading,
 }: PluginCardProps) {
   const { t } = useTranslation();
+  const semanticVersion = getSemanticVersion(plugin.version);
   const componentCount =
     plugin.components.commands.length +
     plugin.components.skills.length +
     plugin.components.hooks.length +
+    plugin.components.claudeMd.length +
     plugin.components.agents.length +
     plugin.components.mcps.length +
     plugin.components.lsps.length;
@@ -53,27 +64,14 @@ export function PluginCard({
 
   const statusChips = (
     <div className="flex flex-wrap items-center gap-2">
-      <span
-        className={`text-xs px-2 py-0.5 rounded-full ${plugin.isInstalled ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
-          }`}
-      >
-        {plugin.isInstalled ? t("extensions_view.installed") : t("extensions_view.not_installed")}
-      </span>
-      {plugin.isInstalled && (
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full ${plugin.isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-            }`}
-        >
-          {plugin.isEnabled ? t("extensions_view.enabled") : t("extensions_view.disabled")}
-        </span>
-      )}
-      {plugin.version && (
+      {semanticVersion && (
         <span className="text-xs px-2 py-0.5 rounded-full bg-card-alt text-muted-foreground">
-          v{plugin.version}
+          v{semanticVersion}
         </span>
       )}
     </div>
   );
+  const hasStatusChips = Boolean(semanticVersion);
 
   const toggleControlList = plugin.isInstalled && (
     <div
@@ -222,7 +220,7 @@ export function PluginCard({
               <h3 className="text-sm font-semibold text-ink leading-snug truncate">
                 {plugin.name}
               </h3>
-              {statusChips}
+              {hasStatusChips ? statusChips : null}
             </div>
             {plugin.description && (
               <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
@@ -252,17 +250,15 @@ export function PluginCard({
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
-      className="h-full w-full rounded-lg border border-border bg-card p-2 text-left transition hover:bg-muted/50 hover:shadow-sm"
+      className="h-full w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-left transition hover:bg-muted/50 hover:shadow-sm"
     >
       <div className="flex h-full flex-col gap-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-ink leading-snug line-clamp-2">
+            <h3 className="text-sm font-semibold text-ink leading-snug line-clamp-2">
               {plugin.name}
             </h3>
-            <div className="mt-1">
-              {statusChips}
-            </div>
+            {hasStatusChips ? <div className="mt-1">{statusChips}</div> : null}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">

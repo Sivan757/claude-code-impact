@@ -13,6 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "../../components/ui/dropdown-menu";
+import { ConfigFileKind, ConfigScope } from "../../config/types";
+import { useConfigPaths } from "../../config/hooks/useConfig";
+import { getConfigPathFor } from "../../config/utils";
 
 function getLanguageForCategory(category: TemplateCategory): string {
   switch (category) {
@@ -65,21 +68,33 @@ export function TemplateDetailView({
 }: TemplateDetailViewProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { data: configPaths } = useConfigPaths(settingsPath);
   const [installing, setInstalling] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [installed, setInstalled] = useState(initiallyInstalled ?? false);
   const [error, setError] = useState<string | null>(null);
+  const targetScope = settingsPath ? ConfigScope.Project : ConfigScope.User;
+  const resolvedSettingsPath = settingsPath
+    ? getConfigPathFor(configPaths, targetScope, ConfigFileKind.Settings)
+      ?? `${settingsPath}/.claude/settings.json`
+    : undefined;
 
   useEffect(() => {
     // Skip check if we already know it's installed
     if (initiallyInstalled !== undefined) return;
 
     if (category === "mcps") {
-      invoke<boolean>("check_mcp_installed", { name: template.name }).then(setInstalled);
+      invoke<boolean>("check_mcp_installed", {
+        name: template.name,
+        projectPath: settingsPath,
+      }).then(setInstalled);
     } else if (category === "skills") {
-      invoke<boolean>("check_skill_installed", { name: template.name }).then(setInstalled);
+      invoke<boolean>("check_skill_installed", {
+        name: template.name,
+        projectPath: settingsPath,
+      }).then(setInstalled);
     }
-  }, [category, template.name, initiallyInstalled]);
+  }, [category, template.name, initiallyInstalled, settingsPath]);
 
   const handleUninstall = async () => {
     setUninstalling(true);
@@ -87,13 +102,16 @@ export function TemplateDetailView({
 
     try {
       if (category === "mcps") {
-        await invoke("uninstall_mcp_template", { name: template.name });
+        await invoke("uninstall_mcp_template", {
+          name: template.name,
+          projectPath: settingsPath,
+        });
         queryClient.invalidateQueries({ queryKey: ["settings", "default"] });
       } else if (category === "skills") {
-        await invoke("uninstall_skill", { name: template.name });
+        await invoke("uninstall_skill", { name: template.name, projectPath: settingsPath });
         queryClient.invalidateQueries({ queryKey: ["skills"] });
       } else if (category === "agents") {
-        await invoke("uninstall_agent", { name: template.name });
+        await invoke("uninstall_agent", { name: template.name, projectPath: settingsPath });
         queryClient.invalidateQueries({ queryKey: ["agents"] });
       }
       setInstalled(false);
@@ -116,9 +134,10 @@ export function TemplateDetailView({
     try {
       switch (category) {
         case "agents":
-          await invoke("install_command_template", {
+          await invoke("install_agent_template", {
             name: template.name,
             content: template.content,
+            projectPath: settingsPath,
           });
           break;
         case "skills":
@@ -130,26 +149,34 @@ export function TemplateDetailView({
             author: template.author,
             downloads: template.downloads,
             template_path: template.path,
+            projectPath: settingsPath,
           });
           break;
         case "mcps":
-          await invoke("install_mcp_template", { name: template.name, config: template.content });
+          await invoke("install_mcp_template", {
+            name: template.name,
+            config: template.content,
+            projectPath: settingsPath,
+          });
           queryClient.invalidateQueries({ queryKey: ["settings", "default"] });
+          queryClient.invalidateQueries({ queryKey: ["config"] });
           break;
         case "hooks":
           await invoke("install_hook_template", {
             name: template.name,
             config: template.content,
-            path: settingsPath || undefined,
+            path: resolvedSettingsPath,
           });
-          queryClient.invalidateQueries({ queryKey: ["settings", settingsPath ?? "default"] });
+          queryClient.invalidateQueries({ queryKey: ["settings"] });
+          queryClient.invalidateQueries({ queryKey: ["config"] });
           break;
         case "settings":
           await invoke("install_setting_template", {
             config: template.content,
-            path: settingsPath || undefined,
+            path: resolvedSettingsPath,
           });
-          queryClient.invalidateQueries({ queryKey: ["settings", settingsPath ?? "default"] });
+          queryClient.invalidateQueries({ queryKey: ["settings"] });
+          queryClient.invalidateQueries({ queryKey: ["config"] });
           break;
       }
       setInstalled(true);

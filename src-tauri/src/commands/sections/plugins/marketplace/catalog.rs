@@ -7,38 +7,33 @@ struct PluginSource {
     id: &'static str,
     name: &'static str,
     icon: &'static str,
-    priority: u32,
     path: &'static str, // Relative to project root
 }
 
-/// Available marketplace sources (ordered by priority)
+/// Available marketplace sources
 const PLUGIN_SOURCES: &[PluginSource] = &[
     PluginSource {
         id: "anthropic",
         name: "Anthropic Official",
         icon: "🔷",
-        priority: 1,
         path: "third-parties/claude-plugins-official",
     },
     PluginSource {
         id: "claudecodeimpact",
         name: "claudecodeimpact",
         icon: "💜",
-        priority: 2,
         path: "marketplace/claudecodeimpact",
     },
     PluginSource {
         id: "claudecodeimpact-plugins",
         name: "claudecodeimpact Plugins",
         icon: "💜",
-        priority: 3,
         path: "../claudecodeimpact-plugins-official",
     },
     PluginSource {
         id: "community",
         name: "Community",
         icon: "🌍",
-        priority: 4,
         path: "third-parties/claude-code-templates/docs/components.json",
     },
 ];

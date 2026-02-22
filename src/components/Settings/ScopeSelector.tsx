@@ -14,6 +14,10 @@ interface ScopeSelectorProps {
   className?: string;
   /** If true, only show User scope (simplest mode) */
   userOnly?: boolean;
+  /** Optional override for which scopes are available */
+  scopes?: ConfigScope[];
+  /** Optional project path to enable project scopes */
+  projectPath?: string;
 }
 
 const scopeInfo: Record<
@@ -68,8 +72,10 @@ export function ScopeSelector({
   onChange,
   className,
   userOnly = false,
+  scopes: scopesOverride,
+  projectPath,
 }: ScopeSelectorProps) {
-  const scopes = userOnly ? [ConfigScope.User] : editableScopes;
+  const scopes = userOnly ? [ConfigScope.User] : (scopesOverride ?? editableScopes);
   const info = scopeInfo[value];
 
   if (userOnly) {
@@ -100,11 +106,14 @@ export function ScopeSelector({
         <SelectContent className="rounded-xl">
           {scopes.map((scope) => {
             const scopeData = scopeInfo[scope];
+            const isProjectScope =
+              scope === ConfigScope.Project || scope === ConfigScope.ProjectLocal;
             return (
               <SelectItem
                 key={scope}
                 value={scope}
                 className="rounded-lg focus:bg-muted/50 cursor-pointer"
+                disabled={isProjectScope && !projectPath}
               >
                 <div className="flex flex-col gap-0.5 py-0.5">
                   <span className={cn("text-sm font-medium", scopeData.color)}>

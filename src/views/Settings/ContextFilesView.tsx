@@ -25,11 +25,18 @@ import {
 import type { ContextFile } from "../../types";
 import { cn } from "../../lib/utils";
 
-export function ContextFilesView() {
+export function ContextFilesView({ projectPath }: { projectPath?: string }) {
   const { t } = useTranslation();
-
-  const { data: allContextFiles = [], isLoading } = useInvokeQuery<ContextFile[]>(["contextFiles"], "get_context_files");
-  const contextFiles = useMemo(() => allContextFiles.filter((f) => f.scope === "global"), [allContextFiles]);
+  const useProjectContext = Boolean(projectPath);
+  const { data: allContextFiles = [], isLoading } = useInvokeQuery<ContextFile[]>(
+    ["contextFiles", projectPath ?? "global"],
+    useProjectContext ? "get_project_context" : "get_context_files",
+    useProjectContext ? { projectPath } : undefined
+  );
+  const contextFiles = useMemo(() => {
+    if (useProjectContext) return allContextFiles;
+    return allContextFiles.filter((f) => f.scope === "global");
+  }, [allContextFiles, useProjectContext]);
 
   const [search, setSearch] = useState("");
   const { mode, setMode } = useViewMode("contextfiles");
@@ -80,7 +87,7 @@ export function ContextFilesView() {
           }
         />
 
-        <div className="flex-1 overflow-y-auto min-h-0 pb-3">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-3 pr-3 [scrollbar-gutter:stable]">
           {filteredContextFiles.length > 0 ? (
             <div
               className={cn(

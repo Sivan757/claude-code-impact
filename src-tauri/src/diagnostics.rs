@@ -196,7 +196,6 @@ pub fn check_env_vars(project_path: &str) -> Result<EnvCheckResult, String> {
     let env_exists = env_path.exists();
 
     let mut missing_keys = Vec::new();
-    let mut leaked_secrets = Vec::new();
 
     // 检查 .env.example vs .env 的完整性
     if env_example_exists && env_exists {
@@ -214,7 +213,7 @@ pub fn check_env_vars(project_path: &str) -> Result<EnvCheckResult, String> {
     }
 
     // 扫描源代码中的敏感信息泄露
-    leaked_secrets = scan_for_leaked_secrets(path);
+    let leaked_secrets = scan_for_leaked_secrets(path);
 
     Ok(EnvCheckResult {
         missing_keys,

@@ -9,6 +9,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GlobalHeader } from "../components/GlobalHeader";
 import { StatusBar } from "../components/StatusBar";
 import { AppSettingsDialog } from "@/components/dialogs/AppSettingsDialog";
+import { ConfirmDialogProvider } from "@/components/dialogs/ConfirmDialogProvider";
 import { ProfileDialog } from "@/components/dialogs/ProfileDialog";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -100,25 +101,27 @@ export default function RootLayout() {
 
   return (
     <AppConfigContext.Provider value={appConfig}>
-      <div className="h-screen bg-canvas flex flex-col">
-        <GlobalHeader
-          currentFeature={currentFeature}
-          onNavigate={(view) => {
-            if (view.type === "home") navigate("/");
-          }}
-          onFeatureClick={handleFeatureClick}
-          onShowProfileDialog={() => setShowProfileDialog(true)}
-          onShowSettings={() => setShowSettings(true)}
-        />
-        <div className="flex-1 flex overflow-hidden">
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
+      <ConfirmDialogProvider>
+        <div className="h-screen bg-canvas flex flex-col">
+          <GlobalHeader
+            currentFeature={currentFeature}
+            onNavigate={(view) => {
+              if (view.type === "home") navigate("/");
+            }}
+            onFeatureClick={handleFeatureClick}
+            onShowProfileDialog={() => setShowProfileDialog(true)}
+            onShowSettings={() => setShowSettings(true)}
+          />
+          <div className="flex-1 flex overflow-hidden">
+            <main className="flex-1 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
+          <StatusBar />
         </div>
-        <StatusBar />
-      </div>
-      <AppSettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
-      <ProfileDialog open={showProfileDialog} onClose={() => setShowProfileDialog(false)} profile={profile} onSave={setProfile} />
+        <AppSettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
+        <ProfileDialog open={showProfileDialog} onClose={() => setShowProfileDialog(false)} profile={profile} onSave={setProfile} />
+      </ConfirmDialogProvider>
     </AppConfigContext.Provider>
   );
 }

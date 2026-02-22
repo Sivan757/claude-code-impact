@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// Configuration scope priority (highest to lowest)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -153,6 +152,9 @@ pub struct HookEntry {
 /// MCP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
 

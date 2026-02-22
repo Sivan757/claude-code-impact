@@ -16,7 +16,7 @@ import {
   StatusBadge,
   ViewModeToggle,
 } from "../../components/Settings";
-import { useInvokeQuery, useQueryClient, useViewMode } from "../../hooks";
+import { useInvokeQuery, useQueryClient, useViewMode, useSettingsPath } from "../../hooks";
 import { cn } from "../../lib/utils";
 
 interface SubAgentsViewProps {
@@ -26,7 +26,12 @@ interface SubAgentsViewProps {
 export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: agents = [], isLoading } = useInvokeQuery<LocalAgent[]>(["agents"], "list_local_agents");
+  const settingsPath = useSettingsPath();
+  const { data: agents = [], isLoading } = useInvokeQuery<LocalAgent[]>(
+    ["agents", settingsPath ?? "global"],
+    "list_local_agents",
+    settingsPath ? { projectPath: settingsPath } : undefined
+  );
   const { search, setSearch, filtered } = useSearch(agents, ["name", "description", "model"]);
   const { mode, setMode } = useViewMode("subagents");
   const [uninstallingAgent, setUninstallingAgent] = useState<string | null>(null);
@@ -46,7 +51,7 @@ export function SubAgentsView({ onSelect }: SubAgentsViewProps) {
     e.stopPropagation();
     setUninstallingAgent(name);
     try {
-      await invoke("uninstall_agent", { name });
+      await invoke("uninstall_agent", { name, projectPath: settingsPath });
       queryClient.invalidateQueries({ queryKey: ["agents"] });
     } finally {
       setUninstallingAgent(null);

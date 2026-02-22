@@ -26,6 +26,7 @@ pub struct PluginComponents {
     pub commands: Vec<PluginComponent>,
     pub skills: Vec<PluginComponent>,
     pub hooks: Vec<PluginComponent>,
+    pub claude_md: Vec<PluginComponent>,
     pub mcps: Vec<PluginComponent>,
     pub lsps: Vec<PluginComponent>,
 }
@@ -37,6 +38,8 @@ pub struct ScannedPlugin {
     pub name: String,
     pub description: Option<String>,
     pub version: Option<String>,
+    pub repository_version: Option<String>,
+    pub last_updated: Option<String>,
     pub author: Option<String>,
     pub repository: Option<String>,
     pub marketplace: String,
@@ -53,6 +56,39 @@ pub struct PluginScanResult {
     pub marketplaces: Vec<ScannedMarketplace>,
     pub plugins: Vec<ScannedPlugin>,
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginActionScope {
+    User,
+    Project,
+    Local,
+    Managed,
+}
+
+impl PluginActionScope {
+    fn as_cli_value(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Project => "project",
+            Self::Local => "local",
+            Self::Managed => "managed",
+        }
+    }
+
+    fn needs_project_path(self) -> bool {
+        matches!(self, Self::Project | Self::Local)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginRuntimeState {
+    pub id: String,
+    pub scope: PluginActionScope,
+    pub enabled: bool,
+    pub project_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,12 +109,19 @@ struct InstalledPluginRecord {
 struct MarketplacePluginEntry {
     name: String,
     description: Option<String>,
-    path: Option<String>,
+    source_path: Option<String>,
     remote_source: bool,
+    strict: bool,
     version: Option<String>,
+    last_updated: Option<String>,
     author: Option<String>,
     repository: Option<String>,
-    lsp_servers: Vec<PluginComponent>,
+    commands_spec: Option<Value>,
+    agents_spec: Option<Value>,
+    skills_spec: Option<Value>,
+    hooks_spec: Option<Value>,
+    mcp_servers_spec: Option<Value>,
+    lsp_servers_spec: Option<Value>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -107,6 +150,15 @@ fn get_string_field(value: &Value, keys: &[&str]) -> Option<String> {
     None
 }
 
+fn get_value_field<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
+    for key in keys {
+        if let Some(val) = value.get(*key) {
+            return Some(val);
+        }
+    }
+    None
+}
+
 fn looks_like_remote_source(value: &str) -> bool {
     let lower = value.to_lowercase();
     lower.starts_with("http://")
@@ -122,7 +174,7 @@ fn looks_like_remote_source(value: &str) -> bool {
 fn is_remote_source_type(value: &str) -> bool {
     matches!(
         value.to_lowercase().as_str(),
-        "url" | "git" | "github" | "http" | "https" | "ssh" | "remote"
+        "url" | "git" | "github" | "http" | "https" | "ssh" | "remote" | "npm" | "pip"
     )
 }
 
@@ -130,19 +182,20 @@ fn is_remote_source_value(value: &Value) -> bool {
     match value {
         Value::String(source) => looks_like_remote_source(source) || is_remote_source_type(source),
         Value::Object(obj) => {
-            if let Some(ty) = obj.get("type").and_then(|v| v.as_str()) {
+            if let Some(ty) = obj
+                .get("source")
+                .or_else(|| obj.get("type"))
+                .and_then(|v| v.as_str())
+            {
                 let lower = ty.to_lowercase();
                 if lower.contains("url")
                     || lower.contains("http")
                     || lower.contains("git")
                     || lower.contains("github")
                     || lower.contains("remote")
+                    || lower.contains("npm")
+                    || lower.contains("pip")
                 {
-                    return true;
-                }
-            }
-            if let Some(source) = obj.get("source").and_then(|v| v.as_str()) {
-                if looks_like_remote_source(source) || is_remote_source_type(source) {
                     return true;
                 }
             }
@@ -151,19 +204,45 @@ fn is_remote_source_value(value: &Value) -> bool {
                     return true;
                 }
             }
+            if obj.get("repo").is_some() {
+                return true;
+            }
             false
         }
         _ => false,
     }
 }
 
-fn extract_local_source_path(value: &Value) -> Option<String> {
+fn normalize_local_source_path(raw: &str, plugin_root: Option<&str>) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let candidate = Path::new(trimmed);
+    if candidate.is_absolute() || trimmed.starts_with("./") || trimmed.starts_with("../") {
+        return trimmed.to_string();
+    }
+
+    if let Some(root) = plugin_root.map(str::trim).filter(|root| !root.is_empty()) {
+        return PathBuf::from(root).join(trimmed).to_string_lossy().to_string();
+    }
+
+    trimmed.to_string()
+}
+
+fn extract_local_source_path(value: &Value, plugin_root: Option<&str>) -> Option<String> {
     match value {
         Value::String(source) => {
             if looks_like_remote_source(source) || is_remote_source_type(source) {
                 None
             } else {
-                Some(source.to_string())
+                let normalized = normalize_local_source_path(source, plugin_root);
+                if normalized.is_empty() {
+                    None
+                } else {
+                    Some(normalized)
+                }
             }
         }
         Value::Object(obj) => {
@@ -172,14 +251,22 @@ fn extract_local_source_path(value: &Value) -> Option<String> {
                 if looks_like_remote_source(&candidate) || is_remote_source_type(&candidate) {
                     return None;
                 }
-                return Some(candidate);
+                let normalized = normalize_local_source_path(&candidate, plugin_root);
+                if normalized.is_empty() {
+                    return None;
+                }
+                return Some(normalized);
             }
 
             if let Some(source) = obj.get("source").and_then(|v| v.as_str()) {
                 if looks_like_remote_source(source) || is_remote_source_type(source) {
                     return None;
                 }
-                return Some(source.to_string());
+                let normalized = normalize_local_source_path(source, plugin_root);
+                if normalized.is_empty() {
+                    return None;
+                }
+                return Some(normalized);
             }
 
             None
@@ -206,7 +293,10 @@ fn summarize_marketplace_source(value: Option<&Value>) -> Option<String> {
     match value {
         Value::String(val) => Some(val.clone()),
         Value::Object(obj) => {
-            let kind = obj.get("type").and_then(|v| v.as_str());
+            let kind = obj
+                .get("source")
+                .or_else(|| obj.get("type"))
+                .and_then(|v| v.as_str());
             let repo = obj.get("repo").and_then(|v| v.as_str());
             let url = obj.get("url").and_then(|v| v.as_str());
             let path = obj.get("path").and_then(|v| v.as_str());
@@ -275,6 +365,298 @@ fn parse_frontmatter_value(content: &str, key: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn component_name_from_path(path: &str) -> String {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return "component".to_string();
+    }
+
+    let normalized = trimmed
+        .replace("${CLAUDE_PLUGIN_ROOT}/", "")
+        .replace("${CLAUDE_PLUGIN_ROOT}", "");
+    let candidate = Path::new(&normalized);
+
+    if let Some(stem) = candidate.file_stem().and_then(|s| s.to_str()) {
+        if !stem.is_empty() {
+            return stem.to_string();
+        }
+    }
+    if let Some(name) = candidate.file_name().and_then(|s| s.to_str()) {
+        if !name.is_empty() {
+            return name.to_string();
+        }
+    }
+
+    "component".to_string()
+}
+
+fn resolve_component_path(base_path: Option<&Path>, raw_path: &str) -> Option<PathBuf> {
+    let trimmed = raw_path.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if let Some(base) = base_path {
+        let expanded = trimmed.replace("${CLAUDE_PLUGIN_ROOT}", &base.to_string_lossy());
+        let candidate = PathBuf::from(expanded);
+        if candidate.is_absolute() {
+            return Some(candidate);
+        }
+        return Some(base.join(candidate));
+    }
+
+    Some(PathBuf::from(trimmed))
+}
+
+fn component_signature(component: &PluginComponent) -> String {
+    format!(
+        "{}::{}",
+        component.name.to_lowercase(),
+        component.path.clone().unwrap_or_default()
+    )
+}
+
+fn merge_component_list(target: &mut Vec<PluginComponent>, source: Vec<PluginComponent>) {
+    let mut existing: HashSet<String> = target.iter().map(component_signature).collect();
+    for component in source {
+        let signature = component_signature(&component);
+        if existing.insert(signature) {
+            target.push(component);
+        }
+    }
+}
+
+fn merge_plugin_components(mut base: PluginComponents, extra: PluginComponents) -> PluginComponents {
+    merge_component_list(&mut base.commands, extra.commands);
+    merge_component_list(&mut base.agents, extra.agents);
+    merge_component_list(&mut base.skills, extra.skills);
+    merge_component_list(&mut base.hooks, extra.hooks);
+    merge_component_list(&mut base.claude_md, extra.claude_md);
+    merge_component_list(&mut base.mcps, extra.mcps);
+    merge_component_list(&mut base.lsps, extra.lsps);
+    base
+}
+
+fn plugin_component_total_count(components: &PluginComponents) -> usize {
+    components.commands.len()
+        + components.agents.len()
+        + components.skills.len()
+        + components.hooks.len()
+        + components.claude_md.len()
+        + components.mcps.len()
+        + components.lsps.len()
+}
+
+fn scan_markdown_component_from_path(
+    base_path: Option<&Path>,
+    raw_path: &str,
+) -> Vec<PluginComponent> {
+    let Some(resolved) = resolve_component_path(base_path, raw_path) else {
+        return Vec::new();
+    };
+
+    if resolved.exists() {
+        if resolved.is_dir() {
+            return scan_markdown_components(&resolved);
+        }
+        if resolved.is_file() {
+            let name = resolved
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let content = fs::read_to_string(&resolved).ok();
+            let description = content
+                .as_ref()
+                .and_then(|c| parse_frontmatter_value(c, "description"));
+            let display_name = content
+                .as_ref()
+                .and_then(|c| parse_frontmatter_value(c, "name"))
+                .unwrap_or(name);
+
+            return vec![PluginComponent {
+                name: display_name,
+                description,
+                path: Some(resolved.to_string_lossy().to_string()),
+            }];
+        }
+    }
+
+    vec![PluginComponent {
+        name: component_name_from_path(raw_path),
+        description: None,
+        path: Some(raw_path.to_string()),
+    }]
+}
+
+fn parse_skill_component_file(skill_file: &Path) -> PluginComponent {
+    let folder_name = skill_file
+        .parent()
+        .and_then(|p| p.file_name())
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let content = fs::read_to_string(skill_file).ok();
+    let name = content
+        .as_ref()
+        .and_then(|c| parse_frontmatter_value(c, "name"))
+        .unwrap_or(folder_name);
+    let description = content
+        .as_ref()
+        .and_then(|c| parse_frontmatter_value(c, "description"));
+
+    PluginComponent {
+        name,
+        description,
+        path: Some(skill_file.to_string_lossy().to_string()),
+    }
+}
+
+fn scan_skill_component_from_path(base_path: Option<&Path>, raw_path: &str) -> Vec<PluginComponent> {
+    let Some(resolved) = resolve_component_path(base_path, raw_path) else {
+        return Vec::new();
+    };
+
+    if resolved.exists() {
+        if resolved.is_file() {
+            if resolved
+                .file_name()
+                .and_then(|name| name.to_str())
+                == Some("SKILL.md")
+            {
+                return vec![parse_skill_component_file(&resolved)];
+            }
+            return Vec::new();
+        }
+
+        if resolved.is_dir() {
+            let direct_skill = resolved.join("SKILL.md");
+            if direct_skill.exists() {
+                return vec![parse_skill_component_file(&direct_skill)];
+            }
+            return scan_skill_components(&resolved);
+        }
+    }
+
+    vec![PluginComponent {
+        name: component_name_from_path(raw_path),
+        description: None,
+        path: Some(raw_path.to_string()),
+    }]
+}
+
+fn collect_hook_components(
+    value: &Value,
+    source_path: Option<&Path>,
+    components: &mut Vec<PluginComponent>,
+) {
+    match value {
+        Value::Array(array) => {
+            for item in array {
+                collect_hook_components(item, source_path, components);
+            }
+        }
+        Value::Object(obj) => {
+            if obj.get("type").is_some() {
+                components.push(PluginComponent {
+                    name: get_string_field(value, &["name", "command", "prompt", "type"])
+                        .unwrap_or_else(|| "hook".to_string()),
+                    description: get_string_field(value, &["description", "matcher"]),
+                    path: source_path.map(|p| p.to_string_lossy().to_string()),
+                });
+                return;
+            }
+
+            if let Some(hooks) = obj.get("hooks") {
+                collect_hook_components(hooks, source_path, components);
+                return;
+            }
+
+            for nested in obj.values() {
+                collect_hook_components(nested, source_path, components);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn parse_hook_components_from_value(value: &Value, source_path: Option<&Path>) -> Vec<PluginComponent> {
+    let mut components = Vec::new();
+    collect_hook_components(value, source_path, &mut components);
+
+    let mut deduped = Vec::new();
+    merge_component_list(&mut deduped, components);
+    deduped
+}
+
+fn scan_markdown_components_from_spec(base_path: Option<&Path>, spec: Option<&Value>) -> Vec<PluginComponent> {
+    let Some(spec) = spec else {
+        return Vec::new();
+    };
+
+    let mut components = Vec::new();
+    match spec {
+        Value::String(raw_path) => {
+            merge_component_list(
+                &mut components,
+                scan_markdown_component_from_path(base_path, raw_path),
+            );
+        }
+        Value::Array(array) => {
+            for item in array {
+                if let Some(raw_path) = item.as_str() {
+                    merge_component_list(
+                        &mut components,
+                        scan_markdown_component_from_path(base_path, raw_path),
+                    );
+                } else if let Some(raw_path) = get_string_field(item, &["path", "file"]) {
+                    merge_component_list(
+                        &mut components,
+                        scan_markdown_component_from_path(base_path, &raw_path),
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+
+    components
+}
+
+fn scan_skill_components_from_spec(base_path: Option<&Path>, spec: Option<&Value>) -> Vec<PluginComponent> {
+    let Some(spec) = spec else {
+        return Vec::new();
+    };
+
+    let mut components = Vec::new();
+    match spec {
+        Value::String(raw_path) => {
+            merge_component_list(
+                &mut components,
+                scan_skill_component_from_path(base_path, raw_path),
+            );
+        }
+        Value::Array(array) => {
+            for item in array {
+                if let Some(raw_path) = item.as_str() {
+                    merge_component_list(
+                        &mut components,
+                        scan_skill_component_from_path(base_path, raw_path),
+                    );
+                } else if let Some(raw_path) = get_string_field(item, &["path", "file"]) {
+                    merge_component_list(
+                        &mut components,
+                        scan_skill_component_from_path(base_path, &raw_path),
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+
+    components
 }
 
 fn scan_markdown_components(dir: &Path) -> Vec<PluginComponent> {
@@ -352,6 +734,37 @@ fn scan_skill_components(dir: &Path) -> Vec<PluginComponent> {
     components
 }
 
+fn scan_claude_md_components(base_dir: &Path) -> Vec<PluginComponent> {
+    let mut components = Vec::new();
+    let candidates = [
+        "CLAUDE.md",
+        "claude.md",
+        ".claude/CLAUDE.md",
+        ".claude/claude.md",
+    ];
+
+    for relative in candidates {
+        let path = base_dir.join(relative);
+        if !path.is_file() {
+            continue;
+        }
+
+        let content = fs::read_to_string(&path).ok();
+        let description = content
+            .as_ref()
+            .and_then(|c| parse_frontmatter_value(c, "description"));
+        components.push(PluginComponent {
+            name: "CLAUDE.md".to_string(),
+            description,
+            path: Some(path.to_string_lossy().to_string()),
+        });
+    }
+
+    let mut deduped = Vec::new();
+    merge_component_list(&mut deduped, components);
+    deduped
+}
+
 fn scan_hook_components(dir: &Path) -> Vec<PluginComponent> {
     let hooks_path = dir.join("hooks").join("hooks.json");
     let fallback_path = dir.join("hooks.json");
@@ -367,27 +780,7 @@ fn scan_hook_components(dir: &Path) -> Vec<PluginComponent> {
         return Vec::new();
     };
 
-    let entries = if let Some(array) = value.as_array() {
-        array.clone()
-    } else if let Some(array) = value.get("hooks").and_then(|v| v.as_array()) {
-        array.clone()
-    } else {
-        Vec::new()
-    };
-
-    entries
-        .iter()
-        .filter_map(|entry| {
-            let name = get_string_field(entry, &["name", "command", "prompt", "type"])
-                .unwrap_or_else(|| "hook".to_string());
-            let description = get_string_field(entry, &["description"]);
-            Some(PluginComponent {
-                name,
-                description,
-                path: Some(path.to_string_lossy().to_string()),
-            })
-        })
-        .collect()
+    parse_hook_components_from_value(&value, Some(&path))
 }
 
 fn parse_mcp_map(map: &serde_json::Map<String, Value>) -> Vec<PluginComponent> {
@@ -542,6 +935,192 @@ fn parse_lsp_components(value: Option<&Value>) -> Vec<PluginComponent> {
     Vec::new()
 }
 
+fn scan_hook_components_from_spec(base_path: Option<&Path>, spec: Option<&Value>) -> Vec<PluginComponent> {
+    let Some(spec) = spec else {
+        return Vec::new();
+    };
+
+    let mut components = Vec::new();
+    match spec {
+        Value::String(raw_path) => {
+            if let Some(resolved) = resolve_component_path(base_path, raw_path) {
+                if resolved.exists() {
+                    if let Some(value) = read_json_value(&resolved) {
+                        merge_component_list(
+                            &mut components,
+                            parse_hook_components_from_value(&value, Some(&resolved)),
+                        );
+                    }
+                } else {
+                    merge_component_list(
+                        &mut components,
+                        vec![PluginComponent {
+                            name: component_name_from_path(raw_path),
+                            description: None,
+                            path: Some(raw_path.to_string()),
+                        }],
+                    );
+                }
+            }
+        }
+        Value::Array(array) => {
+            for item in array {
+                if let Some(raw_path) = item.as_str() {
+                    merge_component_list(
+                        &mut components,
+                        scan_hook_components_from_spec(base_path, Some(&Value::String(raw_path.to_string()))),
+                    );
+                } else {
+                    merge_component_list(
+                        &mut components,
+                        parse_hook_components_from_value(item, None),
+                    );
+                }
+            }
+        }
+        Value::Object(_) => {
+            if let Some(raw_path) = get_string_field(spec, &["path", "file"]) {
+                merge_component_list(
+                    &mut components,
+                    scan_hook_components_from_spec(base_path, Some(&Value::String(raw_path))),
+                );
+            } else {
+                merge_component_list(
+                    &mut components,
+                    parse_hook_components_from_value(spec, None),
+                );
+            }
+        }
+        _ => {}
+    }
+
+    components
+}
+
+fn scan_mcp_components_from_spec(base_path: Option<&Path>, spec: Option<&Value>) -> Vec<PluginComponent> {
+    let Some(spec) = spec else {
+        return Vec::new();
+    };
+
+    let mut components = Vec::new();
+    match spec {
+        Value::String(raw_path) => {
+            if let Some(resolved) = resolve_component_path(base_path, raw_path) {
+                if let Some(value) = read_json_value(&resolved) {
+                    let mut parsed = parse_mcp_entries(&value);
+                    for component in &mut parsed {
+                        component.path = Some(resolved.to_string_lossy().to_string());
+                    }
+                    merge_component_list(&mut components, parsed);
+                }
+            }
+        }
+        Value::Array(array) => {
+            for item in array {
+                if let Some(raw_path) = item.as_str() {
+                    merge_component_list(
+                        &mut components,
+                        scan_mcp_components_from_spec(base_path, Some(&Value::String(raw_path.to_string()))),
+                    );
+                } else {
+                    merge_component_list(&mut components, parse_mcp_entries(item));
+                }
+            }
+        }
+        Value::Object(_) => {
+            if let Some(raw_path) = get_string_field(spec, &["path", "file"]) {
+                merge_component_list(
+                    &mut components,
+                    scan_mcp_components_from_spec(base_path, Some(&Value::String(raw_path))),
+                );
+            } else {
+                merge_component_list(&mut components, parse_mcp_entries(spec));
+            }
+        }
+        _ => {}
+    }
+
+    components
+}
+
+fn scan_lsp_components_from_spec(base_path: Option<&Path>, spec: Option<&Value>) -> Vec<PluginComponent> {
+    let Some(spec) = spec else {
+        return Vec::new();
+    };
+
+    let mut components = Vec::new();
+    match spec {
+        Value::String(raw_path) => {
+            if let Some(resolved) = resolve_component_path(base_path, raw_path) {
+                if let Some(value) = read_json_value(&resolved) {
+                    let mut parsed = parse_lsp_components(Some(&value));
+                    for component in &mut parsed {
+                        component.path = Some(resolved.to_string_lossy().to_string());
+                    }
+                    merge_component_list(&mut components, parsed);
+                } else {
+                    merge_component_list(
+                        &mut components,
+                        vec![PluginComponent {
+                            name: component_name_from_path(raw_path),
+                            description: None,
+                            path: Some(raw_path.to_string()),
+                        }],
+                    );
+                }
+            }
+        }
+        Value::Array(array) => {
+            let all_string = array.iter().all(|item| item.as_str().is_some());
+            if all_string {
+                for item in array {
+                    if let Some(raw_path) = item.as_str() {
+                        merge_component_list(
+                            &mut components,
+                            scan_lsp_components_from_spec(base_path, Some(&Value::String(raw_path.to_string()))),
+                        );
+                    }
+                }
+            } else {
+                merge_component_list(&mut components, parse_lsp_components(Some(spec)));
+            }
+        }
+        Value::Object(_) => {
+            if let Some(raw_path) = get_string_field(spec, &["path", "file"]) {
+                merge_component_list(
+                    &mut components,
+                    scan_lsp_components_from_spec(base_path, Some(&Value::String(raw_path))),
+                );
+            } else {
+                merge_component_list(&mut components, parse_lsp_components(Some(spec)));
+            }
+        }
+        _ => {}
+    }
+
+    components
+}
+
+fn scan_component_overrides(
+    base_path: Option<&Path>,
+    commands_spec: Option<&Value>,
+    agents_spec: Option<&Value>,
+    skills_spec: Option<&Value>,
+    hooks_spec: Option<&Value>,
+    mcp_servers_spec: Option<&Value>,
+    lsp_servers_spec: Option<&Value>,
+) -> PluginComponents {
+    PluginComponents {
+        commands: scan_markdown_components_from_spec(base_path, commands_spec),
+        agents: scan_markdown_components_from_spec(base_path, agents_spec),
+        skills: scan_skill_components_from_spec(base_path, skills_spec),
+        hooks: scan_hook_components_from_spec(base_path, hooks_spec),
+        claude_md: Vec::new(),
+        mcps: scan_mcp_components_from_spec(base_path, mcp_servers_spec),
+        lsps: scan_lsp_components_from_spec(base_path, lsp_servers_spec),
+    }
+}
+
 fn parse_plugin_manifest(path: &Path) -> PluginManifestMetadata {
     let Some(value) = read_json_value(path) else {
         return PluginManifestMetadata::default();
@@ -556,7 +1135,29 @@ fn parse_plugin_manifest(path: &Path) -> PluginManifestMetadata {
     }
 }
 
+fn resolve_marketplace_manifest_path(marketplace_path: &Path) -> Option<PathBuf> {
+    for candidate in [
+        marketplace_path.join(".claude-plugin").join("marketplace.json"),
+        marketplace_path.join(".cursor-plugin").join("marketplace.json"),
+        marketplace_path.join("claude-plugin").join("marketplace.json"),
+        marketplace_path.join("marketplace.json"),
+    ] {
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
 fn parse_marketplace_entries(value: &Value) -> Vec<MarketplacePluginEntry> {
+    let plugin_root = value
+        .get("metadata")
+        .and_then(|meta| meta.as_object())
+        .and_then(|meta| meta.get("pluginRoot").or_else(|| meta.get("plugin_root")))
+        .and_then(|root| root.as_str())
+        .map(|root| root.to_string());
+
     let entries = if let Some(array) = value.get("plugins").and_then(|v| v.as_array()) {
         array.clone()
     } else if let Some(array) = value.as_array() {
@@ -572,24 +1173,54 @@ fn parse_marketplace_entries(value: &Value) -> Vec<MarketplacePluginEntry> {
             let description = get_string_field(entry, &["description", "summary"]);
             let source_value = entry.get("source");
             let remote_source = source_value.map(is_remote_source_value).unwrap_or(false);
-            let source_path = source_value.and_then(extract_local_source_path);
-            let path = get_string_field(entry, &["path", "dir", "location"]).or(source_path);
+            let source_path = if remote_source {
+                None
+            } else {
+                source_value
+                    .and_then(|value| extract_local_source_path(value, plugin_root.as_deref()))
+            };
+            let path = get_string_field(entry, &["path", "dir", "location"])
+                .map(|value| normalize_local_source_path(&value, plugin_root.as_deref()))
+                .or(source_path);
             let version = get_string_field(entry, &["version"]);
+            let last_updated = get_string_field(
+                entry,
+                &[
+                    "lastUpdated",
+                    "last_updated",
+                    "updatedAt",
+                    "updated_at",
+                    "publishedAt",
+                    "published_at",
+                    "releaseDate",
+                    "release_date",
+                ],
+            )
+            .and_then(|value| normalize_timestamp(&value));
             let repository = get_string_field(entry, &["repository", "repo"]);
             let author = parse_author(entry.get("author"))
                 .or_else(|| get_string_field(entry, &["maintainer"]));
-            let lsp_servers =
-                parse_lsp_components(entry.get("lspServers").or_else(|| entry.get("lsp_servers")));
+            let strict = entry
+                .get("strict")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(true);
 
             Some(MarketplacePluginEntry {
                 name,
                 description,
-                path,
+                source_path: path,
                 remote_source,
+                strict,
                 version,
+                last_updated,
                 author,
                 repository,
-                lsp_servers,
+                commands_spec: get_value_field(entry, &["commands"]).cloned(),
+                agents_spec: get_value_field(entry, &["agents"]).cloned(),
+                skills_spec: get_value_field(entry, &["skills"]).cloned(),
+                hooks_spec: get_value_field(entry, &["hooks"]).cloned(),
+                mcp_servers_spec: get_value_field(entry, &["mcpServers", "mcp_servers"]).cloned(),
+                lsp_servers_spec: get_value_field(entry, &["lspServers", "lsp_servers"]).cloned(),
             })
         })
         .collect()
@@ -619,6 +1250,7 @@ fn load_enabled_plugins(claude_dir: &Path, errors: &mut Vec<String>) -> HashMap<
 
     settings
         .get("enabledPlugins")
+        .or_else(|| settings.get("enabled_plugins"))
         .and_then(|v| v.as_object())
         .map(|map| {
             map.iter()
@@ -667,7 +1299,8 @@ fn load_known_marketplaces(
             entry,
             &["install_location", "installLocation", "installPath", "path"],
         );
-        let last_updated = get_string_field(entry, &["last_updated", "lastUpdated"]);
+        let last_updated = get_string_field(entry, &["last_updated", "lastUpdated"])
+            .and_then(|value| normalize_timestamp(&value));
         let source = summarize_marketplace_source(entry.get("source"));
 
         records.insert(
@@ -1140,7 +1773,7 @@ fn resolve_plugin_path(
         }
     }
 
-    if let Some(entry_path) = &entry.path {
+    if let Some(entry_path) = &entry.source_path {
         let candidate = marketplace_path.join(entry_path);
         if candidate.exists() {
             return Some(candidate);
@@ -1160,14 +1793,189 @@ fn resolve_plugin_path(
     None
 }
 
-fn scan_plugin_components(
-    plugin_path: &Path,
-    lsp_components: Vec<PluginComponent>,
-) -> PluginComponents {
-    let mut components = PluginComponents {
-        lsps: lsp_components,
-        ..PluginComponents::default()
+fn extract_repository_version(records: Option<&Vec<InstalledPluginRecord>>) -> Option<String> {
+    records.and_then(|items| {
+        items.iter().find_map(|record| {
+            record
+                .version
+                .as_ref()
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string())
+        })
+    })
+}
+
+fn normalize_epoch_timestamp(raw: i64) -> Option<String> {
+    let abs = raw.abs();
+    let seconds = if abs >= 1_000_000_000_000_000_000 {
+        raw / 1_000_000_000
+    } else if abs >= 1_000_000_000_000_000 {
+        raw / 1_000_000
+    } else if abs >= 1_000_000_000_000 {
+        raw / 1_000
+    } else {
+        raw
     };
+
+    let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(seconds, 0)?;
+    Some(datetime.to_rfc3339())
+}
+
+fn normalize_timestamp(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if let Ok(datetime) = chrono::DateTime::parse_from_rfc3339(trimmed) {
+        return Some(datetime.with_timezone(&chrono::Utc).to_rfc3339());
+    }
+
+    if let Ok(timestamp) = trimmed.parse::<i64>() {
+        return normalize_epoch_timestamp(timestamp);
+    }
+
+    if let Ok(datetime) =
+        chrono::NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%d %H:%M:%S")
+    {
+        let utc = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(datetime, chrono::Utc);
+        return Some(utc.to_rfc3339());
+    }
+
+    None
+}
+
+fn normalize_git_target_path(repo_path: &Path, candidate: &Path) -> Option<String> {
+    let resolved = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        repo_path.join(candidate)
+    };
+    let relative = resolved.strip_prefix(repo_path).ok()?;
+    let normalized = relative
+        .to_string_lossy()
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .to_string();
+    if normalized.is_empty() || normalized == "." {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn read_git_last_updated(repo_path: &Path, target_path: &str) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .arg("log")
+        .arg("-1")
+        .arg("--format=%cI")
+        .arg("--")
+        .arg(target_path)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    normalize_timestamp(&stdout)
+}
+
+fn cached_git_last_updated(
+    repo_path: &Path,
+    candidate: &Path,
+    cache: &mut HashMap<String, Option<String>>,
+) -> Option<String> {
+    let Some(target_path) = normalize_git_target_path(repo_path, candidate) else {
+        return None;
+    };
+    let cache_key = format!("{}::{}", repo_path.to_string_lossy(), target_path);
+    if let Some(value) = cache.get(&cache_key) {
+        return value.clone();
+    }
+
+    let value = read_git_last_updated(repo_path, &target_path);
+    cache.insert(cache_key, value.clone());
+    value
+}
+
+fn resolve_plugin_repository_last_updated(
+    marketplace_path: &Path,
+    entry: &MarketplacePluginEntry,
+    plugin_path: Option<&Path>,
+    cache: &mut HashMap<String, Option<String>>,
+) -> Option<String> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Some(source_path) = &entry.source_path {
+        candidates.push(PathBuf::from(source_path));
+    }
+
+    if let Some(path) = plugin_path {
+        candidates.push(path.to_path_buf());
+    }
+
+    candidates.push(PathBuf::from(format!("plugins/{}", entry.name)));
+    candidates.push(PathBuf::from(&entry.name));
+
+    let mut seen = HashSet::new();
+    for candidate in candidates {
+        let key = candidate.to_string_lossy().to_string();
+        if !seen.insert(key) {
+            continue;
+        }
+
+        if let Some(value) = cached_git_last_updated(marketplace_path, &candidate, cache) {
+            return Some(value);
+        }
+    }
+
+    None
+}
+
+fn resolve_entry_component_base_path(
+    marketplace_path: &Path,
+    plugin_path: Option<&Path>,
+    entry: &MarketplacePluginEntry,
+) -> Option<PathBuf> {
+    if let Some(path) = plugin_path {
+        return Some(path.to_path_buf());
+    }
+
+    if let Some(source_path) = &entry.source_path {
+        return Some(marketplace_path.join(source_path));
+    }
+
+    None
+}
+
+fn scan_marketplace_entry_components(
+    marketplace_path: &Path,
+    plugin_path: Option<&Path>,
+    entry: &MarketplacePluginEntry,
+) -> PluginComponents {
+    let base_path = resolve_entry_component_base_path(marketplace_path, plugin_path, entry);
+    let mut components = scan_component_overrides(
+        base_path.as_deref(),
+        entry.commands_spec.as_ref(),
+        entry.agents_spec.as_ref(),
+        entry.skills_spec.as_ref(),
+        entry.hooks_spec.as_ref(),
+        entry.mcp_servers_spec.as_ref(),
+        entry.lsp_servers_spec.as_ref(),
+    );
+    if let Some(base) = base_path.as_deref() {
+        components.claude_md = scan_claude_md_components(base);
+    }
+    components
+}
+
+fn scan_plugin_components(plugin_path: &Path) -> PluginComponents {
+    let mut components = PluginComponents::default();
 
     let commands_dir = plugin_path.join("commands");
     if commands_dir.exists() {
@@ -1185,12 +1993,27 @@ fn scan_plugin_components(
     }
 
     components.hooks = scan_hook_components(plugin_path);
+    components.claude_md = scan_claude_md_components(plugin_path);
     let mcp_components = scan_mcp_components(plugin_path);
     components.mcps = if mcp_components.is_empty() {
         scan_manifest_mcp_components(plugin_path)
     } else {
         mcp_components
     };
+
+    let manifest_path = plugin_path.join(".claude-plugin").join("plugin.json");
+    if let Some(manifest_value) = read_json_value(&manifest_path) {
+        let manifest_components = scan_component_overrides(
+            Some(plugin_path),
+            get_value_field(&manifest_value, &["commands"]),
+            get_value_field(&manifest_value, &["agents"]),
+            get_value_field(&manifest_value, &["skills"]),
+            get_value_field(&manifest_value, &["hooks"]),
+            get_value_field(&manifest_value, &["mcpServers", "mcp_servers"]),
+            get_value_field(&manifest_value, &["lspServers", "lsp_servers"]),
+        );
+        components = merge_plugin_components(components, manifest_components);
+    }
 
     components
 }
@@ -1207,6 +2030,7 @@ fn scan_plugin_repository() -> PluginScanResult {
     let mut scanned_plugins = Vec::new();
     let mut scanned_marketplaces = Vec::new();
     let mut scanned_ids = HashSet::new();
+    let mut git_timestamp_cache: HashMap<String, Option<String>> = HashMap::new();
 
     for marketplace in marketplace_locations {
         let Some(install_location) = marketplace.install_location.clone() else {
@@ -1214,10 +2038,12 @@ fn scan_plugin_repository() -> PluginScanResult {
         };
 
         let marketplace_path = PathBuf::from(&install_location);
-        let manifest_path = marketplace_path
-            .join(".claude-plugin")
-            .join("marketplace.json");
-        let manifest_value = read_json_value(&manifest_path);
+        if !marketplace_path.exists() {
+            continue;
+        }
+
+        let manifest_path = resolve_marketplace_manifest_path(&marketplace_path);
+        let manifest_value = manifest_path.as_ref().and_then(|path| read_json_value(path));
 
         let (entries, marketplace_name) = if let Some(value) = manifest_value.as_ref() {
             (
@@ -1225,16 +2051,14 @@ fn scan_plugin_repository() -> PluginScanResult {
                 get_string_field(value, &["name"]).unwrap_or_else(|| marketplace.id.clone()),
             )
         } else {
-            if manifest_path.exists() {
+            if let Some(path) = manifest_path.as_ref() {
                 errors.push(format!(
                     "Failed to parse marketplace manifest: {}",
-                    manifest_path.to_string_lossy()
+                    path.to_string_lossy()
                 ));
             } else {
-                errors.push(format!(
-                    "Missing marketplace manifest: {}",
-                    manifest_path.to_string_lossy()
-                ));
+                // Do not treat missing manifest as a hard scan error.
+                // This commonly happens for stale known_marketplaces entries.
             }
             (Vec::new(), marketplace.id.clone())
         };
@@ -1251,9 +2075,17 @@ fn scan_plugin_repository() -> PluginScanResult {
         for entry in entries {
             let plugin_id = format!("{}@{}", entry.name, marketplace.id);
             let installed_records = installed_plugins.get(&plugin_id);
+            let repository_version = extract_repository_version(installed_records);
             let plugin_path = resolve_plugin_path(&marketplace_path, &entry, installed_records);
+            let repository_last_updated = resolve_plugin_repository_last_updated(
+                &marketplace_path,
+                &entry,
+                plugin_path.as_deref(),
+                &mut git_timestamp_cache,
+            );
+            let last_updated = entry.last_updated.clone().or(repository_last_updated);
             let is_installed = installed_records
-                .map(|records| records.iter().any(|r| r.path.is_some()))
+                .map(|records| !records.is_empty())
                 .unwrap_or(false);
             let is_enabled = enabled_plugins.get(&plugin_id).copied().unwrap_or(false);
 
@@ -1283,13 +2115,22 @@ fn scan_plugin_repository() -> PluginScanResult {
                 .clone()
                 .or_else(|| entry.repository.clone());
 
-            let components = if let Some(path) = plugin_path.as_ref() {
-                scan_plugin_components(path, entry.lsp_servers.clone())
+            let entry_components = scan_marketplace_entry_components(
+                &marketplace_path,
+                plugin_path.as_deref(),
+                &entry,
+            );
+            let filesystem_components = if let Some(path) = plugin_path.as_ref() {
+                scan_plugin_components(path)
             } else {
-                PluginComponents {
-                    lsps: entry.lsp_servers.clone(),
-                    ..PluginComponents::default()
-                }
+                PluginComponents::default()
+            };
+            let components = if entry.strict {
+                merge_plugin_components(filesystem_components, entry_components)
+            } else if plugin_component_total_count(&entry_components) > 0 {
+                entry_components
+            } else {
+                filesystem_components
             };
             let components_source = if plugin_path.is_none() && entry.remote_source {
                 Some("remote".to_string())
@@ -1303,6 +2144,8 @@ fn scan_plugin_repository() -> PluginScanResult {
                 name,
                 description,
                 version,
+                repository_version,
+                last_updated,
                 author,
                 repository,
                 marketplace: marketplace.id.clone(),
@@ -1329,13 +2172,15 @@ fn scan_plugin_repository() -> PluginScanResult {
             .filter_map(|record| record.path.as_ref())
             .find(|path| PathBuf::from(path).exists())
             .map(PathBuf::from);
+        let repository_version = extract_repository_version(Some(records));
         let is_enabled = enabled_plugins.get(plugin_id).copied().unwrap_or(false);
         let manifest_metadata = plugin_path
             .as_ref()
             .map(|path| parse_plugin_manifest(&path.join(".claude-plugin").join("plugin.json")))
             .unwrap_or_default();
+        let last_updated = None;
         let components = if let Some(path) = plugin_path.as_ref() {
-            scan_plugin_components(path, Vec::new())
+            scan_plugin_components(path)
         } else {
             PluginComponents::default()
         };
@@ -1359,6 +2204,8 @@ fn scan_plugin_repository() -> PluginScanResult {
             name: manifest_metadata.name.unwrap_or(name),
             description: manifest_metadata.description,
             version: manifest_metadata.version,
+            repository_version,
+            last_updated,
             author: manifest_metadata.author,
             repository: manifest_metadata.repository,
             marketplace,
@@ -1453,6 +2300,69 @@ fn list_installed_plugins() -> Result<Vec<InstalledPlugin>, String> {
     }
 
     Ok(plugins)
+}
+
+fn parse_plugin_runtime_states(output: &str) -> Result<Vec<PluginRuntimeState>, String> {
+    let value: Value = serde_json::from_str(output)
+        .map_err(|e| format!("Failed to parse `claude plugin list --json` output: {}", e))?;
+
+    let entries = if let Some(array) = value.as_array() {
+        array.clone()
+    } else if let Some(array) = value.get("installed").and_then(|v| v.as_array()) {
+        array.clone()
+    } else {
+        Vec::new()
+    };
+
+    let mut states = Vec::new();
+    for entry in entries {
+        let Some(id) = entry.get("id").and_then(|v| v.as_str()) else {
+            continue;
+        };
+
+        let scope = entry
+            .get("scope")
+            .and_then(|v| v.as_str())
+            .unwrap_or("user");
+
+        let scope = match scope {
+            "user" => PluginActionScope::User,
+            "project" => PluginActionScope::Project,
+            "local" => PluginActionScope::Local,
+            "managed" => PluginActionScope::Managed,
+            _ => PluginActionScope::User,
+        };
+
+        let enabled = entry
+            .get("enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let project_path = entry
+            .get("projectPath")
+            .or_else(|| entry.get("project_path"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        states.push(PluginRuntimeState {
+            id: id.to_string(),
+            scope,
+            enabled,
+            project_path,
+        });
+    }
+
+    Ok(states)
+}
+
+#[tauri::command]
+async fn list_plugin_runtime_state() -> Result<Vec<PluginRuntimeState>, String> {
+    let home = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .to_string_lossy()
+        .to_string();
+
+    let output = exec_shell_command("claude plugin list --json".to_string(), home).await?;
+    parse_plugin_runtime_states(&output)
 }
 
 #[tauri::command]
@@ -1559,10 +2469,42 @@ async fn fetch_marketplace_plugins(
     Ok(plugins)
 }
 
+fn resolve_plugin_command_context(
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<(Option<PluginActionScope>, String), String> {
+    let home = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .to_string_lossy()
+        .to_string();
+
+    let Some(scope_value) = scope else {
+        return Ok((None, home));
+    };
+
+    if scope_value.needs_project_path() {
+        let Some(path) = project_path else {
+            return Err(format!(
+                "Scope '{}' requires a project path",
+                scope_value.as_cli_value()
+            ));
+        };
+
+        let resolved = crate::services::platform::resolve_user_path(&path)
+            .to_string_lossy()
+            .to_string();
+        return Ok((Some(scope_value), resolved));
+    }
+
+    Ok((Some(scope_value), home))
+}
+
 #[tauri::command]
 async fn install_extension(
     plugin_id: String,
     marketplace: Option<String>,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
 ) -> Result<String, String> {
     let full_id = if let Some(mkt) = marketplace {
         format!("{}@{}", plugin_id, mkt)
@@ -1570,30 +2512,44 @@ async fn install_extension(
         plugin_id
     };
 
-    let command = format!(
-        "claude plugin install {}",
-        shell_escape::escape(full_id.into())
-    );
-    let home = dirs::home_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .to_string_lossy()
-        .to_string();
+    let (scope_arg, cwd) = resolve_plugin_command_context(scope, project_path)?;
+    let command = if let Some(scope_value) = scope_arg {
+        format!(
+            "claude plugin install {} --scope {}",
+            shell_escape::escape(full_id.into()),
+            shell_escape::escape(scope_value.as_cli_value().into())
+        )
+    } else {
+        format!(
+            "claude plugin install {}",
+            shell_escape::escape(full_id.into())
+        )
+    };
 
-    exec_shell_command(command, home).await
+    exec_shell_command(command, cwd).await
 }
 
 #[tauri::command]
-async fn uninstall_extension(plugin_id: String) -> Result<String, String> {
-    let command = format!(
-        "claude plugin uninstall {}",
-        shell_escape::escape(plugin_id.into())
-    );
-    let home = dirs::home_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .to_string_lossy()
-        .to_string();
+async fn uninstall_extension(
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    let (scope_arg, cwd) = resolve_plugin_command_context(scope, project_path)?;
+    let command = if let Some(scope_value) = scope_arg {
+        format!(
+            "claude plugin uninstall {} --scope {}",
+            shell_escape::escape(plugin_id.into()),
+            shell_escape::escape(scope_value.as_cli_value().into())
+        )
+    } else {
+        format!(
+            "claude plugin uninstall {}",
+            shell_escape::escape(plugin_id.into())
+        )
+    };
 
-    exec_shell_command(command, home).await
+    exec_shell_command(command, cwd).await
 }
 
 #[tauri::command]
@@ -1649,7 +2605,7 @@ async fn remove_extension_marketplace_safe(name: String) -> Result<String, Strin
     let mut errors = Vec::new();
 
     for plugin_id in &plugin_ids {
-        if let Err(err) = uninstall_plugin_with_fallback(plugin_id).await {
+        if let Err(err) = uninstall_plugin_with_fallback(plugin_id, None, None).await {
             errors.push(format!("Failed to uninstall plugin {}: {}", plugin_id, err));
         }
     }
@@ -1672,28 +2628,46 @@ async fn remove_extension_marketplace_safe(name: String) -> Result<String, Strin
     }
 }
 
-async fn run_plugin_cli_action(action: &str, plugin_id: String) -> Result<String, String> {
-    let command = format!(
-        "claude plugin {} {}",
-        action,
-        shell_escape::escape(plugin_id.into())
-    );
-    let home = dirs::home_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .to_string_lossy()
-        .to_string();
+async fn run_plugin_cli_action(
+    action: &str,
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    let (scope_arg, cwd) = resolve_plugin_command_context(scope, project_path)?;
+    let command = if let Some(scope_value) = scope_arg {
+        format!(
+            "claude plugin {} {} --scope {}",
+            action,
+            shell_escape::escape(plugin_id.into()),
+            shell_escape::escape(scope_value.as_cli_value().into())
+        )
+    } else {
+        format!(
+            "claude plugin {} {}",
+            action,
+            shell_escape::escape(plugin_id.into())
+        )
+    };
 
-    exec_shell_command(command, home).await
+    exec_shell_command(command, cwd).await
 }
 
-async fn uninstall_plugin_with_fallback(plugin_id: &str) -> Result<String, String> {
+async fn uninstall_plugin_with_fallback(
+    plugin_id: &str,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
     let claude_dir = get_claude_dir();
-    match uninstall_extension(plugin_id.to_string()).await {
+    match uninstall_extension(plugin_id.to_string(), scope, project_path.clone()).await {
         Ok(output) => Ok(output),
         Err(err) => {
             if is_not_installed_error(&err) {
-                if install_extension(plugin_id.to_string(), None).await.is_ok() {
-                    match uninstall_extension(plugin_id.to_string()).await {
+                if install_extension(plugin_id.to_string(), None, scope, project_path.clone())
+                    .await
+                    .is_ok()
+                {
+                    match uninstall_extension(plugin_id.to_string(), scope, project_path.clone()).await {
                         Ok(output) => return Ok(output),
                         Err(uninstall_err) => {
                             if !is_not_installed_error(&uninstall_err) {
@@ -1709,17 +2683,32 @@ async fn uninstall_plugin_with_fallback(plugin_id: &str) -> Result<String, Strin
     }
 }
 
-async fn run_plugin_action_with_fallback(action: &str, plugin_id: &str) -> Result<String, String> {
+async fn run_plugin_action_with_fallback(
+    action: &str,
+    plugin_id: &str,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
     let claude_dir = get_claude_dir();
-    match run_plugin_cli_action(action, plugin_id.to_string()).await {
+    match run_plugin_cli_action(action, plugin_id.to_string(), scope, project_path.clone()).await {
         Ok(output) => Ok(output),
         Err(err) => {
             if is_already_state_error(action, &err) {
                 return Ok(err);
             }
             if is_not_installed_error(&err) {
-                if install_extension(plugin_id.to_string(), None).await.is_ok() {
-                    match run_plugin_cli_action(action, plugin_id.to_string()).await {
+                if install_extension(plugin_id.to_string(), None, scope, project_path.clone())
+                    .await
+                    .is_ok()
+                {
+                    match run_plugin_cli_action(
+                        action,
+                        plugin_id.to_string(),
+                        scope,
+                        project_path.clone(),
+                    )
+                    .await
+                    {
                         Ok(output) => return Ok(output),
                         Err(action_err) => {
                             if !is_not_installed_error(&action_err) {
@@ -1736,28 +2725,75 @@ async fn run_plugin_action_with_fallback(action: &str, plugin_id: &str) -> Resul
 }
 
 #[tauri::command]
-async fn install_plugin(plugin_id: String) -> Result<String, String> {
-    install_extension(plugin_id, None).await
+async fn install_plugin(
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    install_extension(plugin_id, None, scope, project_path).await
 }
 
 #[tauri::command]
-async fn uninstall_plugin(plugin_id: String) -> Result<String, String> {
-    uninstall_plugin_with_fallback(&plugin_id).await
+async fn uninstall_plugin(
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    uninstall_plugin_with_fallback(&plugin_id, scope, project_path).await
 }
 
 #[tauri::command]
-async fn enable_plugin(plugin_id: String) -> Result<String, String> {
-    run_plugin_action_with_fallback("enable", &plugin_id).await
+async fn enable_plugin(
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    run_plugin_action_with_fallback("enable", &plugin_id, scope, project_path).await
 }
 
 #[tauri::command]
-async fn disable_plugin(plugin_id: String) -> Result<String, String> {
-    run_plugin_action_with_fallback("disable", &plugin_id).await
+async fn disable_plugin(
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    if let Some(scope_value) = scope {
+        if matches!(scope_value, PluginActionScope::Project | PluginActionScope::Local) {
+            let base_project = project_path
+                .ok_or_else(|| "Project/local scope requires project path".to_string())?;
+            let base_project_path = crate::services::platform::resolve_user_path(&base_project);
+
+            let settings_path = match scope_value {
+                PluginActionScope::Project => {
+                    base_project_path.join(".claude").join("settings.json")
+                }
+                PluginActionScope::Local => {
+                    base_project_path
+                        .join(".claude")
+                        .join("settings.local.json")
+                }
+                _ => unreachable!(),
+            };
+
+            toggle_plugin(
+                plugin_id,
+                false,
+                Some(settings_path.to_string_lossy().to_string()),
+            )?;
+            return Ok("ok".to_string());
+        }
+    }
+
+    run_plugin_action_with_fallback("disable", &plugin_id, scope, project_path).await
 }
 
 #[tauri::command]
-async fn update_plugin(plugin_id: String) -> Result<String, String> {
-    run_plugin_cli_action("update", plugin_id).await
+async fn update_plugin(
+    plugin_id: String,
+    scope: Option<PluginActionScope>,
+    project_path: Option<String>,
+) -> Result<String, String> {
+    run_plugin_cli_action("update", plugin_id, scope, project_path).await
 }
 
 // Generate a unique key for a hook based on its content
@@ -2070,4 +3106,90 @@ async fn test_claude_cli(
         stdout,
         stderr,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn unique_temp_dir(prefix: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("{}-{}", prefix, nonce));
+        let _ = fs::create_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn parse_marketplace_entries_applies_plugin_root_for_relative_source() {
+        let manifest = serde_json::json!({
+            "metadata": { "pluginRoot": "./plugins" },
+            "plugins": [
+                { "name": "demo", "source": "demo-plugin" }
+            ]
+        });
+
+        let entries = parse_marketplace_entries(&manifest);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].source_path.as_deref(), Some("./plugins/demo-plugin"));
+        assert!(!entries[0].remote_source);
+        assert!(entries[0].strict);
+    }
+
+    #[test]
+    fn parse_marketplace_entries_remote_source_does_not_become_local_path() {
+        let manifest = serde_json::json!({
+            "plugins": [
+                {
+                    "name": "remote",
+                    "source": {
+                        "source": "github",
+                        "repo": "owner/repo",
+                        "path": "plugins/remote"
+                    }
+                }
+            ]
+        });
+
+        let entries = parse_marketplace_entries(&manifest);
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].remote_source);
+        assert!(entries[0].source_path.is_none());
+    }
+
+    #[test]
+    fn resolve_marketplace_manifest_path_supports_cursor_plugin_layout() {
+        let root = unique_temp_dir("marketplace-layout");
+        let cursor_manifest = root.join(".cursor-plugin").join("marketplace.json");
+        fs::create_dir_all(cursor_manifest.parent().unwrap()).unwrap();
+        fs::write(&cursor_manifest, "{}").unwrap();
+
+        let resolved = resolve_marketplace_manifest_path(&root);
+        assert_eq!(resolved.as_deref(), Some(cursor_manifest.as_path()));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn parse_hook_components_supports_nested_marketplace_shape() {
+        let hooks = serde_json::json!({
+            "PostToolUse": [
+                {
+                    "matcher": "Write|Edit",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate.sh"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let components = parse_hook_components_from_value(&hooks, None);
+        assert_eq!(components.len(), 1);
+        assert!(components[0].name.contains("validate.sh"));
+    }
 }

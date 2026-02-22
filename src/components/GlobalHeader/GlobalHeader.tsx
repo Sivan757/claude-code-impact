@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import {
   PersonIcon,
   CounterClockwiseClockIcon, GearIcon,
+  RocketIcon,
 } from "@radix-ui/react-icons";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
@@ -36,7 +37,7 @@ export function GlobalHeader({
 
 
   // Main nav features - use primaryFeature for active state (not affected by profile menu clicks)
-  const mainNavFeatures = ["chat", "settings"] as const;
+  const mainNavFeatures = ["chat", "settings", "projects"] as const;
   const isMainNavFeature = (f: string | null) => f && (mainNavFeatures.includes(f as typeof mainNavFeatures[number]) || f.startsWith("kb-"));
 
   // Handle main nav click - updates primaryFeature
@@ -54,7 +55,7 @@ export function GlobalHeader({
 
   return (
     <div data-tauri-drag-region className="h-[52px] shrink-0 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="flex items-center pl-[80px]">
+      <div className="flex items-center pl-[80px] gap-2">
         <div className="flex items-center gap-0.5">
           <NavButton
             isActive={primaryFeature === null}
@@ -63,6 +64,12 @@ export function GlobalHeader({
             label="Claude Code Impact"
           />
         </div>
+        <NavButton
+          isActive={primaryFeature === "projects"}
+          onClick={() => handleMainNavClick("projects")}
+          icon={<RocketIcon className="w-4 h-4" />}
+          label={t('features.projects')}
+        />
       </div>
       <div className="flex items-center gap-2">
         <NavButton

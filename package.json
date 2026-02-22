@@ -9,6 +9,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "check:unused:frontend": "pnpm dlx knip --config knip.json",
+    "check:unused:backend": "cd src-tauri && cargo clippy --all-targets -- -W dead_code -W unused_imports -W unused_variables",
+    "check:unused": "pnpm run check:unused:frontend && pnpm run check:unused:backend",
     "bump": "node scripts/bump-version.cjs",
     "release": "changeset version && node scripts/sync-cargo-version.cjs",
     "changeset": "changeset"

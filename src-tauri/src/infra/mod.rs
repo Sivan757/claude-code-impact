@@ -1,15 +1,28 @@
 use serde_json::{Map, Value};
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
 
 const DATA_DB_FILENAME: &str = "data.db";
 const DATA_DB_DIRNAME: &str = ".claudecodeimpact";
+const DATA_JSON_FILENAME: &str = "data.json";
+const SQLITE_FILE_HEADER: &[u8; 16] = b"SQLite format 3\0";
+
+static DATA_STORE_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 pub(crate) fn get_data_db_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(DATA_DB_DIRNAME)
         .join(DATA_DB_FILENAME)
+}
+
+fn get_data_json_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(DATA_DB_DIRNAME)
+        .join(DATA_JSON_FILENAME)
 }
 
 fn get_legacy_data_db_path() -> PathBuf {
@@ -19,65 +32,107 @@ fn get_legacy_data_db_path() -> PathBuf {
         .join(DATA_DB_FILENAME)
 }
 
-fn load_data_db() -> Result<Value, String> {
-    let path = get_data_db_path();
+fn is_sqlite_file(path: &Path) -> bool {
     if !path.exists() {
-        let legacy_path = get_legacy_data_db_path();
-        if legacy_path.exists() {
-            if let Some(parent) = path.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
-            if fs::rename(&legacy_path, &path).is_err() {
-                let _ = fs::copy(&legacy_path, &path);
-            }
-        }
+        return false;
     }
-    if !path.exists() {
-        return Ok(Value::Object(Map::new()));
+
+    let mut header = [0u8; 16];
+    let mut file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(_) => return false,
+    };
+
+    if file.read_exact(&mut header).is_err() {
+        return false;
     }
-    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let value: Value = serde_json::from_str(&content).unwrap_or_else(|_| Value::Object(Map::new()));
-    if value.is_object() {
-        Ok(value)
-    } else {
-        Ok(Value::Object(Map::new()))
+
+    &header == SQLITE_FILE_HEADER
+}
+
+fn resolve_data_store_path() -> PathBuf {
+    let data_db_path = get_data_db_path();
+    if is_sqlite_file(&data_db_path) {
+        // Keep legacy SQLite DB untouched and store key-value state in a JSON sidecar.
+        return get_data_json_path();
+    }
+    data_db_path
+}
+
+fn migrate_legacy_data_if_needed(path: &Path) {
+    if path.exists() {
+        return;
+    }
+
+    let legacy_path = get_legacy_data_db_path();
+    if !legacy_path.exists() || is_sqlite_file(&legacy_path) {
+        return;
+    }
+
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if fs::rename(&legacy_path, path).is_err() {
+        let _ = fs::copy(&legacy_path, path);
     }
 }
 
-fn save_data_db(value: &Value) -> Result<(), String> {
-    let path = get_data_db_path();
+fn load_data_db() -> Result<(PathBuf, Value), String> {
+    let path = resolve_data_store_path();
+    migrate_legacy_data_if_needed(&path);
+
+    if !path.exists() {
+        return Ok((path, Value::Object(Map::new())));
+    }
+
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let value: Value = serde_json::from_str(&content).unwrap_or_else(|_| Value::Object(Map::new()));
+    if value.is_object() {
+        Ok((path, value))
+    } else {
+        Ok((path, Value::Object(Map::new())))
+    }
+}
+
+fn save_data_db(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
+
     let output = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
-    fs::write(&path, output).map_err(|e| e.to_string())?;
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, output).map_err(|e| e.to_string())?;
+    fs::rename(&tmp_path, path).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 pub(crate) fn read_data_key(key: &str) -> Result<Option<Value>, String> {
-    let data = load_data_db()?;
+    let _guard = DATA_STORE_LOCK.lock().map_err(|e| e.to_string())?;
+    let (_, data) = load_data_db()?;
     Ok(data
         .as_object()
         .and_then(|obj| obj.get(key).cloned()))
 }
 
 pub(crate) fn write_data_key(key: &str, value: Value) -> Result<(), String> {
-    let mut data = load_data_db()?;
+    let _guard = DATA_STORE_LOCK.lock().map_err(|e| e.to_string())?;
+    let (path, mut data) = load_data_db()?;
     if !data.is_object() {
         data = Value::Object(Map::new());
     }
     if let Some(obj) = data.as_object_mut() {
         obj.insert(key.to_string(), value);
     }
-    save_data_db(&data)
+    save_data_db(&path, &data)
 }
 
 pub(crate) fn remove_data_key(key: &str) -> Result<(), String> {
-    let mut data = load_data_db()?;
+    let _guard = DATA_STORE_LOCK.lock().map_err(|e| e.to_string())?;
+    let (path, mut data) = load_data_db()?;
     if let Some(obj) = data.as_object_mut() {
         obj.remove(key);
     }
-    save_data_db(&data)
+    save_data_db(&path, &data)
 }
 
 pub(crate) fn get_claude_dir() -> PathBuf {
@@ -86,6 +141,22 @@ pub(crate) fn get_claude_dir() -> PathBuf {
 
 pub(crate) fn get_claude_json_path() -> PathBuf {
     dirs::home_dir().unwrap().join(".claude.json")
+}
+
+pub(crate) fn resolve_claude_dir(project_path: Option<&str>) -> PathBuf {
+    if let Some(path) = project_path {
+        crate::services::platform::resolve_user_path(path).join(".claude")
+    } else {
+        get_claude_dir()
+    }
+}
+
+pub(crate) fn resolve_mcp_config_path(project_path: Option<&str>) -> PathBuf {
+    if let Some(path) = project_path {
+        crate::services::platform::resolve_user_path(path).join(".mcp.json")
+    } else {
+        get_claude_json_path()
+    }
 }
 
 pub(crate) fn get_claudecodeimpact_dir() -> PathBuf {

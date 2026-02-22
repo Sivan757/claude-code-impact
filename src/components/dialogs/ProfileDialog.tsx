@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DEFAULT_TERMINAL_PREFERENCE, normalizeTerminalPreference } from "@/lib/terminalPreference";
 import type { UserProfile } from "@/types";
 
 interface ProfileDialogProps {
@@ -19,14 +21,32 @@ export function ProfileDialog({ open, onClose, profile, onSave }: ProfileDialogP
   const { t } = useTranslation();
   const [nickname, setNickname] = useState(profile.nickname);
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || "");
+  const [terminalMode, setTerminalMode] = useState<"system" | "custom">(
+    normalizeTerminalPreference(profile.terminalPreference).mode,
+  );
+  const [terminalCustomPath, setTerminalCustomPath] = useState(
+    normalizeTerminalPreference(profile.terminalPreference).customPath,
+  );
 
   useEffect(() => {
+    const normalizedTerminalPreference = normalizeTerminalPreference(profile.terminalPreference);
     setNickname(profile.nickname);
     setAvatarUrl(profile.avatarUrl || "");
+    setTerminalMode(normalizedTerminalPreference.mode);
+    setTerminalCustomPath(normalizedTerminalPreference.customPath);
   }, [profile]);
 
   const handleSave = () => {
-    onSave({ nickname, avatarUrl: avatarUrl || "" });
+    const trimmedPath = terminalCustomPath.trim();
+    const terminalPreference = terminalMode === "custom"
+      ? { mode: "custom" as const, customPath: trimmedPath }
+      : DEFAULT_TERMINAL_PREFERENCE;
+
+    onSave({
+      nickname,
+      avatarUrl: avatarUrl || "",
+      terminalPreference,
+    });
     onClose();
   };
 
@@ -51,10 +71,40 @@ export function ProfileDialog({ open, onClose, profile, onSave }: ProfileDialogP
               <Input id="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder={t("profile_dialog.name_placeholder")} />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="terminal-mode">{t("profile_dialog.terminal_mode_label")}</Label>
+            <Select
+              value={terminalMode}
+              onValueChange={(value: "system" | "custom") => setTerminalMode(value)}
+            >
+              <SelectTrigger id="terminal-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="system">{t("profile_dialog.terminal_mode_system")}</SelectItem>
+                <SelectItem value="custom">{t("profile_dialog.terminal_mode_custom")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t("profile_dialog.terminal_mode_desc")}</p>
+          </div>
+          {terminalMode === "custom" && (
+            <div className="space-y-2">
+              <Label htmlFor="terminal-path">{t("profile_dialog.terminal_path_label")}</Label>
+              <Input
+                id="terminal-path"
+                value={terminalCustomPath}
+                onChange={(e) => setTerminalCustomPath(e.target.value)}
+                placeholder={t("profile_dialog.terminal_path_placeholder")}
+              />
+              <p className="text-xs text-muted-foreground">{t("profile_dialog.terminal_path_desc")}</p>
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>{t("profile_dialog.cancel")}</Button>
-          <Button onClick={handleSave}>{t("profile_dialog.save")}</Button>
+          <Button onClick={handleSave} disabled={terminalMode === "custom" && terminalCustomPath.trim().length === 0}>
+            {t("profile_dialog.save")}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

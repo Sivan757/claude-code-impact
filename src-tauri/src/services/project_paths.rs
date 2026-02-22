@@ -53,20 +53,10 @@ pub(crate) fn decode_project_path(id: &str) -> String {
         return base_path.to_string_lossy().to_string();
     }
 
-    // Otherwise, the project name likely contains hyphens
-    // Try progressively merging path segments after common base directories
-    let base_dirs = ["projects", "repos", "Documents", "Desktop"];
-    if let Some(idx) = segments
-        .iter()
-        .position(|segment| base_dirs.contains(&segment.as_str()))
-    {
-        let prefix_segments = &segments[..=idx];
-        let rest_segments = &segments[idx + 1..];
-        if let Some(merged) =
-            try_merge_segments(prefix.as_deref(), has_root, prefix_segments, rest_segments)
-        {
-            return merged;
-        }
+    // Fallback for ambiguous IDs where hyphens inside directory names were
+    // flattened into `-` together with path separators (e.g., apex-plugins).
+    if let Some(resolved) = try_resolve_existing_path(prefix.as_deref(), has_root, &segments) {
+        return resolved.to_string_lossy().to_string();
     }
 
     base_path.to_string_lossy().to_string()
@@ -140,36 +130,93 @@ fn build_path(prefix: Option<&str>, has_root: bool, segments: &[String]) -> Path
     path
 }
 
-/// Try different combinations of merging path segments with hyphens
-fn try_merge_segments(
+fn try_resolve_existing_path(
     prefix: Option<&str>,
     has_root: bool,
-    prefix_segments: &[String],
-    rest_segments: &[String],
-) -> Option<String> {
-    if rest_segments.is_empty() {
-        return None;
+    segments: &[String],
+) -> Option<PathBuf> {
+    if segments.is_empty() {
+        let candidate = build_path(prefix, has_root, &[]);
+        return candidate.exists().then_some(candidate);
     }
 
-    // Try merging all segments into one (most common: project-name-here)
-    let mut merged_segments = prefix_segments.to_vec();
-    merged_segments.push(rest_segments.join("-"));
-    let all_merged = build_path(prefix, has_root, &merged_segments);
-    if all_merged.exists() {
-        return Some(all_merged.to_string_lossy().to_string());
+    let mut finalized = Vec::new();
+    resolve_path_by_backtracking(
+        prefix,
+        has_root,
+        segments,
+        1,
+        &mut finalized,
+        segments[0].clone(),
+    )
+}
+
+fn resolve_path_by_backtracking(
+    prefix: Option<&str>,
+    has_root: bool,
+    segments: &[String],
+    index: usize,
+    finalized: &mut Vec<String>,
+    current: String,
+) -> Option<PathBuf> {
+    if index >= segments.len() {
+        let mut all_segments = finalized.clone();
+        all_segments.push(current);
+        let candidate = build_path(prefix, has_root, &all_segments);
+        return candidate.exists().then_some(candidate);
     }
 
-    // Try merging first N segments, leaving rest as subdirs
-    for merge_count in (1..rest_segments.len()).rev() {
-        let merged_part = rest_segments[..=merge_count].join("-");
-        let mut candidate_segments = prefix_segments.to_vec();
-        candidate_segments.push(merged_part);
-        candidate_segments.extend(rest_segments[merge_count + 1..].iter().cloned());
-        let candidate = build_path(prefix, has_root, &candidate_segments);
-        if candidate.exists() {
-            return Some(candidate.to_string_lossy().to_string());
+    let token = &segments[index];
+
+    // Option 1: `-` belongs to the same path segment.
+    let merged_current = format!("{}-{}", current, token);
+    if let Some(path) = resolve_path_by_backtracking(
+        prefix,
+        has_root,
+        segments,
+        index + 1,
+        finalized,
+        merged_current,
+    ) {
+        return Some(path);
+    }
+
+    // Option 2: `-` is a path separator; only continue if the prefix exists.
+    finalized.push(current);
+    let prefix_path = build_path(prefix, has_root, finalized);
+    if prefix_path.exists() {
+        if let Some(path) = resolve_path_by_backtracking(
+            prefix,
+            has_root,
+            segments,
+            index + 1,
+            finalized,
+            token.clone(),
+        ) {
+            finalized.pop();
+            return Some(path);
         }
     }
+    finalized.pop();
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{decode_project_path, encode_project_path};
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn decode_preserves_hyphenated_segment_when_path_exists() {
+        let root = TempDir::new().expect("temp dir");
+        let project_path = root.path().join("workspace").join("apex-plugins");
+        fs::create_dir_all(&project_path).expect("create project path");
+
+        let encoded = encode_project_path(project_path.to_string_lossy().as_ref());
+        let decoded = decode_project_path(&encoded);
+
+        assert_eq!(decoded, project_path.to_string_lossy());
+    }
 }

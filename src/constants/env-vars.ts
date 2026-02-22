@@ -28,6 +28,14 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "Microsoft Foundry 身份验证的 API 密钥（请参阅 Microsoft Foundry）",
     },
     {
+        key: "ANTHROPIC_FOUNDRY_BASE_URL",
+        desc: "Foundry 资源的完整基础 URL（例如 https://xxx.services.ai.azure.com/anthropic），可替代 ANTHROPIC_FOUNDRY_RESOURCE",
+    },
+    {
+        key: "ANTHROPIC_FOUNDRY_RESOURCE",
+        desc: "Foundry 资源名称（例如 my-resource）；未设置 ANTHROPIC_FOUNDRY_BASE_URL 时必需",
+    },
+    {
         key: "ANTHROPIC_MODEL",
         desc: "要使用的模型设置的名称（请参阅 模型配置）",
     },
@@ -56,8 +64,16 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "模型可以为长时间运行的 bash 命令设置的最大超时",
     },
     {
+        key: "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE",
+        desc: "设置自动压缩触发的上下文容量百分比（1-100）；默认约 95",
+    },
+    {
         key: "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR",
         desc: "在每个 Bash 命令后返回到原始工作目录",
+    },
+    {
+        key: "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD",
+        desc: "设置为 1 以从 --add-dir 指定的目录加载 CLAUDE.md 文件",
     },
     {
         key: "CLAUDE_CODE_API_KEY_HELPER_TTL_MS",
@@ -80,12 +96,44 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "设置为 1 以禁用 Anthropic API 特定的 anthropic-beta 标头。当使用带有第三方提供商的 LLM 网关时遇到”Unexpected value(s) for the anthropic-beta header”之类的问题时使用此选项",
     },
     {
+        key: "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS",
+        desc: "设置为 1 以禁用后台任务功能（含 run_in_background、自动后台处理、Ctrl+B）",
+    },
+    {
+        key: "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY",
+        desc: "设置为 1 以禁用会话质量调查",
+    },
+    {
         key: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
         desc: "等同于设置 DISABLE_AUTOUPDATER、DISABLE_BUG_COMMAND、DISABLE_ERROR_REPORTING 和 DISABLE_TELEMETRY",
     },
     {
         key: "CLAUDE_CODE_DISABLE_TERMINAL_TITLE",
         desc: "设置为 1 以禁用基于对话上下文的自动终端标题更新",
+    },
+    {
+        key: "CLAUDE_CODE_EFFORT_LEVEL",
+        desc: "为支持模型设置努力级别：low / medium / high（默认）",
+    },
+    {
+        key: "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION",
+        desc: "设置为 false 以禁用提示建议（输入框中的灰色预测）",
+    },
+    {
+        key: "CLAUDE_CODE_ENABLE_TASKS",
+        desc: "设置为 false 以临时使用旧 TODO 列表而非任务跟踪系统",
+    },
+    {
+        key: "CLAUDE_CODE_ENABLE_TELEMETRY",
+        desc: "设置为 1 以启用 OpenTelemetry 指标与日志数据收集",
+    },
+    {
+        key: "CLAUDE_CODE_EXIT_AFTER_STOP_DELAY",
+        desc: "查询循环空闲后自动退出前等待的毫秒数",
+    },
+    {
+        key: "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
+        desc: "设置为 1 以启用 agent teams（实验功能，默认禁用）",
     },
     {
         key: "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS",
@@ -108,12 +156,32 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "刷新动态 OpenTelemetry 标头的间隔（以毫秒为单位）（默认：1740000 / 29 分钟）。请参阅 动态标头",
     },
     {
+        key: "CLAUDE_CODE_PLAN_MODE_REQUIRED",
+        desc: "在需要计划审批的 agent team 队友上自动设为 true（只读，由系统生成）",
+    },
+    {
+        key: "CLAUDE_CODE_PROXY_RESOLVES_HOSTS",
+        desc: "设置为 true 以允许代理执行 DNS 解析",
+    },
+    {
         key: "CLAUDE_CODE_SHELL",
         desc: "覆盖自动 shell 检测。当您的登录 shell 与您的首选工作 shell 不同时很有用（例如，bash 与 zsh）",
     },
     {
         key: "CLAUDE_CODE_SHELL_PREFIX",
         desc: "用于包装所有 bash 命令的命令前缀（例如，用于日志记录或审计）。示例：/path/to/logger.sh 将执行 /path/to/logger.sh <command>",
+    },
+    {
+        key: "CLAUDE_CODE_TASK_LIST_ID",
+        desc: "跨会话共享任务列表；多个 Claude Code 实例设置相同 ID 可协同任务",
+    },
+    {
+        key: "CLAUDE_CODE_TEAM_NAME",
+        desc: "当前队友所属 agent team 的名称（自动设置）",
+    },
+    {
+        key: "CLAUDE_CODE_TMPDIR",
+        desc: "覆盖内部临时文件目录（Claude Code 会在该目录下追加 /claude/）",
     },
     {
         key: "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
@@ -164,6 +232,10 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "设置为 1 以选择退出 Sentry 错误报告",
     },
     {
+        key: "DISABLE_INSTALLATION_CHECKS",
+        desc: "设置为 1 以禁用安装检查警告（仅在手动管理安装位置时使用）",
+    },
+    {
         key: "DISABLE_NON_ESSENTIAL_MODEL_CALLS",
         desc: "设置为 1 以禁用非关键路径（如风味文本）的模型调用",
     },
@@ -188,6 +260,14 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "设置为 1 以选择退出 Statsig 遥测（请注意，Statsig 事件不包括用户数据，如代码、文件路径或 bash 命令）",
     },
     {
+        key: "ENABLE_TOOL_SEARCH",
+        desc: "控制 MCP 工具搜索：auto / auto:N / true / false",
+    },
+    {
+        key: "FORCE_AUTOUPDATE_PLUGINS",
+        desc: "设置为 true 以强制插件自动更新（即使禁用了主自动更新）",
+    },
+    {
         key: "HTTP_PROXY",
         desc: "为网络连接指定 HTTP 代理服务器",
     },
@@ -196,12 +276,24 @@ export const ENV_VAR_SUGGESTIONS = [
         desc: "为网络连接指定 HTTPS 代理服务器",
     },
     {
+        key: "IS_DEMO",
+        desc: "设置为 true 启用演示模式（隐藏账号信息、跳过入职、隐藏内部命令）",
+    },
+    {
         key: "MAX_MCP_OUTPUT_TOKENS",
         desc: "MCP 工具响应中允许的最大令牌数. 当输出超过 10,000 个令牌时, Claude Code 显示警告 (默认: 25000)",
     },
     {
         key: "MAX_THINKING_TOKENS",
         desc: "启用 扩展思考 并为思考过程设置令牌预算。扩展思考改进复杂推理和编码任务的性能，但影响 提示缓存效率。默认禁用。",
+    },
+    {
+        key: "MCP_CLIENT_SECRET",
+        desc: "为需要预配置凭证的 MCP 服务器提供 OAuth 客户端密钥",
+    },
+    {
+        key: "MCP_OAUTH_CALLBACK_PORT",
+        desc: "OAuth 回调固定端口（可替代添加 MCP 服务器时的 --callback-port）",
     },
     {
         key: "MCP_TIMEOUT",

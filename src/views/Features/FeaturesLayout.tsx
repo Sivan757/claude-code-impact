@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { FeatureType, TemplateCategory } from "@/types";
 import { useTranslation } from "react-i18next";
 import {
@@ -50,13 +50,21 @@ const FEATURE_TO_KEY: Partial<Record<FeatureType, SidebarKey>> = {
 interface FeaturesLayoutProps {
   children: ReactNode;
   feature?: FeatureType;
+  showTopNavigation?: boolean;
   // Legacy props for gradual migration
   currentFeature?: FeatureType | null;
   onFeatureClick?: (feature: FeatureType) => void;
 }
 
-export function FeaturesLayout({ children, feature, currentFeature, onFeatureClick }: FeaturesLayoutProps) {
+export function FeaturesLayout({
+  children,
+  feature,
+  showTopNavigation = true,
+  currentFeature,
+  onFeatureClick,
+}: FeaturesLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -121,7 +129,10 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
       onFeatureClick(keyToFeature[key as SidebarKey]);
     } else {
       // Router mode
-      navigate(KEY_TO_ROUTE[key as SidebarKey]);
+      navigate({
+        pathname: KEY_TO_ROUTE[key as SidebarKey],
+        search: location.search,
+      });
     }
   };
 
@@ -147,53 +158,68 @@ export function FeaturesLayout({ children, feature, currentFeature, onFeatureCli
         )}
       </AnimatePresence>
 
-      <main className="flex-1 overflow-hidden relative px-[10px] pb-[10px] flex flex-col">
-        <div className="shrink-0 flex items-center justify-center z-10 p-1">
-          <div className="flex items-center p-1 bg-secondary/50 backdrop-blur-md border border-border/40 rounded-full shadow-sm">
-            {groups[0].items.map((item) => {
-              const isActive = activeKey === item.key;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => handleItemClick(item.key)}
-                  className={cn(
-                    "relative flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300",
-                    isActive ? "text-primary bg-background shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="topbar-active"
-                      className="absolute inset-0 bg-background rounded-full shadow-sm z-[-1]"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  {Icon && <Icon className="w-4 h-4" />}
-                  <span className="z-10">{item.label}</span>
-                </button>
-              );
-            })}
-
-            {/* Vertical Separator */}
-            <div className="w-px h-4 bg-border/60 mx-1.5" />
-
-            {/* Refresh Button */}
-            <motion.button
-              onClick={handleRefresh}
-              className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title={t('common.refresh') || "Refresh"}
-              whileTap={{ scale: 0.95 }}
-            >
-              <motion.div
-                animate={{ rotate: isRefreshing ? 360 : 0 }}
-                transition={{ duration: 0.6, ease: "easeInOut", repeat: isRefreshing ? Infinity : 0 }}
+      <main
+        className={cn(
+          "flex-1 overflow-hidden relative p-[10px] flex gap-2",
+          showTopNavigation ? "flex-col md:flex-row" : "flex-col"
+        )}
+      >
+        {showTopNavigation && (
+          <aside className="shrink-0 md:w-[220px]">
+            <div className="h-full rounded-2xl border border-border/40 bg-secondary/35 backdrop-blur-sm p-2 flex md:flex-col gap-2">
+              <nav
+                aria-label={t('features.common_settings') || "Configuration Navigation"}
+                className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible scrollbar-thin"
               >
-                <ReloadIcon className="w-4 h-4" />
-              </motion.div>
-            </motion.button>
-          </div>
-        </div>
+                {groups[0].items.map((item) => {
+                  const isActive = activeKey === item.key;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      type="button"
+                      key={item.key}
+                      onClick={() => handleItemClick(item.key)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap md:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                        isActive ? "text-primary bg-background shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      )}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="feature-nav-active"
+                          className="absolute inset-0 rounded-lg bg-background shadow-sm z-[-1]"
+                          transition={{ type: "spring", stiffness: 320, damping: 30 }}
+                        />
+                      )}
+                      {Icon && <Icon className="w-4 h-4 shrink-0" />}
+                      <span className="z-10">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+
+              <div className="hidden md:block h-px bg-border/60 my-0.5" />
+
+              <motion.button
+                type="button"
+                onClick={handleRefresh}
+                aria-label={t('common.refresh') || "Refresh"}
+                className="shrink-0 flex items-center justify-center md:justify-start gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                title={t('common.refresh') || "Refresh"}
+                whileTap={{ scale: 0.97 }}
+              >
+                <motion.div
+                  animate={{ rotate: isRefreshing ? 360 : 0 }}
+                  transition={{ duration: 0.6, ease: "easeInOut", repeat: isRefreshing ? Infinity : 0 }}
+                >
+                  <ReloadIcon className="w-4 h-4" />
+                </motion.div>
+                <span className="hidden md:inline text-sm">{t('common.refresh') || "Refresh"}</span>
+              </motion.button>
+            </div>
+          </aside>
+        )}
 
         <div className="flex-1 min-h-0 w-full rounded-2xl overflow-hidden flex flex-col relative group z-0">
           <div className="absolute inset-0 bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm pointer-events-none z-[-1]" />

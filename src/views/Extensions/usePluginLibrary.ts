@@ -1,14 +1,24 @@
 import { useMemo, useState } from "react";
-import type { PluginScanResult, ScannedMarketplace, ScannedPlugin } from "../../types";
+import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
+import type { PluginScanResult } from "../../types";
 import { useInvokeMutation, useInvokeQuery } from "../../hooks";
+import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
 
+export type PluginScope = "user" | "project" | "local";
 export type PluginStatusFilter = "all" | "installed" | "not_installed";
-
 
 interface PluginStats {
   total: number;
   installed: number;
   notInstalled: number;
+}
+
+interface PluginRuntimeState {
+  id: string;
+  scope: "user" | "project" | "local" | "managed";
+  enabled: boolean;
+  projectPath?: string | null;
 }
 
 const EMPTY_SCAN: PluginScanResult = {
@@ -17,8 +27,53 @@ const EMPTY_SCAN: PluginScanResult = {
   errors: [],
 };
 
-export function usePluginLibrary() {
+function toEnabledPluginMap(raw: unknown): Record<string, boolean> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const enabledPlugins = (raw as Record<string, unknown>).enabledPlugins;
+  if (!enabledPlugins || typeof enabledPlugins !== "object" || Array.isArray(enabledPlugins)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(enabledPlugins as Record<string, unknown>).map(([key, value]) => [key, value === true]),
+  );
+}
+
+function normalizePath(path?: string | null): string | null {
+  if (!path) return null;
+  const trimmed = path.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/[\\/]+$/, "");
+}
+
+function isProjectLikeScope(scope: PluginScope) {
+  return scope === "project" || scope === "local";
+}
+
+export function usePluginLibrary(options?: {
+  settingsPath?: string;
+  scope?: PluginScope;
+  projectPath?: string;
+}) {
+  const { t } = useTranslation();
+  const confirmDialog = useConfirmDialog();
+  const settingsPath = options?.settingsPath;
+  const scope: PluginScope = options?.scope ?? "user";
+  const projectPath = options?.projectPath;
+  const normalizedProjectPath = normalizePath(projectPath);
+
+  const invalidateKeys = [["pluginScan"], ["pluginRuntimeState"]];
+
   const scanQuery = useInvokeQuery<PluginScanResult>(["pluginScan"], "scan_plugins");
+  const runtimeStateQuery = useInvokeQuery<PluginRuntimeState[]>(
+    ["pluginRuntimeState"],
+    "list_plugin_runtime_state",
+  );
+  const settingsQuery = useInvokeQuery<{ raw: Record<string, unknown> | null }>(
+    ["pluginSettings", settingsPath ?? "__global__"],
+    "get_settings",
+    settingsPath ? { path: settingsPath } : undefined,
+  );
   const scanResult = scanQuery.data ?? EMPTY_SCAN;
 
   const [activeMarketplace, setActiveMarketplace] = useState<string>("all");
@@ -33,11 +88,26 @@ export function usePluginLibrary() {
   const [updatingMarketplaceId, setUpdatingMarketplaceId] = useState<string | null>(null);
   const [pendingToggle, setPendingToggle] = useState<Record<string, boolean>>({});
 
-  const installMutation = useInvokeMutation<string, { pluginId: string }>("install_plugin", [["pluginScan"]]);
-  const uninstallMutation = useInvokeMutation<string, { pluginId: string }>("uninstall_plugin", [["pluginScan"]]);
-  const enableMutation = useInvokeMutation<string, { pluginId: string }>("enable_plugin", [["pluginScan"]]);
-  const disableMutation = useInvokeMutation<string, { pluginId: string }>("disable_plugin", [["pluginScan"]]);
-  const updateMutation = useInvokeMutation<string, { pluginId: string }>("update_plugin", [["pluginScan"]]);
+  const installMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
+    "install_plugin",
+    invalidateKeys,
+  );
+  const uninstallMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
+    "uninstall_plugin",
+    invalidateKeys,
+  );
+  const enableMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
+    "enable_plugin",
+    invalidateKeys,
+  );
+  const disableMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
+    "disable_plugin",
+    invalidateKeys,
+  );
+  const updateMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
+    "update_plugin",
+    invalidateKeys,
+  );
   const addMarketplaceMutation = useInvokeMutation<string, { source: string }>("add_extension_marketplace", [["pluginScan"]]);
   const removeMarketplaceMutation = useInvokeMutation<string, { name: string }>(
     "remove_extension_marketplace_safe",
@@ -64,16 +134,80 @@ export function usePluginLibrary() {
     );
   };
 
-  const plugins = useMemo(() => {
-    if (Object.keys(pendingToggle).length === 0) {
-      return scanResult.plugins;
+  const ensureScopeContext = () => {
+    if (!isProjectLikeScope(scope)) {
+      return true;
     }
-    return scanResult.plugins.map((plugin) =>
+    if (normalizedProjectPath) {
+      return true;
+    }
+    setActionError(`Scope '${scope}' requires a project path`);
+    return false;
+  };
+
+  const getActionArgs = (pluginId: string) => ({
+    pluginId,
+    scope,
+    projectPath: normalizedProjectPath ?? undefined,
+  });
+
+  const enabledFromSettings = useMemo(
+    () => toEnabledPluginMap(settingsQuery.data?.raw ?? null),
+    [settingsQuery.data?.raw],
+  );
+
+  const scopedRuntimeState = useMemo(() => {
+    const map = new Map<string, { enabled: boolean }>();
+    const states = runtimeStateQuery.data ?? [];
+
+    for (const state of states) {
+      if (state.scope !== scope) {
+        continue;
+      }
+
+      if (isProjectLikeScope(scope)) {
+        if (!normalizedProjectPath) {
+          continue;
+        }
+        const itemProjectPath = normalizePath(state.projectPath ?? null);
+        if (itemProjectPath && itemProjectPath !== normalizedProjectPath) {
+          continue;
+        }
+      }
+
+      map.set(state.id, { enabled: state.enabled });
+    }
+
+    return map;
+  }, [normalizedProjectPath, runtimeStateQuery.data, scope]);
+
+  const plugins = useMemo(() => {
+    const base = scanResult.plugins.map((plugin) => {
+      const state = scopedRuntimeState.get(plugin.id);
+      const isInstalled = Boolean(state);
+      let isEnabled = state?.enabled ?? false;
+
+      if (settingsPath) {
+        isEnabled = enabledFromSettings[plugin.id] === true;
+      }
+
+      return {
+        ...plugin,
+        isInstalled,
+        isEnabled,
+      };
+    });
+
+    if (Object.keys(pendingToggle).length === 0) {
+      return base;
+    }
+
+    return base.map((plugin) =>
       pendingToggle[plugin.id] === undefined
         ? plugin
         : { ...plugin, isEnabled: pendingToggle[plugin.id] }
     );
-  }, [pendingToggle, scanResult.plugins]);
+  }, [enabledFromSettings, pendingToggle, scanResult.plugins, scopedRuntimeState, settingsPath]);
 
   const scopedPlugins = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -116,19 +250,26 @@ export function usePluginLibrary() {
     }
 
     return [...next].sort((a, b) => {
-      // Always sort by name
       return a.name.localeCompare(b.name);
     });
   }, [scopedPlugins, statusFilter]);
 
-  const isScanning = scanQuery.isLoading || scanQuery.isFetching;
-  const scanError = scanQuery.error ? String(scanQuery.error) : null;
+  const isScanning =
+    scanQuery.isLoading ||
+    scanQuery.isFetching ||
+    runtimeStateQuery.isLoading ||
+    runtimeStateQuery.isFetching;
+  const scanError = scanQuery.error
+    ? String(scanQuery.error)
+    : (runtimeStateQuery.error ? String(runtimeStateQuery.error) : null);
 
   const installPlugin = async (pluginId: string) => {
+    if (!ensureScopeContext()) return;
+
     setActionPluginId(pluginId);
     setActionError(null);
     try {
-      await installMutation.mutateAsync({ pluginId });
+      await installMutation.mutateAsync(getActionArgs(pluginId));
     } catch (error) {
       setActionError(normalizeError(error));
     } finally {
@@ -137,16 +278,28 @@ export function usePluginLibrary() {
   };
 
   const uninstallPlugin = async (pluginId: string) => {
+    if (!ensureScopeContext()) return;
+    const confirmed = await confirmDialog({
+      title: t("extensions_view.uninstall", "Uninstall"),
+      description: t("extensions_view.confirm_uninstall", {
+        plugin: pluginId,
+        defaultValue: `Uninstall plugin "${pluginId}"?`,
+      }),
+      variant: "destructive",
+      confirmText: t("extensions_view.uninstall", "Uninstall"),
+    });
+    if (!confirmed) return;
+
     setActionPluginId(pluginId);
     setActionError(null);
     try {
-      await uninstallMutation.mutateAsync({ pluginId });
+      await uninstallMutation.mutateAsync(getActionArgs(pluginId));
     } catch (error) {
       const message = normalizeError(error);
       if (isNotInstalledError(message)) {
         try {
-          await installMutation.mutateAsync({ pluginId });
-          await uninstallMutation.mutateAsync({ pluginId });
+          await installMutation.mutateAsync(getActionArgs(pluginId));
+          await uninstallMutation.mutateAsync(getActionArgs(pluginId));
           return;
         } catch (fallbackError) {
           setActionError(normalizeError(fallbackError));
@@ -164,20 +317,36 @@ export function usePluginLibrary() {
     setActionError(null);
     setPendingToggle((prev) => ({ ...prev, [pluginId]: enabled }));
     try {
-      if (enabled) {
-        await enableMutation.mutateAsync({ pluginId });
+      if (settingsPath) {
+        await invoke<void>("toggle_plugin", {
+          pluginId,
+          enabled,
+          path: settingsPath,
+        });
+        await settingsQuery.refetch();
       } else {
-        await disableMutation.mutateAsync({ pluginId });
+        if (!ensureScopeContext()) {
+          return;
+        }
+        if (enabled) {
+          await enableMutation.mutateAsync(getActionArgs(pluginId));
+        } else {
+          await disableMutation.mutateAsync(getActionArgs(pluginId));
+        }
       }
     } catch (error) {
       const message = normalizeError(error);
+      if (settingsPath) {
+        setActionError(message);
+        return;
+      }
       if (isNotInstalledError(message)) {
         try {
-          await installMutation.mutateAsync({ pluginId });
+          await installMutation.mutateAsync(getActionArgs(pluginId));
           if (enabled) {
-            await enableMutation.mutateAsync({ pluginId });
+            await enableMutation.mutateAsync(getActionArgs(pluginId));
           } else {
-            await disableMutation.mutateAsync({ pluginId });
+            await disableMutation.mutateAsync(getActionArgs(pluginId));
           }
           return;
         } catch (fallbackError) {
@@ -197,10 +366,12 @@ export function usePluginLibrary() {
   };
 
   const updatePlugin = async (pluginId: string) => {
+    if (!ensureScopeContext()) return;
+
     setUpdatingPluginId(pluginId);
     setActionError(null);
     try {
-      await updateMutation.mutateAsync({ pluginId });
+      await updateMutation.mutateAsync(getActionArgs(pluginId));
     } catch (error) {
       setActionError(normalizeError(error));
     } finally {
@@ -235,6 +406,17 @@ export function usePluginLibrary() {
   };
 
   const removeMarketplace = async (name: string) => {
+    const confirmed = await confirmDialog({
+      title: t("common.remove", "Remove"),
+      description: t("extensions_view.confirm_remove_marketplace", {
+        marketplace: name,
+        defaultValue: `Remove marketplace "${name}"?`,
+      }),
+      variant: "destructive",
+      confirmText: t("common.remove", "Remove"),
+    });
+    if (!confirmed) return;
+
     setActionError(null);
     try {
       await removeMarketplaceMutation.mutateAsync({ name });
@@ -264,6 +446,9 @@ export function usePluginLibrary() {
     statusFilter,
     setStatusFilter,
 
+    scope,
+    projectPath: normalizedProjectPath,
+
     search,
     setSearch,
     actionError,
@@ -284,7 +469,3 @@ export function usePluginLibrary() {
     removeMarketplace,
   };
 }
-
-export type PluginLibraryState = ReturnType<typeof usePluginLibrary>;
-export type PluginListItem = ScannedPlugin;
-export type MarketplaceListItem = ScannedMarketplace;
