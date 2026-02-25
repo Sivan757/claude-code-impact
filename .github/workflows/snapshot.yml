@@ -69,8 +69,8 @@ jobs:
         id: snapshot
         shell: bash
         run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          VERSION="$(node -p \"require('./package.json').version\")"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          VERSION="$(node -e "process.stdout.write(require('./package.json').version)")"
           DATE_UTC="$(date -u +%Y-%m-%d)"
           TAG="v${VERSION}-${DATE_UTC}-${GITHUB_RUN_ID}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
