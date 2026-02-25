@@ -10,7 +10,11 @@ import { Button } from "../../components/ui/button";
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { useTerminalLauncher } from "../../hooks/useTerminalLauncher";
 import { profileAtom } from "@/store";
-import { getPreferredTerminalApp } from "@/lib/terminalPreference";
+import {
+  detectTerminalPlatform,
+  getPreferredTerminalApp,
+  getTerminalAppOptions,
+} from "@/lib/terminalPreference";
 
 interface ProjectTerminalDialogProps {
   open: boolean;
@@ -42,23 +46,8 @@ export function ProjectTerminalDialog({
     onClose();
   };
 
-  const isMac = navigator.platform.toUpperCase().includes("MAC");
-  const isWindows = navigator.platform.toUpperCase().includes("WIN");
-
-  const systemTerminals = isMac
-    ? [
-        { app: "Terminal", label: "Terminal.app" },
-        { app: "iTerm2", label: "iTerm2" },
-      ]
-    : isWindows
-      ? [
-          { app: "wt", label: "Windows Terminal" },
-          { app: "powershell", label: "PowerShell" },
-        ]
-      : [
-          { app: "gnome-terminal", label: "GNOME Terminal" },
-          { app: "konsole", label: "Konsole" },
-        ];
+  const platform = detectTerminalPlatform();
+  const systemTerminals = getTerminalAppOptions(platform);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -86,15 +75,15 @@ export function ProjectTerminalDialog({
           </Button>
 
           {/* Alternative terminals */}
-          {systemTerminals.map(({ app, label }) => (
+          {systemTerminals.map(({ value, labelKey, fallbackLabel }) => (
             <Button
-              key={app}
+              key={value}
               variant="outline"
               className="w-full rounded-xl gap-2 justify-start"
-              onClick={() => handleLaunch(app)}
+              onClick={() => handleLaunch(value)}
             >
               <ExternalLinkIcon className="w-4 h-4" />
-              {label}
+              {t(labelKey, fallbackLabel)}
             </Button>
           ))}
         </div>

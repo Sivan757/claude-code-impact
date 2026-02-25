@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
+import { useTranslation } from "react-i18next";
 import { LoadingState } from "../../components/config";
 import { useTemplateGet } from "../../config/templates/hooks";
 
@@ -18,6 +19,7 @@ export function TemplatePreviewDialog({
   open,
   onClose,
 }: TemplatePreviewDialogProps) {
+  const { t } = useTranslation();
   const { data: template, isLoading } = useTemplateGet(templateId);
 
   return (
@@ -25,12 +27,12 @@ export function TemplatePreviewDialog({
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="font-serif">
-            {template?.name ?? "Template Preview"}
+            {template?.name ?? t("templates.preview_dialog_title")}
           </DialogTitle>
         </DialogHeader>
 
         {isLoading ? (
-          <LoadingState message="Loading template..." />
+          <LoadingState message={t("templates.preview_loading")} />
         ) : template ? (
           <div className="space-y-4 overflow-y-auto max-h-[60vh]">
             {/* Description */}
@@ -46,21 +48,21 @@ export function TemplatePreviewDialog({
             </div>
 
             {/* Settings */}
-            <Section title="Settings" data={template.config} />
+            <Section title={t("templates.section_settings")} data={template.config} />
 
             {/* Environment */}
             {template.env && Object.keys(template.env).length > 0 && (
-              <Section title="Environment Variables" data={template.env} />
+              <Section title={t("templates.section_env")} data={template.env} />
             )}
 
             {/* Hooks */}
             {template.hooks && Object.keys(template.hooks).length > 0 && (
-              <Section title="Hooks" data={template.hooks} />
+              <Section title={t("templates.section_hooks")} data={template.hooks} />
             )}
 
             {/* MCP Servers */}
             {template.mcp_servers && Object.keys(template.mcp_servers).length > 0 && (
-              <Section title="MCP Servers" data={template.mcp_servers} />
+              <Section title={t("templates.section_mcp")} data={template.mcp_servers} />
             )}
           </div>
         ) : null}

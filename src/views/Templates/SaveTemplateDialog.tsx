@@ -51,20 +51,20 @@ export function SaveTemplateDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif">Save as Template</DialogTitle>
+          <DialogTitle className="font-serif">{t("templates.save_dialog_title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Name */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Name
+              {t("templates.save_name_label")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Project Template"
+              placeholder={t("templates.save_name_placeholder")}
               className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm"
             />
           </div>
@@ -77,7 +77,7 @@ export function SaveTemplateDialog({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what this template is for..."
+              placeholder={t("templates.save_description_placeholder")}
               rows={3}
               className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm resize-none"
             />
@@ -86,20 +86,22 @@ export function SaveTemplateDialog({
           {/* Tags */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Tags (comma-separated)
+              {t("templates.save_tags_label")}
             </label>
             <input
               type="text"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
-              placeholder="web, react, typescript"
+              placeholder={t("templates.save_tags_placeholder")}
               className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm"
             />
           </div>
 
           {/* Source indicator */}
           <p className="text-xs text-muted-foreground">
-            Saving {projectPath ? `from project: ${projectPath.split("/").pop()}` : "global settings"}
+            {projectPath
+              ? t("templates.save_source_project", { name: projectPath.split("/").pop() ?? projectPath })
+              : t("templates.save_source_global")}
           </p>
 
           {/* Error */}
@@ -119,7 +121,7 @@ export function SaveTemplateDialog({
               onClick={handleSave}
               disabled={saveMutation.isPending || !name.trim()}
             >
-              {saveMutation.isPending ? "Saving..." : t("common.save")}
+              {saveMutation.isPending ? t("templates.saving") : t("common.save")}
             </Button>
           </div>
         </div>

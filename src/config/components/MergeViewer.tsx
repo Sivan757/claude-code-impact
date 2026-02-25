@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MergedConfigView } from "../types";
 import { ScopeIndicator } from "./ScopeIndicator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -8,6 +9,7 @@ interface MergeViewerProps {
 }
 
 export function MergeViewer({ mergedConfig }: MergeViewerProps) {
+  const { t } = useTranslation();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const provenanceEntries = Object.entries(mergedConfig.provenance);
@@ -17,12 +19,12 @@ export function MergeViewer({ mergedConfig }: MergeViewerProps) {
     <div className="space-y-4">
       <Tabs defaultValue="effective" className="w-full">
         <TabsList className={`grid w-full ${hasErrors ? "grid-cols-4" : "grid-cols-3"}`}>
-          <TabsTrigger value="effective">Effective Config</TabsTrigger>
-          <TabsTrigger value="provenance">Provenance</TabsTrigger>
+          <TabsTrigger value="effective">{t("merge_viewer.effective")}</TabsTrigger>
+          <TabsTrigger value="provenance">{t("merge_viewer.provenance")}</TabsTrigger>
           <TabsTrigger value="claude-md">CLAUDE.md</TabsTrigger>
           {hasErrors && (
             <TabsTrigger value="errors" className="text-destructive">
-              Errors ({mergedConfig.parse_errors.length})
+              {t("merge_viewer.errors")} ({mergedConfig.parse_errors.length})
             </TabsTrigger>
           )}
         </TabsList>
@@ -55,7 +57,7 @@ export function MergeViewer({ mergedConfig }: MergeViewerProps) {
                   {selectedKey === key && (
                     <div className="mt-2 space-y-2">
                       <div className="text-xs text-muted-foreground">
-                        Source: {entry.file_path}
+                        {t("merge_viewer.source")}: {entry.file_path}
                       </div>
                       <div className="rounded bg-secondary/40 p-2">
                         <pre className="text-xs overflow-x-auto">
@@ -107,10 +109,10 @@ export function MergeViewer({ mergedConfig }: MergeViewerProps) {
                   >
                     <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  <h3 className="text-lg font-medium">Configuration Parse Errors</h3>
+                  <h3 className="text-lg font-medium">{t("merge_viewer.parse_errors_title")}</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  The following configuration files could not be parsed. Please fix these errors to ensure proper configuration merging.
+                  {t("merge_viewer.parse_errors_desc")}
                 </p>
                 <div className="divide-y divide-border">
                   {mergedConfig.parse_errors.map((error, index) => (

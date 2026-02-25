@@ -15,11 +15,11 @@ interface BackupRestoreSectionProps {
   settingsPath?: string;
 }
 
-const CONFIG_FILES: { kind: ConfigFileKind; scope: ConfigScope; label: string }[] = [
-  { kind: ConfigFileKind.Settings, scope: ConfigScope.User, label: "User Settings" },
-  { kind: ConfigFileKind.SettingsLocal, scope: ConfigScope.UserLocal, label: "User Local Settings" },
-  { kind: ConfigFileKind.Settings, scope: ConfigScope.Project, label: "Project Settings" },
-  { kind: ConfigFileKind.SettingsLocal, scope: ConfigScope.ProjectLocal, label: "Project Local Settings" },
+const CONFIG_FILES: { kind: ConfigFileKind; scope: ConfigScope; labelKey: string }[] = [
+  { kind: ConfigFileKind.Settings, scope: ConfigScope.User, labelKey: "backup.file_user_settings" },
+  { kind: ConfigFileKind.SettingsLocal, scope: ConfigScope.UserLocal, labelKey: "backup.file_user_local_settings" },
+  { kind: ConfigFileKind.Settings, scope: ConfigScope.Project, labelKey: "backup.file_project_settings" },
+  { kind: ConfigFileKind.SettingsLocal, scope: ConfigScope.ProjectLocal, labelKey: "backup.file_project_local_settings" },
 ];
 
 export function BackupRestoreSection({ settingsPath }: BackupRestoreSectionProps) {
@@ -61,7 +61,7 @@ export function BackupRestoreSection({ settingsPath }: BackupRestoreSectionProps
       title: t("backup.title", "Backup & Restore"),
       description: t("backup.confirm_restore", "Restore this backup? Current config will be overwritten."),
       variant: "destructive",
-      confirmText: t("common.reset", "Restore"),
+      confirmText: t("backup.restore"),
     });
     if (!confirmed) return;
 
@@ -101,14 +101,14 @@ export function BackupRestoreSection({ settingsPath }: BackupRestoreSectionProps
                 : "bg-secondary text-muted-foreground hover:bg-secondary/80"
             }`}
           >
-            {file.label}
+            {t(file.labelKey)}
           </button>
         ))}
       </div>
 
       {/* Backups list */}
       {isLoading ? (
-        <LoadingState message="Loading backups..." />
+        <LoadingState message={t("backup.loading_backups")} />
       ) : !backups || backups.length === 0 ? (
         <p className="text-xs text-muted-foreground italic py-4">
           {t("backup.no_backups") || "No backups found for this file"}
@@ -136,7 +136,7 @@ export function BackupRestoreSection({ settingsPath }: BackupRestoreSectionProps
                 disabled={restoreMutation.isPending}
               >
                 <ResetIcon className="w-3 h-3" />
-                Restore
+                {t("backup.restore")}
               </Button>
             </div>
           ))}

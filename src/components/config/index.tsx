@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, ReactNode, ComponentType } from "react";
 import Markdown from "react-markdown";
+import { useTranslation } from "react-i18next";
 // Radix icons
 import { ExternalLinkIcon, DownloadIcon, ChatBubbleIcon, DotsHorizontalIcon, ChevronDownIcon, CopyIcon } from "@radix-ui/react-icons";
 import type { IconProps } from "@radix-ui/react-icons/dist/types";
@@ -31,19 +32,30 @@ function parseFrontmatter(content: string): { meta: Record<string, string>; body
   return { meta, body: match[2] };
 }
 
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(
+  date: Date,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const now = new Date();
   const mins = differenceInMinutes(now, date);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins}分钟前`;
+  if (mins < 1) return t("common.relative_time.just_now", { defaultValue: "just now" });
+  if (mins < 60) {
+    return t("common.relative_time.minutes_ago", { count: mins, defaultValue: "{{count}}m ago" });
+  }
   const hours = differenceInHours(now, date);
-  if (hours < 24) return `${hours}小时前`;
+  if (hours < 24) {
+    return t("common.relative_time.hours_ago", { count: hours, defaultValue: "{{count}}h ago" });
+  }
   const days = differenceInDays(now, date);
-  if (days < 7) return `${days}天前`;
+  if (days < 7) {
+    return t("common.relative_time.days_ago", { count: days, defaultValue: "{{count}}d ago" });
+  }
   const weeks = differenceInWeeks(now, date);
-  if (weeks < 5) return `${weeks}周前`;
+  if (weeks < 5) {
+    return t("common.relative_time.weeks_ago", { count: weeks, defaultValue: "{{count}}w ago" });
+  }
   const months = differenceInMonths(now, date);
-  return `${months}个月前`;
+  return t("common.relative_time.months_ago", { count: months, defaultValue: "{{count}}mo ago" });
 }
 
 // ============================================================================
@@ -157,6 +169,7 @@ export function DetailHeader({
   onChangelogClick?: () => void;
   onRename?: (newName: string) => void;
 }) {
+  const { t } = useTranslation();
   const hasMenu = Boolean(path) || onNavigateSession || (menuItems && menuItems.length > 0);
   const hasDefaultMenuItems = Boolean(path) || onNavigateSession;
   const [isEditing, setIsEditing] = useState(false);
@@ -216,7 +229,7 @@ export function DetailHeader({
             <h1
               className={`font-mono text-2xl font-semibold text-primary ${onRename ? "cursor-pointer hover:opacity-80" : ""}`}
               onClick={onRename ? () => setIsEditing(true) : undefined}
-              title={onRename ? "Click to rename" : undefined}
+              title={onRename ? t("common.click_to_rename", { defaultValue: "Click to rename" }) : undefined}
             >
               {title}
             </h1>
@@ -231,7 +244,7 @@ export function DetailHeader({
               onClick={onChangelogClick}
               className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
             >
-              changelog
+              {t("commands.changelog", { defaultValue: "Changelog" })}
             </button>
           )}
           {statusBadge && (
@@ -254,19 +267,19 @@ export function DetailHeader({
               {path && onOpenPath && (
                 <DropdownMenuItem onClick={() => onOpenPath(path)}>
                   <ExternalLinkIcon className="w-4 h-4 mr-2" />
-                  Open in Editor
+                  {t("common.open_in_editor", { defaultValue: "Open in editor" })}
                 </DropdownMenuItem>
               )}
               {path && (
                 <DropdownMenuItem onClick={() => navigator.clipboard.writeText(path)}>
                   <CopyIcon className="w-4 h-4 mr-2" />
-                  Copy Path
+                  {t("common.copy_path", { defaultValue: "Copy Path" })}
                 </DropdownMenuItem>
               )}
               {onNavigateSession && (
                 <DropdownMenuItem onClick={onNavigateSession}>
                   <ChatBubbleIcon className="w-4 h-4 mr-2" />
-                  Go to Session
+                  {t("common.go_to_session", { defaultValue: "Go to Session" })}
                 </DropdownMenuItem>
               )}
               {hasDefaultMenuItems && menuItems && menuItems.length > 0 && (
@@ -312,13 +325,14 @@ export function ItemCard({
   timestamp?: string | Date;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const badgeClass =
     badgeVariant === "accent"
       ? "bg-accent/20 text-accent"
       : "bg-card-alt text-muted-foreground";
 
   const relativeTime = timestamp
-    ? formatRelativeTime(new Date(timestamp))
+    ? formatRelativeTime(new Date(timestamp), t)
     : null;
 
   return (
@@ -331,7 +345,10 @@ export function ItemCard({
           <div className="flex items-center gap-2">
             <p className="font-mono font-medium text-primary">{name}</p>
             {usageCount !== undefined && usageCount > 0 && (
-              <span className="text-xs text-muted-foreground" title={`Used ${usageCount} times`}>
+              <span
+                className="text-xs text-muted-foreground"
+                title={t("common.used_times", { count: usageCount, defaultValue: "Used {{count}} times" })}
+              >
                 ×{usageCount}
               </span>
             )}
@@ -392,6 +409,7 @@ export function ContentCard({
   showGoToTop?: boolean;
   onGoToTop?: () => void;
 }) {
+  const { t } = useTranslation();
   const { meta, body } = parseFrontmatter(content);
   const metaKeys = Object.keys(meta);
 
@@ -417,7 +435,7 @@ export function ContentCard({
           <button
             onClick={onGoToTop}
             className="pointer-events-auto p-3 bg-background border border-border rounded-full shadow-lg hover:bg-card-alt transition-colors"
-            title="Go to top"
+            title={t("common.go_to_top", { defaultValue: "Go to top" })}
           >
             <ChevronDownIcon className="w-5 h-5 rotate-180" />
           </button>
@@ -506,6 +524,7 @@ export function MarketplaceSection({
   onSelect: (item: MarketplaceItem) => void;
   onBrowseMore?: () => void;
 }) {
+  const { t } = useTranslation();
   if (!search || items.length === 0) return null;
 
   const filtered = items.filter(
@@ -519,7 +538,7 @@ export function MarketplaceSection({
   return (
     <div className="mt-8 pt-6 border-t border-border">
       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">
-        From Marketplace ({filtered.length})
+        {t("common.from_marketplace", { defaultValue: "From Marketplace" })} ({filtered.length})
       </p>
       <div className="space-y-2">
         {filtered.slice(0, 5).map((item) => (
@@ -550,11 +569,17 @@ export function MarketplaceSection({
               onClick={onBrowseMore}
               className="w-full text-xs text-primary hover:underline text-center py-2"
             >
-              +{filtered.length - 5} more in Marketplace →
+              {t("common.marketplace_more_action", {
+                count: filtered.length - 5,
+                defaultValue: "+{{count}} more in Marketplace →",
+              })}
             </button>
           ) : (
             <p className="text-xs text-muted-foreground text-center py-2">
-              +{filtered.length - 5} more in Marketplace
+              {t("common.marketplace_more", {
+                count: filtered.length - 5,
+                defaultValue: "+{{count}} more in Marketplace",
+              })}
             </p>
           )
         )}

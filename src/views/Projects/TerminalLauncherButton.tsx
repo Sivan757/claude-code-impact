@@ -11,7 +11,11 @@ import {
 } from "../../components/ui/dropdown-menu";
 import { useTerminalLauncher } from "../../hooks/useTerminalLauncher";
 import { profileAtom } from "@/store";
-import { getPreferredTerminalApp } from "@/lib/terminalPreference";
+import {
+  detectTerminalPlatform,
+  getPreferredTerminalApp,
+  getTerminalAppOptions,
+} from "@/lib/terminalPreference";
 
 interface TerminalLauncherButtonProps {
   cwd: string;
@@ -28,24 +32,8 @@ export function TerminalLauncherButton({
   const launchMutation = useTerminalLauncher();
   const [profile] = useAtom(profileAtom);
   const preferredTerminalApp = getPreferredTerminalApp(profile);
-
-  const isMac = navigator.platform.toUpperCase().includes("MAC");
-  const isWindows = navigator.platform.toUpperCase().includes("WIN");
-
-  const systemTerminals = isMac
-    ? [
-        { app: "Terminal", label: "Terminal.app" },
-        { app: "iTerm2", label: "iTerm2" },
-      ]
-    : isWindows
-      ? [
-          { app: "wt", label: "Windows Terminal" },
-          { app: "powershell", label: "PowerShell" },
-        ]
-      : [
-          { app: "gnome-terminal", label: "GNOME Terminal" },
-          { app: "konsole", label: "Konsole" },
-        ];
+  const platform = detectTerminalPlatform();
+  const systemTerminals = getTerminalAppOptions(platform);
 
   const handleLaunch = (terminalApp?: string) => {
     launchMutation.mutate({ cwd, envVars, terminalApp: terminalApp ?? preferredTerminalApp });
@@ -80,14 +68,14 @@ export function TerminalLauncherButton({
           {onOpenInApp && (
             <>
               <DropdownMenuItem onClick={onOpenInApp}>
-                In-App Terminal
+                {t("projects.launch_in_app_terminal")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
-          {systemTerminals.map(({ app, label }) => (
-            <DropdownMenuItem key={app} onClick={() => handleLaunch(app)}>
-              {label}
+          {systemTerminals.map(({ value, labelKey, fallbackLabel }) => (
+            <DropdownMenuItem key={value} onClick={() => handleLaunch(value)}>
+              {t(labelKey, fallbackLabel)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

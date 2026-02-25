@@ -56,6 +56,57 @@ interface FeaturesLayoutProps {
   onFeatureClick?: (feature: FeatureType) => void;
 }
 
+function getRefreshQueryKeys(pathname: string): Array<readonly unknown[]> {
+  if (pathname.startsWith("/settings")) {
+    return [
+      ["config"],
+      ["settings"],
+      ["templates"],
+      ["llmProfilesState"],
+      ["pluginScan"],
+      ["pluginRuntimeState"],
+      ["pluginSettings"],
+    ];
+  }
+
+  if (pathname.startsWith("/extensions")) {
+    return [
+      ["pluginScan"],
+      ["pluginRuntimeState"],
+      ["pluginSettings"],
+    ];
+  }
+
+  if (pathname.startsWith("/context")) {
+    return [["contextFiles"]];
+  }
+
+  if (pathname.startsWith("/skills")) {
+    return [["skills"]];
+  }
+
+  if (pathname.startsWith("/agents")) {
+    return [["agents"]];
+  }
+
+  if (pathname.startsWith("/mcp")) {
+    return [["config"]];
+  }
+
+  return [
+    ["config"],
+    ["settings"],
+    ["templates"],
+    ["llmProfilesState"],
+    ["pluginScan"],
+    ["pluginRuntimeState"],
+    ["pluginSettings"],
+    ["contextFiles"],
+    ["skills"],
+    ["agents"],
+  ];
+}
+
 export function FeaturesLayout({
   children,
   feature,
@@ -72,19 +123,14 @@ export function FeaturesLayout({
   const [showToast, setShowToast] = useState(false);
 
   const handleRefresh = async () => {
+    if (isRefreshing) return;
     setIsRefreshing(true);
-    // Mimic async operation if query invalidation is synchronous, just for the visual effect
-    // In reality invalidateQueries is async but returns immediately usually unless awaited?
-    // invalidateQueries returns a promise.
+
+    const queryKeys = getRefreshQueryKeys(location.pathname);
+
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["settings"] }),
-      queryClient.invalidateQueries({ queryKey: ["hooks"] }),
-      queryClient.invalidateQueries({ queryKey: ["installedPlugins"] }),
-      queryClient.invalidateQueries({ queryKey: ["mcpConfigPath"] }),
-      queryClient.invalidateQueries({ queryKey: ["contextFiles"] }),
-      queryClient.invalidateQueries({ queryKey: ["skills"] }),
-      queryClient.invalidateQueries({ queryKey: ["agents"] }),
-      new Promise(resolve => setTimeout(resolve, 600)) // Ensure animation lasts at least 600ms
+      ...queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      new Promise((resolve) => setTimeout(resolve, 260)),
     ]);
 
     setIsRefreshing(false);

@@ -1,23 +1,25 @@
 
 import { useRouteError, isRouteErrorResponse, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
+import { useTranslation } from "react-i18next";
 
 export function RouteError() {
+    const { t } = useTranslation();
     const error = useRouteError();
     const navigate = useNavigate();
 
-    let title = "Unexpected Error";
-    let message = "Something went wrong.";
+    let title = t("route_error.unexpected_title");
+    let message = t("route_error.unexpected_message");
     let detail: string | null = null;
 
 
     if (isRouteErrorResponse(error)) {
 
-        title = `${error.status} ${error.statusText || "Error"}`;
-        message = "Sorry, we encountered an issue processing your request.";
+        title = `${error.status} ${error.statusText || t("route_error.error_suffix")}`;
+        message = t("route_error.request_failed");
         if (error.status === 404) {
-            title = "404 Not Found";
-            message = "The page you are looking for could not be found.";
+            title = t("route_error.not_found_title");
+            message = t("route_error.not_found_message");
         }
         detail = error.data?.message || error.statusText;
     } else if (error instanceof Error) {
@@ -26,7 +28,7 @@ export function RouteError() {
     } else if (typeof error === 'string') {
         message = error;
     } else {
-        message = "An unknown error occurred.";
+        message = t("route_error.unknown_message");
         try {
             detail = JSON.stringify(error);
         } catch {
@@ -51,7 +53,7 @@ export function RouteError() {
                 {detail && (
                     <div className="relative rounded-lg bg-muted/50 p-4 text-left text-sm font-mono text-muted-foreground overflow-auto max-h-64 border border-border/50 shadow-sm">
                         <div className="absolute top-2 right-2 text-[10px] uppercase tracking-wider opacity-50">
-                            Error Details
+                            {t("route_error.error_details")}
                         </div>
                         <pre className="whitespace-pre-wrap break-words">{detail}</pre>
                     </div>
@@ -63,14 +65,14 @@ export function RouteError() {
                         variant="outline"
                         className="w-full sm:w-auto min-w-[140px]"
                     >
-                        Reload Application
+                        {t("route_error.reload")}
                     </Button>
                     <Button
                         onClick={() => navigate("/")}
                         variant="default"
                         className="w-full sm:w-auto min-w-[140px]"
                     >
-                        Return Home
+                        {t("route_error.return_home")}
                     </Button>
                 </div>
             </div>

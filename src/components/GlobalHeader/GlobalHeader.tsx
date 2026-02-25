@@ -7,7 +7,12 @@ import {
   RocketIcon,
 } from "@radix-ui/react-icons";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
-import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { profileAtom, primaryFeatureAtom } from "@/store";
 import { useTranslation } from "react-i18next";
 
@@ -103,29 +108,34 @@ function ProfileMenu({
   const { t } = useTranslation();
   return (
     <div className="pr-4">
-      <Popover>
-        <PopoverTrigger className="rounded-full hover:ring-2 hover:ring-primary/50 transition-all">
-          <Avatar className="h-6 w-6 cursor-pointer">
-            {profile.avatarUrl ? <AvatarImage src={profile.avatarUrl} alt={profile.nickname || "User"} /> : null}
-            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-              {profile.nickname ? profile.nickname.charAt(0).toUpperCase() : <PersonIcon className="w-4 h-4" />}
-            </AvatarFallback>
-          </Avatar>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-48 p-2">
-          <div className="space-y-1">
-            {profile.nickname && (
-              <p className="px-2 py-1.5 text-sm font-medium text-ink truncate">{profile.nickname}</p>
-            )}
-            <button
-              onClick={onShowProfileDialog}
-              className="w-full text-left px-2 py-1.5 text-sm text-muted-foreground hover:text-ink hover:bg-card-alt rounded-md transition-colors"
-            >
-              {t('profile_dialog.title')}
-            </button>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="rounded-full hover:ring-2 hover:ring-primary/40 transition-all"
+            aria-label={t("profile_dialog.title")}
+          >
+            <Avatar className="h-6 w-6 cursor-pointer">
+              {profile.avatarUrl ? <AvatarImage src={profile.avatarUrl} alt={profile.nickname || "User"} /> : null}
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                {profile.nickname ? profile.nickname.charAt(0).toUpperCase() : <PersonIcon className="w-4 h-4" />}
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-40 rounded-xl border-border/60 p-1.5 shadow-lg"
+        >
+          <DropdownMenuItem
+            onClick={onShowProfileDialog}
+            className="rounded-lg px-2.5 py-2 text-sm font-medium text-foreground"
+          >
+            <GearIcon className="w-4 h-4 mr-1.5 text-muted-foreground" />
+            {t("profile_dialog.title")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

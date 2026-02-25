@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import i18n from "@/i18n";
 
-const DEFAULT_REVEAL_LABEL = "Reveal in Finder";
+const DEFAULT_REVEAL_LABEL = i18n.t("template_detail.reveal_finder");
 
 export function useRevealLabel() {
   const [label, setLabel] = useState(DEFAULT_REVEAL_LABEL);

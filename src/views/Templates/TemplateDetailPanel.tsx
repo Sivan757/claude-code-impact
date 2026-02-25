@@ -15,10 +15,10 @@ interface TemplateDetailPanelProps {
   onDelete: (id: string) => void;
 }
 
-const MERGE_MODE_INFO: Record<MergeMode, { label: string; desc: string }> = {
-  merge: { label: "Merge", desc: "Deep merge -- new keys added, existing overwritten on conflict" },
-  fill: { label: "Fill Missing", desc: "Only add keys that don't exist (never overwrites)" },
-  replace: { label: "Replace", desc: "Completely overwrite target config" },
+const MERGE_MODE_INFO: Record<MergeMode, { labelKey: string; descKey: string }> = {
+  merge: { labelKey: "launcher.merge_merge", descKey: "templates.merge_mode_desc_merge" },
+  fill: { labelKey: "launcher.merge_fill", descKey: "templates.merge_mode_desc_fill" },
+  replace: { labelKey: "launcher.merge_replace", descKey: "templates.merge_mode_desc_replace" },
 };
 
 function ConfigSection({ title, data }: { title: string; data: unknown }) {
@@ -166,7 +166,7 @@ export function TemplateDetailPanel({
             {t("templates.merge_modes", "Merge Modes")}
           </p>
           <div className="space-y-2">
-            {(Object.entries(MERGE_MODE_INFO) as [MergeMode, { label: string; desc: string }][]).map(
+            {(Object.entries(MERGE_MODE_INFO) as [MergeMode, { labelKey: string; descKey: string }][]).map(
               ([mode, info]) => (
                 <button
                   key={mode}
@@ -177,8 +177,8 @@ export function TemplateDetailPanel({
                       : "border-border/50 bg-card/60 hover:bg-muted/40"
                   }`}
                 >
-                  <p className="text-sm font-medium text-foreground">{info.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{info.desc}</p>
+                  <p className="text-sm font-medium text-foreground">{t(info.labelKey)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t(info.descKey)}</p>
                 </button>
               )
             )}

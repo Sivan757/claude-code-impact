@@ -1,5 +1,6 @@
 import { ConfigScope } from "../../config/types";
 import { cn } from "../../lib/utils";
+import { useTranslation } from "react-i18next";
 import {
   Select,
   SelectContent,
@@ -22,36 +23,36 @@ interface ScopeSelectorProps {
 
 const scopeInfo: Record<
   ConfigScope,
-  { label: string; description: string; color: string }
+  { labelKey: string; descriptionKey: string; color: string }
 > = {
   [ConfigScope.User]: {
-    label: "User",
-    description: "Personal defaults (~/.claude/settings.json)",
+    labelKey: "scope_selector.user",
+    descriptionKey: "scope_selector.user_desc",
     color: "text-blue-600 dark:text-blue-400",
   },
   [ConfigScope.UserLocal]: {
-    label: "User Local",
-    description: "Machine-specific overrides (~/.claude/settings.local.json)",
+    labelKey: "scope_selector.user_local",
+    descriptionKey: "scope_selector.user_local_desc",
     color: "text-purple-600 dark:text-purple-400",
   },
   [ConfigScope.Project]: {
-    label: "Project",
-    description: "Team-shared settings (<project>/.claude/settings.json)",
+    labelKey: "scope_selector.project",
+    descriptionKey: "scope_selector.project_desc",
     color: "text-green-600 dark:text-green-400",
   },
   [ConfigScope.ProjectLocal]: {
-    label: "Project Local",
-    description: "Personal project overrides (<project>/.claude/settings.local.json)",
+    labelKey: "scope_selector.project_local",
+    descriptionKey: "scope_selector.project_local_desc",
     color: "text-amber-600 dark:text-amber-400",
   },
   [ConfigScope.Managed]: {
-    label: "Managed",
-    description: "IT/enterprise controlled (read-only)",
+    labelKey: "scope_selector.managed",
+    descriptionKey: "scope_selector.managed_desc",
     color: "text-red-600 dark:text-red-400",
   },
   [ConfigScope.Default]: {
-    label: "Default",
-    description: "Hardcoded fallbacks",
+    labelKey: "scope_selector.default",
+    descriptionKey: "scope_selector.default_desc",
     color: "text-muted-foreground",
   },
 };
@@ -75,6 +76,7 @@ export function ScopeSelector({
   scopes: scopesOverride,
   projectPath,
 }: ScopeSelectorProps) {
+  const { t } = useTranslation();
   const scopes = userOnly ? [ConfigScope.User] : (scopesOverride ?? editableScopes);
   const info = scopeInfo[value];
 
@@ -82,9 +84,9 @@ export function ScopeSelector({
     // In user-only mode, just show a simple badge
     return (
       <div className={cn("flex items-center gap-2 px-3 py-1.5 bg-card border border-border/60 rounded-xl", className)}>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">Editing:</span>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{t("scope_selector.editing")}</span>
         <span className={cn("text-xs font-medium", info.color)}>
-          {info.label}
+          {t(info.labelKey)}
         </span>
       </div>
     );
@@ -96,9 +98,9 @@ export function ScopeSelector({
         <SelectTrigger className="w-[280px] h-9 rounded-xl border-border/60 bg-card focus:ring-2 focus:ring-primary/10">
           <SelectValue>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Editing:</span>
+              <span className="text-xs text-muted-foreground">{t("scope_selector.editing")}</span>
               <span className={cn("text-xs font-medium", info.color)}>
-                {info.label}
+                {t(info.labelKey)}
               </span>
             </div>
           </SelectValue>
@@ -117,10 +119,10 @@ export function ScopeSelector({
               >
                 <div className="flex flex-col gap-0.5 py-0.5">
                   <span className={cn("text-sm font-medium", scopeData.color)}>
-                    {scopeData.label}
+                    {t(scopeData.labelKey)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {scopeData.description}
+                    {t(scopeData.descriptionKey)}
                   </span>
                 </div>
               </SelectItem>

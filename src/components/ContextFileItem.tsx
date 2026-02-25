@@ -5,6 +5,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent, useCollapsible } f
 import { ExternalLinkIcon, CopyIcon, CheckIcon } from "@radix-ui/react-icons";
 import { useState, ReactNode } from "react";
 import { useAppConfig } from "../context";
+import { useTranslation } from "react-i18next";
 
 function ChevronIcon() {
   const { open } = useCollapsible();
@@ -24,6 +25,7 @@ interface CollapsibleItemProps {
 }
 
 export function CollapsibleItem({ name, path, content, variant = "card-alt", renderContent }: CollapsibleItemProps) {
+  const { t } = useTranslation();
   const { formatPath } = useAppConfig();
   const [copied, setCopied] = useState(false);
   const bgClass = variant === "card" ? "bg-card border border-border" : "bg-card-alt";
@@ -45,7 +47,7 @@ export function CollapsibleItem({ name, path, content, variant = "card-alt", ren
         <button
           onClick={handleCopy}
           className="text-muted-foreground hover:text-primary shrink-0"
-          title="Copy content"
+          title={t("message_view.copy_content")}
         >
           {copied ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
         </button>

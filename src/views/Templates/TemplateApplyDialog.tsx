@@ -26,12 +26,6 @@ interface TemplateApplyDialogProps {
   projectPath?: string;
 }
 
-const MERGE_MODES: { value: MergeMode; label: string; desc: string }[] = [
-  { value: "merge", label: "Merge", desc: "Deep merge — new keys added, existing keys overwritten on conflict" },
-  { value: "fill", label: "Fill Missing", desc: "Only add keys that don't exist yet (never overwrites)" },
-  { value: "replace", label: "Replace", desc: "Completely overwrite target config with template" },
-];
-
 export function TemplateApplyDialog({
   templateId,
   templateName,
@@ -43,6 +37,11 @@ export function TemplateApplyDialog({
   const confirmDialog = useConfirmDialog();
   const [mergeMode, setMergeMode] = useState<MergeMode>("merge");
   const applyMutation = useTemplateApply();
+  const mergeModes: { value: MergeMode; label: string; desc: string }[] = [
+    { value: "merge", label: t("launcher.merge_merge"), desc: t("templates.merge_mode_desc_merge") },
+    { value: "fill", label: t("launcher.merge_fill"), desc: t("templates.merge_mode_desc_fill") },
+    { value: "replace", label: t("launcher.merge_replace"), desc: t("templates.merge_mode_desc_replace") },
+  ];
 
   const handleApply = async () => {
     if (!templateId) return;
@@ -71,17 +70,17 @@ export function TemplateApplyDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif">Apply Template</DialogTitle>
+          <DialogTitle className="font-serif">{t("templates.apply_dialog_title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
             <p className="text-sm text-foreground">
-              Apply <strong>{templateName}</strong> to{" "}
+              {t("templates.apply_target_prefix")} <strong>{templateName}</strong> {t("templates.apply_target_to")}{" "}
               {projectPath ? (
                 <span className="font-mono text-xs">{projectPath.split("/").pop()}</span>
               ) : (
-                "global settings"
+                t("templates.save_source_global_short")
               )}
             </p>
           </div>
@@ -89,14 +88,14 @@ export function TemplateApplyDialog({
           {/* Merge Mode */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Merge Mode
+              {t("templates.merge_mode_label")}
             </label>
             <Select value={mergeMode} onValueChange={(v) => setMergeMode(v as MergeMode)}>
               <SelectTrigger className="w-full h-9 rounded-xl">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {MERGE_MODES.map((mode) => (
+                {mergeModes.map((mode) => (
                   <SelectItem key={mode.value} value={mode.value} className="rounded-lg">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-medium">{mode.label}</span>
@@ -125,7 +124,7 @@ export function TemplateApplyDialog({
               onClick={handleApply}
               disabled={applyMutation.isPending || !templateId}
             >
-              {applyMutation.isPending ? "Applying..." : "Apply"}
+              {applyMutation.isPending ? t("templates.applying") : t("templates.apply")}
             </Button>
           </div>
         </div>

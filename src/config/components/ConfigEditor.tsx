@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ConfigScope, ConfigFileKind } from "../types";
 import { useConfigMerged, useConfigWrite } from "../hooks/useConfig";
 import { useConfigWatcher } from "../hooks/useConfigWatcher";
@@ -32,6 +33,7 @@ function getFileKindForScope(scope: ConfigScope): ConfigFileKind {
 }
 
 export function ConfigEditor({ projectPath }: ConfigEditorProps) {
+  const { t } = useTranslation();
   const [targetScope, setTargetScope] = useState<ConfigScope>(ConfigScope.User);
   const [editKey, setEditKey] = useState("");
   const [editValue, setEditValue] = useState("");
@@ -64,29 +66,29 @@ export function ConfigEditor({ projectPath }: ConfigEditorProps) {
   };
 
   if (isLoading) {
-    return <div className="p-4 text-center text-muted-foreground">Loading configuration...</div>;
+    return <div className="p-4 text-center text-muted-foreground">{t("config_editor.loading")}</div>;
   }
 
   if (!mergedConfig) {
-    return <div className="p-4 text-center text-muted-foreground">No configuration found</div>;
+    return <div className="p-4 text-center text-muted-foreground">{t("config_editor.not_found")}</div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-1">
-        <h2 className="text-2xl font-serif">Configuration Editor</h2>
+        <h2 className="text-2xl font-serif">{t("config_editor.title")}</h2>
         <p className="text-sm text-muted-foreground">
-          Edit configuration values across different scopes
+          {t("config_editor.subtitle")}
         </p>
       </div>
 
       {/* Write Form */}
       <div className="rounded-lg border border-border bg-card p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Write Configuration</h3>
+          <h3 className="text-lg font-medium">{t("config_editor.write_title")}</h3>
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Target Scope:</Label>
+            <Label className="text-xs text-muted-foreground">{t("config_editor.target_scope")}</Label>
             <Select
               value={targetScope}
               onValueChange={(value) => setTargetScope(value as ConfigScope)}
@@ -95,13 +97,13 @@ export function ConfigEditor({ projectPath }: ConfigEditorProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ConfigScope.User}>User</SelectItem>
-                <SelectItem value={ConfigScope.UserLocal}>User Local</SelectItem>
+                <SelectItem value={ConfigScope.User}>{t("scope_selector.user")}</SelectItem>
+                <SelectItem value={ConfigScope.UserLocal}>{t("scope_selector.user_local")}</SelectItem>
                 <SelectItem value={ConfigScope.Project} disabled={!projectPath}>
-                  Project
+                  {t("scope_selector.project")}
                 </SelectItem>
                 <SelectItem value={ConfigScope.ProjectLocal} disabled={!projectPath}>
-                  Project Local
+                  {t("scope_selector.project_local")}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -110,18 +112,18 @@ export function ConfigEditor({ projectPath }: ConfigEditorProps) {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Key</Label>
+            <Label>{t("config_editor.key_label")}</Label>
             <Input
-              placeholder="e.g., model"
+              placeholder={t("config_editor.key_placeholder")}
               value={editKey}
               onChange={(e) => setEditKey(e.target.value)}
               className="font-mono text-sm"
             />
           </div>
           <div className="space-y-2">
-            <Label>Value (JSON)</Label>
+            <Label>{t("config_editor.value_label")}</Label>
             <Input
-              placeholder='e.g., "opus"'
+              placeholder={t("config_editor.value_placeholder")}
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               className="font-mono text-sm"
@@ -134,18 +136,18 @@ export function ConfigEditor({ projectPath }: ConfigEditorProps) {
           disabled={!editKey || !editValue || writeMutation.isPending}
           className="w-full"
         >
-          {writeMutation.isPending ? "Writing..." : "Write Configuration"}
+          {writeMutation.isPending ? t("config_editor.writing") : t("config_editor.write_action")}
         </Button>
 
         {writeMutation.isError && (
           <div className="text-sm text-destructive">
-            Error: {writeMutation.error}
+            {t("config_editor.error_prefix")} {writeMutation.error}
           </div>
         )}
 
         {writeMutation.isSuccess && (
           <div className="text-sm text-green-600">
-            Configuration written successfully
+            {t("config_editor.success")}
           </div>
         )}
       </div>
