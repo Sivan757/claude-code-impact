@@ -2,6 +2,111 @@
 
 use crate::domain::{ChatMessage, ChatsResponse, Message, Project, Session, SessionUsage};
 
+const PROJECT_LIST_CACHE_TTL: Duration = Duration::from_secs(8);
+
+struct ProjectListCacheEntry {
+    cached_at: SystemTime,
+    projects_dir_signature: Option<SystemTime>,
+    projects: Vec<Project>,
+}
+
+static PROJECT_LIST_CACHE: std::sync::LazyLock<std::sync::Mutex<Option<ProjectListCacheEntry>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+
+fn clone_projects(projects: &[Project]) -> Vec<Project> {
+    projects
+        .iter()
+        .map(|project| Project {
+            id: project.id.clone(),
+            path: project.path.clone(),
+            session_count: project.session_count,
+            last_active: project.last_active,
+        })
+        .collect()
+}
+
+fn get_projects_dir_signature(projects_dir: &Path) -> Option<SystemTime> {
+    fs::metadata(projects_dir).ok().and_then(|meta| meta.modified().ok())
+}
+
+fn collect_projects(projects_dir: &Path) -> Result<Vec<Project>, String> {
+    if !projects_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut projects = Vec::new();
+
+    for entry in fs::read_dir(projects_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+
+        if !path.is_dir() {
+            continue;
+        }
+
+        let id = path.file_name().unwrap().to_string_lossy().to_string();
+        let display_path = decode_project_path(&id);
+
+        let mut session_count = 0;
+        let mut last_active: u64 = 0;
+
+        if let Ok(entries) = fs::read_dir(&path) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.ends_with(".jsonl") && !name.starts_with("agent-") {
+                    session_count += 1;
+                    if let Ok(meta) = entry.metadata() {
+                        if let Ok(modified) = meta.modified() {
+                            if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
+                                last_active = last_active.max(duration.as_secs());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        projects.push(Project {
+            id: id.clone(),
+            path: display_path,
+            session_count,
+            last_active,
+        });
+    }
+
+    projects.sort_by(|a, b| b.last_active.cmp(&a.last_active));
+    Ok(projects)
+}
+
+fn list_projects_cached() -> Result<Vec<Project>, String> {
+    let projects_dir = get_claude_dir().join("projects");
+    let signature = get_projects_dir_signature(&projects_dir);
+    let now = SystemTime::now();
+
+    if let Ok(cache) = PROJECT_LIST_CACHE.lock() {
+        if let Some(entry) = cache.as_ref() {
+            let fresh = now
+                .duration_since(entry.cached_at)
+                .map(|age| age <= PROJECT_LIST_CACHE_TTL)
+                .unwrap_or(false);
+            if fresh && entry.projects_dir_signature == signature {
+                return Ok(clone_projects(&entry.projects));
+            }
+        }
+    }
+
+    let projects = collect_projects(&projects_dir)?;
+    if let Ok(mut cache) = PROJECT_LIST_CACHE.lock() {
+        *cache = Some(ProjectListCacheEntry {
+            cached_at: now,
+            projects_dir_signature: signature,
+            projects: clone_projects(&projects),
+        });
+    }
+
+    Ok(projects)
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalCommand {
     pub name: String,
@@ -41,56 +146,7 @@ pub struct ClaudeSettings {
 #[tauri::command]
 async fn list_projects() -> Result<Vec<Project>, String> {
     // Run blocking IO on a separate thread to avoid blocking the main thread
-    tauri::async_runtime::spawn_blocking(|| {
-        let projects_dir = get_claude_dir().join("projects");
-
-        if !projects_dir.exists() {
-            return Ok(vec![]);
-        }
-
-        let mut projects = Vec::new();
-
-        for entry in fs::read_dir(&projects_dir).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-
-            if path.is_dir() {
-                let id = path.file_name().unwrap().to_string_lossy().to_string();
-                let display_path = decode_project_path(&id);
-
-                let mut session_count = 0;
-                let mut last_active: u64 = 0;
-
-                if let Ok(entries) = fs::read_dir(&path) {
-                    for entry in entries.filter_map(|e| e.ok()) {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        if name.ends_with(".jsonl") && !name.starts_with("agent-") {
-                            session_count += 1;
-                            if let Ok(meta) = entry.metadata() {
-                                if let Ok(modified) = meta.modified() {
-                                    if let Ok(duration) =
-                                        modified.duration_since(std::time::UNIX_EPOCH)
-                                    {
-                                        last_active = last_active.max(duration.as_secs());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                projects.push(Project {
-                    id: id.clone(),
-                    path: display_path,
-                    session_count,
-                    last_active,
-                });
-            }
-        }
-
-        projects.sort_by(|a, b| b.last_active.cmp(&a.last_active));
-        Ok(projects)
-    })
+    tauri::async_runtime::spawn_blocking(list_projects_cached)
     .await
     .map_err(|e| e.to_string())?
 }

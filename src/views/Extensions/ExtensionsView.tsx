@@ -21,11 +21,17 @@ export function ExtensionsView({
   settingsPath,
   projectPath,
   allowScope = true,
+  onSettingsMutated,
+  enabledPluginsOverride,
+  onToggleOverride,
 }: {
   embedded?: boolean;
   settingsPath?: string;
   projectPath?: string;
   allowScope?: boolean;
+  onSettingsMutated?: (raw: Record<string, unknown>) => void;
+  enabledPluginsOverride?: Record<string, boolean>;
+  onToggleOverride?: (pluginId: string, enabled: boolean) => void | Promise<void>;
 }) {
   const [scope, setScope] = useState<PluginScope>(
     () => getUiPreference<PluginScope>(EXTENSIONS_SCOPE_KEY) ?? "user"
@@ -63,7 +69,14 @@ export function ExtensionsView({
     updateMarketplace,
     addMarketplace,
     removeMarketplace,
-  } = usePluginLibrary({ settingsPath, scope: effectiveScope, projectPath });
+  } = usePluginLibrary({
+    settingsPath,
+    scope: effectiveScope,
+    projectPath,
+    onSettingsMutated,
+    enabledPluginsOverride,
+    onToggleOverride,
+  });
 
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

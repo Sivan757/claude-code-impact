@@ -36,12 +36,12 @@ const scopeInfo: Record<
   },
   [ConfigScope.Project]: {
     label: "Project",
-    description: "Team-shared settings (.claude/settings.json, version controlled)",
+    description: "Team-shared settings (<project>/.claude/settings.json)",
     color: "text-green-600 dark:text-green-400",
   },
   [ConfigScope.ProjectLocal]: {
     label: "Project Local",
-    description: "Personal project overrides (.claude/settings.local.json, gitignored)",
+    description: "Personal project overrides (<project>/.claude/settings.local.json)",
     color: "text-amber-600 dark:text-amber-400",
   },
   [ConfigScope.Managed]: {

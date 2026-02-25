@@ -26,11 +26,7 @@ static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 /// Get scrollback storage directory
 fn get_scrollback_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".claudecodeimpact")
-        .join("claudecodeimpact")
-        .join("scrollback")
+    crate::infra::get_claudecodeimpact_dir().join("scrollback")
 }
 
 /// Get scrollback file path for a session

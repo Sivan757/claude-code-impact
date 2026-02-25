@@ -1,5 +1,9 @@
 // ============================================================================
 // Plugin repository scan (marketplaces, plugins, components)
+const PLUGIN_SCAN_CACHE_TTL: Duration = Duration::from_secs(300);
+const PLUGIN_RUNTIME_STATE_CACHE_TTL: Duration = Duration::from_secs(5);
+const PLUGIN_RUNTIME_STATE_COMMAND_TIMEOUT: Duration = Duration::from_secs(4);
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ScannedMarketplace {
@@ -56,6 +60,97 @@ pub struct PluginScanResult {
     pub marketplaces: Vec<ScannedMarketplace>,
     pub plugins: Vec<ScannedPlugin>,
     pub errors: Vec<String>,
+}
+
+struct PluginScanCacheEntry {
+    cached_at: SystemTime,
+    claude_dir: PathBuf,
+    result: PluginScanResult,
+}
+
+struct PluginRuntimeStateCacheEntry {
+    cached_at: SystemTime,
+    result: Vec<PluginRuntimeState>,
+}
+
+static PLUGIN_SCAN_CACHE: std::sync::LazyLock<std::sync::Mutex<Option<PluginScanCacheEntry>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+static PLUGIN_RUNTIME_STATE_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<Option<PluginRuntimeStateCacheEntry>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+
+fn invalidate_plugin_scan_cache() {
+    if let Ok(mut cache) = PLUGIN_SCAN_CACHE.lock() {
+        *cache = None;
+    }
+}
+
+fn invalidate_plugin_runtime_state_cache() {
+    if let Ok(mut cache) = PLUGIN_RUNTIME_STATE_CACHE.lock() {
+        *cache = None;
+    }
+}
+
+fn get_cached_plugin_scan(claude_dir: &Path) -> Option<PluginScanResult> {
+    let now = SystemTime::now();
+    let Ok(cache) = PLUGIN_SCAN_CACHE.lock() else {
+        return None;
+    };
+    let entry = cache.as_ref()?;
+    if entry.claude_dir != claude_dir {
+        return None;
+    }
+    let fresh = now
+        .duration_since(entry.cached_at)
+        .map(|age| age <= PLUGIN_SCAN_CACHE_TTL)
+        .unwrap_or(false);
+    if !fresh {
+        return None;
+    }
+    Some(entry.result.clone())
+}
+
+fn store_plugin_scan_cache(claude_dir: PathBuf, result: &PluginScanResult) {
+    if let Ok(mut cache) = PLUGIN_SCAN_CACHE.lock() {
+        *cache = Some(PluginScanCacheEntry {
+            cached_at: SystemTime::now(),
+            claude_dir,
+            result: result.clone(),
+        });
+    }
+}
+
+fn get_cached_plugin_runtime_state() -> Option<Vec<PluginRuntimeState>> {
+    let now = SystemTime::now();
+    let Ok(cache) = PLUGIN_RUNTIME_STATE_CACHE.lock() else {
+        return None;
+    };
+    let entry = cache.as_ref()?;
+    let fresh = now
+        .duration_since(entry.cached_at)
+        .map(|age| age <= PLUGIN_RUNTIME_STATE_CACHE_TTL)
+        .unwrap_or(false);
+    if !fresh {
+        return None;
+    }
+    Some(entry.result.clone())
+}
+
+fn get_any_cached_plugin_runtime_state() -> Option<Vec<PluginRuntimeState>> {
+    let Ok(cache) = PLUGIN_RUNTIME_STATE_CACHE.lock() else {
+        return None;
+    };
+    let entry = cache.as_ref()?;
+    Some(entry.result.clone())
+}
+
+fn store_plugin_runtime_state_cache(result: &[PluginRuntimeState]) {
+    if let Ok(mut cache) = PLUGIN_RUNTIME_STATE_CACHE.lock() {
+        *cache = Some(PluginRuntimeStateCacheEntry {
+            cached_at: SystemTime::now(),
+            result: result.to_vec(),
+        });
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -325,48 +420,6 @@ fn summarize_marketplace_source(value: Option<&Value>) -> Option<String> {
     }
 }
 
-fn extract_frontmatter(content: &str) -> Option<String> {
-    let mut lines = content.lines();
-    let start = lines.next()?.trim();
-    if start != "---" {
-        return None;
-    }
-
-    let mut frontmatter = Vec::new();
-    for line in lines {
-        let line = line.trim_end();
-        if line.trim() == "---" {
-            break;
-        }
-        frontmatter.push(line);
-    }
-
-    if frontmatter.is_empty() {
-        None
-    } else {
-        Some(frontmatter.join("\n"))
-    }
-}
-
-fn parse_frontmatter_value(content: &str, key: &str) -> Option<String> {
-    let frontmatter = extract_frontmatter(content)?;
-    for line in frontmatter.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix(key) {
-            if let Some(value) = rest.strip_prefix(':') {
-                let trimmed = value.trim().trim_matches('"').trim_matches('\'');
-                if !trimmed.is_empty() {
-                    return Some(trimmed.to_string());
-                }
-            }
-        }
-    }
-    None
-}
-
 fn component_name_from_path(path: &str) -> String {
     let trimmed = path.trim();
     if trimmed.is_empty() {
@@ -467,18 +520,10 @@ fn scan_markdown_component_from_path(
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_string();
-            let content = fs::read_to_string(&resolved).ok();
-            let description = content
-                .as_ref()
-                .and_then(|c| parse_frontmatter_value(c, "description"));
-            let display_name = content
-                .as_ref()
-                .and_then(|c| parse_frontmatter_value(c, "name"))
-                .unwrap_or(name);
 
             return vec![PluginComponent {
-                name: display_name,
-                description,
+                name,
+                description: None,
                 path: Some(resolved.to_string_lossy().to_string()),
             }];
         }
@@ -498,18 +543,9 @@ fn parse_skill_component_file(skill_file: &Path) -> PluginComponent {
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
-    let content = fs::read_to_string(skill_file).ok();
-    let name = content
-        .as_ref()
-        .and_then(|c| parse_frontmatter_value(c, "name"))
-        .unwrap_or(folder_name);
-    let description = content
-        .as_ref()
-        .and_then(|c| parse_frontmatter_value(c, "description"));
-
     PluginComponent {
-        name,
-        description,
+        name: folder_name,
+        description: None,
         path: Some(skill_file.to_string_lossy().to_string()),
     }
 }
@@ -673,18 +709,10 @@ fn scan_markdown_components(dir: &Path) -> Vec<PluginComponent> {
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_string();
-            let content = fs::read_to_string(&path).ok();
-            let description = content
-                .as_ref()
-                .and_then(|c| parse_frontmatter_value(c, "description"));
-            let display_name = content
-                .as_ref()
-                .and_then(|c| parse_frontmatter_value(c, "name"))
-                .unwrap_or(name);
 
             components.push(PluginComponent {
-                name: display_name,
-                description,
+                name,
+                description: None,
                 path: Some(path.to_string_lossy().to_string()),
             });
         }
@@ -715,18 +743,10 @@ fn scan_skill_components(dir: &Path) -> Vec<PluginComponent> {
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let content = fs::read_to_string(&skill_file).ok();
-        let name = content
-            .as_ref()
-            .and_then(|c| parse_frontmatter_value(c, "name"))
-            .unwrap_or(folder_name);
-        let description = content
-            .as_ref()
-            .and_then(|c| parse_frontmatter_value(c, "description"));
 
         components.push(PluginComponent {
-            name,
-            description,
+            name: folder_name,
+            description: None,
             path: Some(skill_file.to_string_lossy().to_string()),
         });
     }
@@ -749,13 +769,9 @@ fn scan_claude_md_components(base_dir: &Path) -> Vec<PluginComponent> {
             continue;
         }
 
-        let content = fs::read_to_string(&path).ok();
-        let description = content
-            .as_ref()
-            .and_then(|c| parse_frontmatter_value(c, "description"));
         components.push(PluginComponent {
             name: "CLAUDE.md".to_string(),
-            description,
+            description: None,
             path: Some(path.to_string_lossy().to_string()),
         });
     }
@@ -1846,97 +1862,6 @@ fn normalize_timestamp(value: &str) -> Option<String> {
     None
 }
 
-fn normalize_git_target_path(repo_path: &Path, candidate: &Path) -> Option<String> {
-    let resolved = if candidate.is_absolute() {
-        candidate.to_path_buf()
-    } else {
-        repo_path.join(candidate)
-    };
-    let relative = resolved.strip_prefix(repo_path).ok()?;
-    let normalized = relative
-        .to_string_lossy()
-        .replace('\\', "/")
-        .trim_start_matches("./")
-        .to_string();
-    if normalized.is_empty() || normalized == "." {
-        None
-    } else {
-        Some(normalized)
-    }
-}
-
-fn read_git_last_updated(repo_path: &Path, target_path: &str) -> Option<String> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(repo_path)
-        .arg("log")
-        .arg("-1")
-        .arg("--format=%cI")
-        .arg("--")
-        .arg(target_path)
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    normalize_timestamp(&stdout)
-}
-
-fn cached_git_last_updated(
-    repo_path: &Path,
-    candidate: &Path,
-    cache: &mut HashMap<String, Option<String>>,
-) -> Option<String> {
-    let Some(target_path) = normalize_git_target_path(repo_path, candidate) else {
-        return None;
-    };
-    let cache_key = format!("{}::{}", repo_path.to_string_lossy(), target_path);
-    if let Some(value) = cache.get(&cache_key) {
-        return value.clone();
-    }
-
-    let value = read_git_last_updated(repo_path, &target_path);
-    cache.insert(cache_key, value.clone());
-    value
-}
-
-fn resolve_plugin_repository_last_updated(
-    marketplace_path: &Path,
-    entry: &MarketplacePluginEntry,
-    plugin_path: Option<&Path>,
-    cache: &mut HashMap<String, Option<String>>,
-) -> Option<String> {
-    let mut candidates: Vec<PathBuf> = Vec::new();
-
-    if let Some(source_path) = &entry.source_path {
-        candidates.push(PathBuf::from(source_path));
-    }
-
-    if let Some(path) = plugin_path {
-        candidates.push(path.to_path_buf());
-    }
-
-    candidates.push(PathBuf::from(format!("plugins/{}", entry.name)));
-    candidates.push(PathBuf::from(&entry.name));
-
-    let mut seen = HashSet::new();
-    for candidate in candidates {
-        let key = candidate.to_string_lossy().to_string();
-        if !seen.insert(key) {
-            continue;
-        }
-
-        if let Some(value) = cached_git_last_updated(marketplace_path, &candidate, cache) {
-            return Some(value);
-        }
-    }
-
-    None
-}
-
 fn resolve_entry_component_base_path(
     marketplace_path: &Path,
     plugin_path: Option<&Path>,
@@ -2019,7 +1944,7 @@ fn scan_plugin_components(plugin_path: &Path) -> PluginComponents {
 }
 
 fn scan_plugin_repository() -> PluginScanResult {
-    let claude_dir = get_claude_dir();
+    let claude_dir = resolve_claude_dir(None);
     let mut errors = Vec::new();
 
     let enabled_plugins = load_enabled_plugins(&claude_dir, &mut errors);
@@ -2030,7 +1955,6 @@ fn scan_plugin_repository() -> PluginScanResult {
     let mut scanned_plugins = Vec::new();
     let mut scanned_marketplaces = Vec::new();
     let mut scanned_ids = HashSet::new();
-    let mut git_timestamp_cache: HashMap<String, Option<String>> = HashMap::new();
 
     for marketplace in marketplace_locations {
         let Some(install_location) = marketplace.install_location.clone() else {
@@ -2077,13 +2001,7 @@ fn scan_plugin_repository() -> PluginScanResult {
             let installed_records = installed_plugins.get(&plugin_id);
             let repository_version = extract_repository_version(installed_records);
             let plugin_path = resolve_plugin_path(&marketplace_path, &entry, installed_records);
-            let repository_last_updated = resolve_plugin_repository_last_updated(
-                &marketplace_path,
-                &entry,
-                plugin_path.as_deref(),
-                &mut git_timestamp_cache,
-            );
-            let last_updated = entry.last_updated.clone().or(repository_last_updated);
+            let last_updated = entry.last_updated.clone();
             let is_installed = installed_records
                 .map(|records| !records.is_empty())
                 .unwrap_or(false);
@@ -2240,8 +2158,21 @@ fn scan_plugin_repository() -> PluginScanResult {
 }
 
 #[tauri::command]
-fn scan_plugins() -> Result<PluginScanResult, String> {
-    Ok(scan_plugin_repository())
+async fn scan_plugins(force_refresh: Option<bool>) -> Result<PluginScanResult, String> {
+    let force_refresh = force_refresh.unwrap_or(false);
+    tauri::async_runtime::spawn_blocking(move || {
+        let claude_dir = resolve_claude_dir(None);
+        if !force_refresh {
+            if let Some(cached) = get_cached_plugin_scan(&claude_dir) {
+                return Ok(cached);
+            }
+        }
+        let result = scan_plugin_repository();
+        store_plugin_scan_cache(claude_dir, &result);
+        Ok(result)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -2270,7 +2201,7 @@ pub struct MarketplacePlugin {
 
 #[tauri::command]
 fn list_installed_plugins() -> Result<Vec<InstalledPlugin>, String> {
-    let settings_path = get_claude_dir().join("settings.json");
+    let settings_path = resolve_settings_path(None);
 
     if !settings_path.exists() {
         return Ok(vec![]);
@@ -2356,18 +2287,57 @@ fn parse_plugin_runtime_states(output: &str) -> Result<Vec<PluginRuntimeState>, 
 
 #[tauri::command]
 async fn list_plugin_runtime_state() -> Result<Vec<PluginRuntimeState>, String> {
+    if let Some(cached) = get_cached_plugin_runtime_state() {
+        return Ok(cached);
+    }
+
     let home = dirs::home_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .to_string_lossy()
         .to_string();
 
-    let output = exec_shell_command("claude plugin list --json".to_string(), home).await?;
-    parse_plugin_runtime_states(&output)
+    let output = tokio::time::timeout(
+        PLUGIN_RUNTIME_STATE_COMMAND_TIMEOUT,
+        exec_shell_command("claude plugin list --json".to_string(), home),
+    )
+    .await;
+
+    let output = match output {
+        Ok(Ok(stdout)) => stdout,
+        Ok(Err(err)) => {
+            eprintln!(
+                "[plugins] list_plugin_runtime_state command failed, fallback to cache/empty: {}",
+                err
+            );
+            return Ok(get_any_cached_plugin_runtime_state().unwrap_or_default());
+        }
+        Err(_) => {
+            eprintln!(
+                "[plugins] list_plugin_runtime_state timeout after {:?}, fallback to cache/empty",
+                PLUGIN_RUNTIME_STATE_COMMAND_TIMEOUT
+            );
+            return Ok(get_any_cached_plugin_runtime_state().unwrap_or_default());
+        }
+    };
+
+    match parse_plugin_runtime_states(&output) {
+        Ok(parsed) => {
+            store_plugin_runtime_state_cache(&parsed);
+            Ok(parsed)
+        }
+        Err(err) => {
+            eprintln!(
+                "[plugins] list_plugin_runtime_state parse failed, fallback to cache/empty: {}",
+                err
+            );
+            Ok(get_any_cached_plugin_runtime_state().unwrap_or_default())
+        }
+    }
 }
 
 #[tauri::command]
 fn list_extension_marketplaces() -> Result<Vec<ExtensionMarketplace>, String> {
-    let settings_path = get_claude_dir().join("settings.json");
+    let settings_path = resolve_settings_path(None);
 
     let mut marketplaces = vec![ExtensionMarketplace {
         id: "claude-plugins-official".to_string(),
@@ -2526,7 +2496,12 @@ async fn install_extension(
         )
     };
 
-    exec_shell_command(command, cwd).await
+    let result = exec_shell_command(command, cwd).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2549,7 +2524,12 @@ async fn uninstall_extension(
         )
     };
 
-    exec_shell_command(command, cwd).await
+    let result = exec_shell_command(command, cwd).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2563,7 +2543,12 @@ async fn add_extension_marketplace(source: String) -> Result<String, String> {
         .to_string_lossy()
         .to_string();
 
-    exec_shell_command(command, home).await
+    let result = exec_shell_command(command, home).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2577,7 +2562,12 @@ async fn remove_extension_marketplace(name: String) -> Result<String, String> {
         .to_string_lossy()
         .to_string();
 
-    exec_shell_command(command, home).await
+    let result = exec_shell_command(command, home).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2595,12 +2585,17 @@ async fn update_extension_marketplace(name: Option<String>) -> Result<String, St
         .to_string_lossy()
         .to_string();
 
-    exec_shell_command(command, home).await
+    let result = exec_shell_command(command, home).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
 async fn remove_extension_marketplace_safe(name: String) -> Result<String, String> {
-    let claude_dir = get_claude_dir();
+    let claude_dir = resolve_claude_dir(None);
     let plugin_ids = collect_marketplace_plugin_ids(&claude_dir, &name);
     let mut errors = Vec::new();
 
@@ -2620,6 +2615,9 @@ async fn remove_extension_marketplace_safe(name: String) -> Result<String, Strin
     prune_installed_plugins_file(&claude_dir, &name, &mut errors);
     prune_known_marketplaces_file(&claude_dir, &name, &mut errors);
     remove_marketplace_dir(&claude_dir, &name, &mut errors);
+
+    invalidate_plugin_scan_cache();
+    invalidate_plugin_runtime_state_cache();
 
     if errors.is_empty() {
         Ok("ok".to_string())
@@ -2658,7 +2656,7 @@ async fn uninstall_plugin_with_fallback(
     scope: Option<PluginActionScope>,
     project_path: Option<String>,
 ) -> Result<String, String> {
-    let claude_dir = get_claude_dir();
+    let claude_dir = resolve_claude_dir(None);
     match uninstall_extension(plugin_id.to_string(), scope, project_path.clone()).await {
         Ok(output) => Ok(output),
         Err(err) => {
@@ -2689,7 +2687,7 @@ async fn run_plugin_action_with_fallback(
     scope: Option<PluginActionScope>,
     project_path: Option<String>,
 ) -> Result<String, String> {
-    let claude_dir = get_claude_dir();
+    let claude_dir = resolve_claude_dir(None);
     match run_plugin_cli_action(action, plugin_id.to_string(), scope, project_path.clone()).await {
         Ok(output) => Ok(output),
         Err(err) => {
@@ -2730,7 +2728,12 @@ async fn install_plugin(
     scope: Option<PluginActionScope>,
     project_path: Option<String>,
 ) -> Result<String, String> {
-    install_extension(plugin_id, None, scope, project_path).await
+    let result = install_extension(plugin_id, None, scope, project_path).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2739,7 +2742,12 @@ async fn uninstall_plugin(
     scope: Option<PluginActionScope>,
     project_path: Option<String>,
 ) -> Result<String, String> {
-    uninstall_plugin_with_fallback(&plugin_id, scope, project_path).await
+    let result = uninstall_plugin_with_fallback(&plugin_id, scope, project_path).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2748,7 +2756,11 @@ async fn enable_plugin(
     scope: Option<PluginActionScope>,
     project_path: Option<String>,
 ) -> Result<String, String> {
-    run_plugin_action_with_fallback("enable", &plugin_id, scope, project_path).await
+    let result = run_plugin_action_with_fallback("enable", &plugin_id, scope, project_path).await;
+    if result.is_ok() {
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2780,11 +2792,16 @@ async fn disable_plugin(
                 false,
                 Some(settings_path.to_string_lossy().to_string()),
             )?;
+            invalidate_plugin_runtime_state_cache();
             return Ok("ok".to_string());
         }
     }
 
-    run_plugin_action_with_fallback("disable", &plugin_id, scope, project_path).await
+    let result = run_plugin_action_with_fallback("disable", &plugin_id, scope, project_path).await;
+    if result.is_ok() {
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 #[tauri::command]
@@ -2793,7 +2810,12 @@ async fn update_plugin(
     scope: Option<PluginActionScope>,
     project_path: Option<String>,
 ) -> Result<String, String> {
-    run_plugin_cli_action("update", plugin_id, scope, project_path).await
+    let result = run_plugin_cli_action("update", plugin_id, scope, project_path).await;
+    if result.is_ok() {
+        invalidate_plugin_scan_cache();
+        invalidate_plugin_runtime_state_cache();
+    }
+    result
 }
 
 // Generate a unique key for a hook based on its content

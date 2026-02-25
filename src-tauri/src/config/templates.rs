@@ -4,9 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::config::{
-    build_merged_config, ConfigError, McpServerConfig,
-};
+use crate::config::{build_merged_config, ConfigError, McpServerConfig};
 
 /// Template merge mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -132,15 +130,13 @@ fn normalize_permission_mode(value: &str) -> Option<String> {
 
 impl From<&ConfigTemplate> for TemplateListEntry {
     fn from(t: &ConfigTemplate) -> Self {
-        let model = t.config.get("model").and_then(|v| v.as_str()).map(String::from);
-        let mcp_count = t
-            .mcp_servers
-            .as_ref()
-            .map_or(0, |s| s.len() as u32);
-        let env_count = t
-            .env
-            .as_ref()
-            .map_or(0, |e| e.len() as u32);
+        let model = t
+            .config
+            .get("model")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let mcp_count = t.mcp_servers.as_ref().map_or(0, |s| s.len() as u32);
+        let env_count = t.env.as_ref().map_or(0, |e| e.len() as u32);
         let permission_mode = t
             .config
             .get("permissions")
@@ -309,10 +305,9 @@ pub fn save_template(template: &ConfigTemplate) -> Result<(), ConfigError> {
     })?;
 
     let template_path = templates_dir.join(format!("{}.json", template.id));
-    let content =
-        serde_json::to_string_pretty(template).map_err(|e| ConfigError::IoError {
-            message: format!("Failed to serialize template: {}", e),
-        })?;
+    let content = serde_json::to_string_pretty(template).map_err(|e| ConfigError::IoError {
+        message: format!("Failed to serialize template: {}", e),
+    })?;
 
     fs::write(&template_path, content).map_err(|e| ConfigError::IoError {
         message: format!("Failed to write template: {}", e),
@@ -423,10 +418,7 @@ fn deep_merge_for_template(
         (serde_json::Value::Object(mut target_map), serde_json::Value::Object(source_map)) => {
             for (key, source_value) in source_map {
                 if let Some(target_value) = target_map.remove(&key) {
-                    target_map.insert(
-                        key,
-                        deep_merge_for_template(target_value, source_value),
-                    );
+                    target_map.insert(key, deep_merge_for_template(target_value, source_value));
                 } else {
                     target_map.insert(key, source_value);
                 }
@@ -438,18 +430,14 @@ fn deep_merge_for_template(
 }
 
 /// Fill only missing keys from source into target
-fn fill_missing(
-    target: serde_json::Value,
-    source: serde_json::Value,
-) -> serde_json::Value {
+fn fill_missing(target: serde_json::Value, source: serde_json::Value) -> serde_json::Value {
     match (target, source) {
         (serde_json::Value::Object(mut target_map), serde_json::Value::Object(source_map)) => {
             for (key, source_value) in source_map {
                 if let Some(target_value) = target_map.get(&key) {
                     // Recursively fill nested objects
                     if target_value.is_object() && source_value.is_object() {
-                        let merged =
-                            fill_missing(target_value.clone(), source_value);
+                        let merged = fill_missing(target_value.clone(), source_value);
                         target_map.insert(key, merged);
                     }
                     // Existing key: keep target value
@@ -514,7 +502,8 @@ mod tests {
     #[test]
     fn test_fill_missing_nested() {
         let target = json!({"permissions": {"allow": ["Read"]}});
-        let source = json!({"permissions": {"allow": ["Write"], "deny": ["Bash"]}, "model": "opus"});
+        let source =
+            json!({"permissions": {"allow": ["Write"], "deny": ["Bash"]}, "model": "opus"});
         let result = apply_merge_mode(target, source, MergeMode::Fill);
         // permissions.allow should keep target value
         assert_eq!(result["permissions"]["allow"][0], "Read");

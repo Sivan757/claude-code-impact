@@ -10,16 +10,11 @@ fn get_ui_preference(key: String) -> Result<Option<Value>, String> {
 
 #[tauri::command]
 fn get_ui_preferences(keys: Vec<String>) -> Result<HashMap<String, Value>, String> {
-    let mut values = HashMap::new();
-    for key in keys {
-        if !key.starts_with(UI_PREF_PREFIX) {
-            continue;
-        }
-        if let Some(value) = read_data_key(&key)? {
-            values.insert(key, value);
-        }
-    }
-    Ok(values)
+    let valid_keys: Vec<String> = keys
+        .into_iter()
+        .filter(|key| key.starts_with(UI_PREF_PREFIX))
+        .collect();
+    read_data_keys(&valid_keys)
 }
 
 #[tauri::command]

@@ -31,7 +31,7 @@
 <claude-mem-context>
 ## Claude-Mem Context
 
-# [lovcode] recent context, 2026-02-23 1:08am GMT+8
+# [lovcode] recent context, 2026-02-25 11:12am GMT+8
 
 **Legend:** session-request | 🔴 bugfix | 🟣 feature | 🔄 refactor | ✅ change | 🔵 discovery | ⚖️ decision
 
@@ -42,292 +42,282 @@
 **Context Index:** This semantic index (titles, types, files, tokens) is usually sufficient to understand past work.
 
 When you need implementation details, rationale, or debugging context:
-- Use MCP tools (search, get_observations) to fetch full observations on-demand
-- Critical types ( bugfix, decision) often need detailed fetching
+- Fetch by ID: get_observations([IDs]) for observations visible in this index
+- Search history: Use the mem-search skill for past decisions, bugs, and deeper research
 - Trust this index over re-reading code for past decisions and learnings
 
 **Context Economics**:
-- Loading: 50 observations (15,586 tokens to read)
-- Work investment: 235,894 tokens spent on research, building, and decisions
-- Your savings: 220,308 tokens (93% reduction from reuse)
+- Loading: 50 observations (21,228 tokens to read)
+- Work investment: 329,538 tokens spent on research, building, and decisions
+- Your savings: 308,310 tokens (94% reduction from reuse)
 
-### Feb 22, 2026
+### Feb 11, 2026
 
-**#S163** Improve plugin filter/display visibility — evolving from date formatting to a full maintenance status model (active/normal/stale/unknown) (Feb 22 at 9:57 PM)
-
-**#S164** Improve plugin display distinguishability — replace low-contrast filtering UI with a richer maintenance status system (Feb 22 at 10:10 PM)
-
-**#S165** [codex notify] — Per-project AGENTS.md context injection for claude-mem-notify-codex (Feb 22 at 10:18 PM)
-
-**#S166** Improve plugin display distinguishability — replace low-contrast "x hours ago" timestamps with meaningful maintenance status indicators (Feb 22 at 10:19 PM)
-
-**#S167** Plugin display distinguishability improvement — maintenance badge feature added then fully rolled back, seeking a new approach (Feb 22 at 10:19 PM)
-
-**#S168** Plugin display distinguishability — maintenance badge feature fully reverted, codebase restored to clean state pending new approach (Feb 22 at 10:27 PM)
-
-**../../Users/sivan/.codex/bin/claude-mem-notify-codex**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1520 | 10:28 PM | 🔄 | Removed resolveAgentsPathForContext Shim — Dead Code Cleanup | ~236 | 🛠️ 301 |
-
-**#S169** [codex notify] — Eliminate implicit global AGENTS.md fallback; implement strict per-project context file routing (Feb 22 at 10:28 PM)
-
-**#S170** Restore and improve plugin filter UI distinguishability in the Extensions view (lovcode) (Feb 22 at 10:28 PM)
-
-**General**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1521 | 11:27 PM | 🔵 | UI Filter Display Clarity Issue Identified | ~179 | 🔍 8,742 |
-
-**src/views/Extensions/usePluginLibrary.ts**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1522 | " | 🔵 | Extensions View Quick Filter Implementation Mapped | ~322 | 🔍 1,804 |
-| #1523 | " | 🔵 | usePluginLibrary.ts Data Model and State Architecture | ~361 | 🔍 3,522 |
-| #1524 | 11:28 PM | 🔵 | stats Object Already Computed and Exposed by usePluginLibrary | ~305 | 🔍 3,896 |
-
-**src/views/Extensions/ExtensionsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1525 | " | 🔵 | stats Already Passed to PluginFilterBar in ExtensionsView | ~329 | 🔍 3,427 |
-
-**src/views/Extensions/PluginFilterBar.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1526 | " | 🔵 | Root Cause: "enabled" and "with_components" Quick Filters Have No UI | ~391 | 🔍 3,520 |
-
-**src/views/Extensions/usePluginLibrary.ts**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1527 | " | 🔄 | Filter Logic Removed from usePluginLibrary Hook | ~318 | 🛠️ 2,445 |
-
-**src/views/Extensions/PluginDetailModal.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1528 | 11:29 PM | 🔵 | PluginDetailModal UI Patterns Surveyed for Design Reference | ~352 | 🔍 5,722 |
-| #1529 | " | 🔴 | PluginDetailModal Early Return Moved to Fix React Hooks Order | ~305 | 🛠️ 1,177 |
-
-**src/views/Extensions/ExtensionsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1530 | " | 🔵 | TypeScript Errors After Filter Refactor — Consumer Files Not Yet Updated | ~317 | 🔍 1,778 |
-
-**src/views/Extensions/PluginDetailModal.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1531 | " | 🔵 | translationEntries useMemo Still Has Unsafe plugin Access After Guard Move | ~289 | 🔍 969 |
-| #1532 | 11:30 PM | 🔵 | Exact Lines Causing TS18047 Null Errors in translationEntries useMemo | ~275 | 🔍 3,888 |
-
-**knip.json**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1533 | 11:35 PM | 🔵 | Knip Analysis Reveals 36 Unused Files, 11 Unused Dependencies, 96 Unused Exports | ~370 | 🔍 4,902 |
-
-**src-tauri/src/app/mod.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1534 | 11:36 PM | 🔵 | Rust Backend Clippy Audit: 70 Warnings, No Errors | ~360 | 🔍 14,544 |
-
-**src-tauri/src/config/types.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1535 | " | 🔴 | Removed Unused PathBuf Import from config/types.rs | ~132 | 🛠️ 366 |
-
-**src-tauri/src/commands/sections/settings/templates.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1536 | " | 🔴 | Removed Unused Imports from settings/templates.rs | ~175 | 🛠️ 694 |
-
-**src-tauri/src/config/watcher.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1537 | 11:37 PM | 🔴 | Removed Dead project_path Field from ConfigWatcher Struct | ~200 | 🛠️ 634 |
-
-**src-tauri/src/commands/sections/plugins/marketplace/catalog.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1538 | " | 🔴 | Removed Unused priority Field from PluginSource Struct | ~236 | 🛠️ 1,014 |
-
-**src-tauri/src/config/merger.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1539 | " | 🔴 | Removed Unused get_all_config_paths Call and Import from merger.rs | ~211 | 🛠️ 803 |
-
-**src-tauri/src/commands/sections/files/project_logo.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1540 | " | 🔴 | Prefixed Unused project_path Parameter with Underscore in delete_project_logo | ~205 | 🛠️ 635 |
-
-**src-tauri/src/diagnostics.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1541 | " | 🔴 | Fixed Unnecessary mut on leaked_secrets in diagnostics.rs | ~210 | 🛠️ 646 |
-
-**src/views/Extensions/usePluginLibrary.ts**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1542 | " | 🔴 | Removed Unused Type Exports and Imports from usePluginLibrary.ts | ~235 | 🛠️ 738 |
-
-**package.json**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1543 | " | 🟣 | Added Dead Code Check npm Scripts to package.json | ~252 | 🛠️ 872 |
-
-**src/views/Extensions/ExtensionsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1544 | " | 🔴 | TypeScript Compilation Now Passes Clean After Refactor | ~218 | 🛠️ 575 |
-
-**src-tauri/src/config/types.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1545 | 11:38 PM | 🔴 | Rust Backend Dead Code Warnings Reduced from 70 to 63 After Cleanup | ~306 | 🛠️ 13,458 |
+**#S174** Frontend persistence audit + minimal-risk refactor strategy: map all localStorage/atomWithStorage usage and plan migration to unified Tauri persistence (Feb 11 at 6:21 PM)
 
 ### Feb 23, 2026
 
-**General**
+**#S175** Revert get_claude_dir() to legacy ~/.claude semantics — managed scope path was incorrect for config editing flows (Feb 23 at 1:34 AM)
+
+**#S176** LLM供应商列表丢失 → 后端自动从历史文件回填供应商（v2 file recovery pipeline） (Feb 23 at 8:44 AM)
+
+**#S177** 用户确认：回补成功后数据写在哪里？ (Feb 23 at 9:56 AM)
+
+**#S178** Audit LLM profile deletion and compatibility migration branches — distinguish localStorage migration from file-recovery compat (Feb 23 at 9:56 AM)
+
+**#S179** Performance regression investigation: user reports long loading when clicking any UI section — determine root cause (SQLite vs filesystem vs frontend patterns) (Feb 23 at 10:20 AM)
+
+**#S180** Performance regression root cause analysis: "点任何界面都慢" — full investigation completed, fix plan proposed to user for approval (Feb 23 at 11:58 PM)
+
+**#S185** Launch dialog plugin override architecture — fix plugin enable/disable alias resolution and migrate draft state from file-backed to in-memory (Feb 23 at 11:58 PM)
+
+### Feb 24, 2026
+
+**AGENTS.md**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1546 | 12:37 AM | 🔵 | Filter UI Visibility Concern Raised | ~217 | 🔍 8,740 |
+| #1750 | 11:19 AM | 🔵 | lovcode Session Context Loaded for Feb 24 — Memory Index Spans 50 Observations | ~458 | 🔍 13,753 |
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1751 | " | 🔵 | SessionLauncherDialog Plugin + Draft Settings Architecture Mapped | ~477 | 🔍 3,994 |
+
+**src-tauri/src/commands/sections/settings/settings_update.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1752 | 11:20 AM | 🔵 | toggle_plugin Rust Function Located in settings_update.rs | ~242 | 🔍 1,027 |
+
+**src-tauri/src/commands/sections/settings/launch_settings.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1753 | " | 🔵 | prepare_launch_draft Rust Command: Draft Creation Pipeline Mapped | ~405 | 🔍 1,217 |
+
+**src-tauri/src/config/types.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1754 | " | 🔵 | enabledPlugins Data Model: Rust/JSON Key Mapping Fully Traced | ~403 | 🔍 1,563 |
+
+**src-tauri/src/commands/sections/settings/settings_access.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1755 | " | 🔵 | get_settings() Rust Command: Multi-Source Settings Assembly with Virtual Overlays | ~454 | 🔍 3,799 |
 
 **src/views/Extensions/usePluginLibrary.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1547 | " | 🔵 | Plugin Library Hook Architecture in lovcode | ~460 | 🔍 5,821 |
-
-**src/views/Extensions/PluginFilterBar.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1548 | " | 🔵 | PluginFilterBar Active State Has Low Visual Contrast | ~418 | 🔍 2,767 |
+| #1756 | " | 🟣 | usePluginLibrary Gains onSettingsMutated Callback for Post-Toggle Notification | ~362 | 🛠️ 1,265 |
 
 **src/views/Extensions/ExtensionsView.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1549 | " | 🔵 | ExtensionsView Layout: Sidebar + FilterBar + Grid Composition | ~388 | 🔍 5,109 |
+| #1757 | 11:21 AM | 🟣 | ExtensionsView Prop-Drills onSettingsMutated Callback to usePluginLibrary | ~281 | 🛠️ 964 |
 
-**src/locales/en.json**
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1550 | " | 🔵 | Installation-Status Filter Keys Exist in Locales But Not in PluginFilterBar | ~309 | 🔍 999 |
+| #1758 | " | 🟣 | SessionLauncherDialog Draft Snapshot Now Stays in Sync After Plugin and Quick-Setting Changes | ~501 | 🛠️ 1,467 |
+| #1759 | " | ✅ | SessionLauncherDialog: write_file Calls Replaced with write_managed_file and export_file | ~347 | 🛠️ 2,918 |
+
+**../../Users/sivan/.claude/settings.json**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1833 | 2:29 PM | 🔵 | Claude Global Plugin Configuration Inspected | ~420 | 🔍 14,488 |
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1834 | " | 🔵 | Launch Draft Tauri Command Surface in SessionLauncherDialog | ~311 | 🔍 955 |
 
 **src/views/Extensions/usePluginLibrary.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1551 | 12:38 AM | 🟣 | Installation Status Filter Added to usePluginLibrary | ~351 | 🛠️ 1,550 |
+| #1836 | 2:30 PM | 🔴 | resolveEnabledOverride Now Respects Explicit false Overrides | ~413 | 🛠️ 1,219 |
 
-**src/views/Extensions/PluginFilterBar.tsx**
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1552 | " | 🟣 | Status Filter Tabs with Count Badges Added to PluginFilterBar | ~418 | 🛠️ 1,887 |
+| #1837 | " | 🔴 | handleDraftPluginToggle Now Syncs All Alias Keys on Toggle | ~408 | 🛠️ 1,430 |
+
+**src-tauri/src/commands/sections/settings/launch_settings.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1839 | " | 🔵 | Launch Settings Rust Backend Has Both prepare_launch_snapshot and prepare_launch_draft | ~397 | 🔍 536 |
+| #1840 | " | 🔄 | Removed Legacy prepare_launch_draft Command and LaunchDraftResponse Struct | ~354 | 🛠️ 1,615 |
+
+**src-tauri/src/commands/handlers.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1841 | 2:31 PM | 🔄 | prepare_launch_draft Deregistered from Tauri Command Handler | ~273 | 🛠️ 854 |
+
+**src-tauri/Cargo.toml**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1842 | " | ✅ | Rust Backend Compiles Clean After Launch Draft and Plugin Override Refactors | ~295 | 🛠️ 3,708 |
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1845 | 2:41 PM | 🔄 | SessionLauncherDialog Migrated from File-Backed Draft to Pure In-Memory State | ~512 | 🛠️ 36,802 |
+
+**src/views/Extensions/usePluginLibrary.ts**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1846 | " | 🟣 | usePluginLibrary Gains Override Mode for External State Control | ~444 | 🛠️ 36,802 |
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1847 | " | 🔄 | SessionLauncherDialog Advanced Panel Reduced to Plugins-Only Tab | ~413 | 🛠️ 36,802 |
+
+**src-tauri/src/commands/handlers.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1848 | " | 🔄 | write_file / write_binary_file Tauri Commands Replaced with Managed and Export Variants | ~319 | 🛠️ 36,802 |
+
+**#S186** 将"覆盖模板"从模板编辑弹窗移出，改为主弹窗 ... 菜单中的独立"更新模板"一键操作 (Feb 24 at 2:41 PM)
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1849 | 2:45 PM | 🔄 | handleOverwrite Replaced with handleUpdateTemplate — Pure Content Sync Without Metadata Edit | ~446 | 🛠️ 1,721 |
+| #1850 | " | 🟣 | Update Template Added as Dedicated Dropdown Menu Item | ~316 | 🛠️ 1,516 |
+| #1851 | " | 🔄 | Template Editor Dialog Simplified to Save-as-New Only | ~321 | 🛠️ 1,166 |
+
+**AGENTS.md**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1852 | 2:51 PM | 🔵 | lovcode Session Initialized with claude-mem Context Block Auto-Injected into AGENTS.md | ~530 | 🔍 7,196 |
+
+**src/main.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1853 | " | 🔵 | React Query Configuration: Global + Per-Hook Aggressive Caching for Tauri Invoke Calls | ~378 | 🔍 1,783 |
+
+**src-tauri/src/commands/sections/plugins/repository_scan.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1854 | " | 🔵 | Plugin Scan Caching Architecture: Read-Through Cache with Pervasive Manual Invalidation | ~503 | 🔍 1,382 |
 
 **src/views/Extensions/ExtensionsView.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1553 | " | 🟣 | ExtensionsView Wired Up With Status Filter and Stats | ~295 | 🛠️ 1,053 |
+| #1855 | 2:52 PM | 🔵 | Extensions View Component Architecture: Five-Component Composition with usePluginLibrary as State Hub | ~446 | 🔍 1,991 |
+
+**src-tauri/src/commands/sections/plugins/repository_scan.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1857 | " | 🔵 | Plugin Runtime State Fetched by Shelling Out to Claude CLI | ~388 | 🔍 1,402 |
+| #1860 | " | 🔵 | Plugin last_updated Resolution: Three-Tier Fallback Chain with In-Process Git Timestamp Cache | ~591 | 🔍 2,220 |
+| #1864 | 2:53 PM | 🔵 | Plugin Component Scanning: Dual-Strategy Filesystem-Walk vs Spec-Based Scanners per Component Type | ~547 | 🔍 2,251 |
+
+**#S188** Plugin page performance diagnosis — root cause analysis and prioritized optimization plan for slow Extensions view (Feb 24 at 2:53 PM)
+
+### Feb 25, 2026
+
+**~/.codex/bin/claude-mem-notify-codex**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1897 | 9:59 AM | 🔵 | claude-mem-notify-codex Script Architecture Inspected | ~402 | 🔍 13,753 |
+
+**src/views/Projects/ProjectHubView.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1898 | 10:00 AM | 🔵 | SessionLauncherDialog and LLM Provider Edit Entry Points Located | ~303 | 🔍 1,746 |
+
+**src/lib/llmProfiles.ts**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1899 | " | 🔵 | Dual-Layer Provider Resolution: Frontend Profile Matching + Rust Config Injection | ~500 | 🔍 2,620 |
+
+**src/views/Settings/EnvSettingsView.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1900 | " | 🔵 | Environment Variable Display Architecture Across Views | ~466 | 🔍 1,426 |
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #1901 | " | 🟣 | SessionLauncherDialog Expands to Four Settings Tabs with Env Mutation Helpers | ~382 | 🛠️ 1,606 |
+| #1902 | 10:01 AM | 🟣 | SessionLauncherDialog Adds Env Form State and Provider/Env Derived Memos | ~407 | 🛠️ 1,393 |
+| #1903 | " | 🟣 | SessionLauncherDialog Provider and Env Tab Event Handlers Implemented | ~494 | 🛠️ 1,896 |
+| #1904 | " | 🟣 | SessionLauncherDialog Three New Tab Panels: General, Provider, Env | ~553 | 🛠️ 4,363 |
+| #1905 | 10:02 AM | 🟣 | Provider and Env "Edit" Buttons in Launcher Summary Enabled | ~349 | 🛠️ 1,562 |
 
 **General**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1554 | " | ✅ | TypeScript Compilation Passes After Status Filter Feature | ~174 | 🛠️ 629 |
+| #1906 | " | ✅ | TypeScript Compilation Passes Clean After SessionLauncherDialog Tab Expansion | ~198 | 🛠️ 804 |
 
-**#S171** Improve plugin filter UI distinguishability in Extensions view — follow-up: examine PluginCard for additional visual refinements (Feb 23 at 12:39 AM)
-
-**src/views/Extensions/PluginCard.tsx**
+**AGENTS.md**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1555 | 12:44 AM | 🔵 | PluginCard Has No Visual Installation Status Indicator | ~407 | 🔍 4,681 |
-| #1556 | " | ✅ | PluginCard Card Variant Title Font Size Reduced | ~204 | 🛠️ 935 |
-| #1557 | 12:46 AM | ✅ | PluginCard Card Variant Padding Aligned With List Variant | ~191 | 🛠️ 39,346 |
+| #1948 | 10:56 AM | 🔵 | AGENTS.md Session Context Loaded — lovcode Project State as of Feb 22, 2026 | ~725 | 🔍 13,753 |
 
-**#S172** Plugin filter UI distinguishability improvements — iterative visual polish on PluginCard card/list consistency (Feb 23 at 12:47 AM)
-
-**../../Users/sivan/.codex/skills/claude-mem-codex-memory/SKILL.md**
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1559 | 1:02 AM | 🔵 | Claude-Mem Database State Snapshot | ~283 | 🔍 224 |
+| #1949 | " | 🔄 | SessionLauncherDialog Env Editing Replaced with Dedicated Settings Views | ~496 | 🛠️ 3,185 |
+| #1950 | " | 🟣 | SessionLauncherDialog: Lazy Draft Materialization via materialize_launch_draft Tauri Command | ~629 | 🛠️ 2,538 |
 
-**../../Users/sivan/.claude-mem/claude-mem.db**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1560 | " | 🔵 | Claude-Mem Observations Breakdown by Project | ~263 | 🔍 976 |
+**#1951** 10:57 AM 🔄 **SessionLauncherDialog Quick-Action Handlers Migrated to Dual-Path: Disk or Snapshot**
 
-**~/.codex/bin/claude-mem-notify-codex**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1561 | 1:03 AM | 🔵 | Notify Script History Retrieved from Memory Search | ~487 | 🔍 3,190 |
+This patch completes the handler cleanup in SessionLauncherDialog. The "quick action" handlers (model selector, permission mode toggle) that appear directly in the launcher UI — not inside the settings panel — are kept but upgraded to a dual-path pattern: if the draft has already been materialized to disk (draftSettingsPath is set), they write directly to the settings file via Tauri commands and refresh the merged config. If the draft hasn't been materialized yet (user hasn't opened settings), they continue to mutate the in-memory snapshot, keeping the pre-settings-open flow fast and file-system-free.
 
-**src-tauri/src/config/watcher.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1562 | " | 🔵 | Lovcode Cross-Platform Configuration System — Full Implementation Timeline | ~749 | 🔍 13,322 |
+    All five env and provider handlers (handleProviderSelect, handleEnvValueChange, handleEnvKeyRename, handleEnvDelete, handleEnvAdd) are deleted outright. These are now the responsibility of the embedded LlmProviderView and EnvSettingsView components, which write to the materialized settings file directly through their own hooks.
 
-**src/views/Settings/HooksSettingsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1563 | 1:04 AM | 🟣 | Settings Views Migration to Multi-Scope Config System Completed | ~440 | 🛠️ 16,630 |
+    The openAdvancedTab function now triggers ensureDraftWorkspace() as a side effect, ensuring the settings file exists on disk before any settings view renders. This closes the loop on the "materialize on demand" pattern established in the previous patch.
 
-**src/views/Settings/SettingsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1564 | " | ✅ | Extended Thinking Setting Removed from SettingsView | ~191 | 🛠️ 16,630 |
+Read: ~592, Work: 🛠️ 3,181
 
-**~/.codex/bin/claude-mem-notify-codex**
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#1565** " 🔄 **Notify Script AGENTS.md Path Resolution Refactored — No More Global Fallback**
+**#1952** " 🔵 **renderSettingsPanel JSX Still References Deleted Handlers — Provider and Env Tabs Need Update**
 
-The old `resolveAgentsPathForContext` function silently wrote to the single global `~/.codex/AGENTS.md` whenever no absolute cwd was known, causing all no-cwd sessions from different projects to mix their context into one file. The refactor introduces `resolveAgentsPathForProject` which routes these sessions to isolated per-project subdirectories under `~/.codex/projects/`. The main loop was updated to pass `res.project` explicitly so named projects get their own path. After all call sites were confirmed updated, the intermediate shim function was deleted as unreachable dead code. This eliminates cross-project context pollution for sessions without cwd data.
+The developer read the renderSettingsPanel region (lines 960–1290) to inspect the current state of the JSX before applying the next patch. The prior patches deleted the handlers and state that the provider and env tab JSX still reference, meaning the file is currently in a broken/non-compiling state mid-refactor.
 
-Read: ~489, Work: 🛠️ 13,001
+    The "provider" tab renders a profile selector dropdown using selectedProviderId and handleProviderSelect — both deleted. The "env" tab renders a full inline environment variable editor grid using newEnvKey, newEnvValue, envEntries, and four deleted handlers. These two sections are clearly the remaining targets for replacement with the imported LlmProviderView and EnvSettingsView components. The "general" and "plugins" tabs are already consistent with the new architecture.
 
-**~/.codex/claude-mem-notify-state.json**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1566 | " | 🔵 | Per-Project AGENTS.md Rollout — Gotchas with cwd Population and Worker Indexing | ~522 | 🔍 13,001 |
+Read: ~489, Work: 🔍 6,692
 
-**../../Users/sivan/.claude-mem/claude-mem.db**
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#1567** " 🔵 **Lovcode Observation Breakdown by Type**
+**#1953** " 🟣 **SessionLauncherDialog Settings Panel Fully Replaced with Embedded View Components**
 
-The [codex notify] session queried the type distribution of all lovcode observations to understand the shape of the memory record before generating a context injection summary. The heavy weight of discovery (147) reflects the extensive exploration phases driven by ralph-loop and code-review agents. Feature (104) and change (51) together represent the bulk of shipped work. The relatively low decision count (13) suggests architectural choices were often implicit rather than explicitly recorded.
+This patch completes the full refactor of SessionLauncherDialog's settings panel. The renderSettingsPanel function was reduced from ~200 lines of custom JSX (inline selects, grids, env editors, and provider dropdowns) to four single-line embedded component renders. Each component receives the materialized draftProjectPath or draftSettingsPath, allowing them to read and write settings through their own hooks against the real draft settings file on disk.
 
-Read: ~217, Work: 🔍 250
+    The plugin tab was the most structurally different: rather than passing override props (enabledPluginsOverride, onToggleOverride, allowScope), ExtensionsView now receives a settingsPath and manages plugin state internally — consistent with how it works in the full settings view.
 
-**~/.codex/bin/claude-mem-notify-codex**
+    The loading guard now correctly blocks rendering if draftProjectPath is null (draft not yet materialized) OR if any loading state is active, preventing the settings views from mounting with missing data. This closes the full refactor: no inline settings state, no custom mutation handlers, no local JSX for settings panels — just embedded reusable views writing to a materialized draft file.
+
+Read: ~624, Work: 🛠️ 5,298
+
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#1568** 1:07 AM 🔵 **Codex Bin and ~/.codex Directory State — Current File Sizes Confirmed**
+**#1954** 10:58 AM 🔵 **Direct setSettingsTab("plugins") at Line 1293 Bypasses ensureDraftWorkspace**
 
-File listing of ~/.codex confirms the current deployed state of the notify pipeline. The notify script size (17,858 bytes) and mtime (22:26) match the version with per-project AGENTS.md routing and the resolveAgentsPathForContext shim removal. The global AGENTS.md has not been touched since 22:09, consistent with the per-project isolation guarantee. The state file at 77KB reflects accumulated session tracking data across many Codex turns.
+The developer grepped for all tab-switching call sites to verify that every navigation path goes through openAdvancedTab() (which fires ensureDraftWorkspace()). The search revealed one outlier at line 1293 — a direct setSettingsTab("plugins") call that skips the materialization flow entirely. Since renderSettingsPanel now guards on !draftProjectPath and returns a loading spinner until the draft is materialized, this path would leave the plugins panel stuck in a loading state. The other three call sites correctly use openAdvancedTab(). Line 1293 will need to be updated to use openAdvancedTab("plugins") instead.
 
-Read: ~312, Work: 🔍 1,070
+Read: ~366, Work: 🔍 36,085
 
-**~/.codex/bin/claude-mem-notify-codex**
+**src/views/Projects/SessionLauncherDialog.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#1570** 1:08 AM 🔵 **Notify Script Internal Architecture — Session State, Synthetic Prompt Filter, Silent Failures**
+**#1955** " 🔴 **Direct setSettingsTab("plugins") Replaced with openAdvancedTab() to Fix Missing Draft Materialization**
 
-Code inspection of the patched claude-mem-notify-codex reveals its per-session tracking architecture. Each session is tracked in `sessionContext` with an `initialized` flag that prevents re-processing. The critical anti-pollution fix (from #S159) is visible at line 454: the script explicitly detects when the user prompt is a synthetic "[codex notify]" invocation and returns early without importing observations. This prevents the notify hook itself from creating spurious memory entries. The script communicates with the claude-mem worker over HTTP, posting to `/api/sessions/summarize` for summarization. All errors are swallowed silently (line 566) since a crash in the notify hook could disrupt the Codex session that triggered it.
+Directly discovered from the prior grep: a DropdownMenuItem for quick-navigation to the plugins tab was using a two-call inline onClick (setSettingsTab + setAdvancedOpen) instead of openAdvancedTab(). Since renderSettingsPanel now guards on draftProjectPath being non-null, any navigation path that skips ensureDraftWorkspace() would result in an infinite loading state. The one-line fix unifies all tab navigation through openAdvancedTab(), which handles both tab selection, panel open, and draft materialization atomically.
 
-Read: ~476, Work: 🔍 1,838
-
-**~/.codex/sessions/2025/11/26/rollout-2025-11-26T17-40-05-019abf88-d0ed-78e2-864e-ddaec87dd49a.jsonl**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-
-**#1571** " 🔵 **Codex Sessions Directory Uses Deep Year/Month/Day Nesting**
-
-An attempt to glob session JSONL files with a two-level wildcard failed because Codex organizes sessions into year/month/day subdirectories. Scripts that need to enumerate session files must use `find` with `-name '*.jsonl'` or a three-level glob `sessions/*/*/*.jsonl` rather than a two-level pattern. The notify backfill and state-tracking scripts likely already use `find` for this reason.
-
-Read: ~236, Work: 🔍 1,173
+Read: ~298, Work: 🛠️ 1,029
 
 
-Access 236k tokens of past research & decisions for just 15,586t. Use MCP search tools to access memories by ID.
+Access 330k tokens of past research & decisions for just 21,228t. Use the claude-mem skill to access memories by ID.
 
 _Auto-generated from claude-mem worker. Do not edit inside tags._
 </claude-mem-context>

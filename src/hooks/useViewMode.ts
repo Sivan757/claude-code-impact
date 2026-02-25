@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { getUiPreference, setUiPreference } from "@/lib/uiPreferences";
 
 export type ViewMode = "list" | "card";
 
-const STORAGE_PREFIX = "claudecodeimpact_view_mode_";
+const VIEW_MODE_KEY_PREFIX = "claudecodeimpact:viewMode:";
 
 /**
- * Hook for managing view mode state with localStorage persistence.
+ * Hook for managing view mode state persisted by the backend UI preference store.
  * @param key - Unique key for this view mode (e.g., "skills", "agents")
  * @param defaultMode - Default view mode if none is stored
  */
@@ -16,16 +18,12 @@ export function useViewMode(
   mode: ViewMode;
   setMode: (mode: ViewMode) => void;
 } {
-  const storageKey = `${STORAGE_PREFIX}${key}`;
+  const preferenceKey = `${VIEW_MODE_KEY_PREFIX}${key}`;
 
   const [mode, setModeState] = useState<ViewMode>(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored === "list" || stored === "card") {
-        return stored;
-      }
-    } catch {
-      // localStorage might not be available
+    const stored = getUiPreference<ViewMode>(preferenceKey);
+    if (stored === "list" || stored === "card") {
+      return stored;
     }
     return defaultMode;
   });
@@ -33,28 +31,34 @@ export function useViewMode(
   const setMode = useCallback(
     (newMode: ViewMode) => {
       setModeState(newMode);
-      try {
-        localStorage.setItem(storageKey, newMode);
-      } catch {
-        // localStorage might not be available
-      }
+      setUiPreference(preferenceKey, newMode);
     },
-    [storageKey]
+    [preferenceKey]
   );
 
-  // Sync with localStorage changes from other tabs
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === storageKey && e.newValue) {
-        if (e.newValue === "list" || e.newValue === "card") {
-          setModeState(e.newValue);
-        }
-      }
-    };
+    const tauriAvailable = typeof window !== "undefined" && typeof (window as { __TAURI__?: unknown }).__TAURI__ !== "undefined";
+    if (!tauriAvailable) {
+      return;
+    }
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [storageKey]);
+    let active = true;
+    void invoke<unknown>("get_ui_preference", { key: `ui.${preferenceKey}` })
+      .then((value) => {
+        if (!active) return;
+        if (value === "list" || value === "card") {
+          setModeState(value);
+          setUiPreference(preferenceKey, value);
+        }
+      })
+      .catch(() => {
+        // Ignore load failures.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [preferenceKey]);
 
   return { mode, setMode };
 }

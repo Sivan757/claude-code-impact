@@ -66,10 +66,129 @@ import {
   type LlmProfilesState,
   type ProviderProfile,
 } from "../../lib/llmProfiles";
-
-const STORAGE_KEY = "claudecodeimpact_llm_profiles";
+import { getUiPreference, setUiPreference } from "@/lib/uiPreferences";
 
 type ProviderViewMode = "list" | "card";
+const LEGACY_PROFILE_KEYS = ["claudecodeimpact_llm_profiles", "lovcode_llm_providers"] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toSafeTimestamp(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+  return Date.now();
+}
+
+function inferLegacyProviderName(baseUrl: string, fallback?: string): string {
+  const explicit = (fallback ?? "").trim();
+  if (explicit) return explicit;
+
+  const normalized = normalizeProviderBaseUrl(baseUrl);
+  try {
+    const host = new URL(normalized).hostname.replace(/^api\./, "");
+    return host || "Anthropic API";
+  } catch {
+    return "Anthropic API";
+  }
+}
+
+function parseLegacyProfile(raw: unknown): ProviderProfile | null {
+  if (!isRecord(raw)) return null;
+  const token = typeof raw.authToken === "string" ? raw.authToken : "";
+  const base = typeof raw.baseUrl === "string" ? raw.baseUrl : "";
+  if (!token.trim() && !base.trim()) return null;
+  return {
+    id: typeof raw.id === "string" && raw.id.trim() ? raw.id : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: inferLegacyProviderName(base, typeof raw.name === "string" ? raw.name : undefined),
+    authToken: token,
+    baseUrl: base,
+    updatedAt: toSafeTimestamp(raw.updatedAt),
+  };
+}
+
+function parseLovcodeProvider(raw: unknown): ProviderProfile | null {
+  if (!isRecord(raw)) return null;
+  const env = isRecord(raw.env) ? raw.env : {};
+  const tokenValue = env.ANTHROPIC_AUTH_TOKEN ?? env.ANTHROPIC_API_KEY;
+  const baseValue = env.ANTHROPIC_BASE_URL;
+  const token = typeof tokenValue === "string" ? tokenValue : "";
+  const base = typeof baseValue === "string" ? baseValue : "";
+  if (!token.trim() && !base.trim()) return null;
+
+  const rawName = typeof raw.name === "string" ? raw.name : "";
+  return {
+    id: typeof raw.id === "string" && raw.id.trim() ? raw.id : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: inferLegacyProviderName(base, rawName),
+    authToken: token,
+    baseUrl: base,
+    updatedAt: toSafeTimestamp(raw.updatedAt),
+  };
+}
+
+function readLegacyProfilesFromLocalStorage(): { profiles: ProviderProfile[]; consumedKeys: string[] } {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return { profiles: [], consumedKeys: [] };
+  }
+
+  const profiles: ProviderProfile[] = [];
+  const consumedKeys: string[] = [];
+
+  for (const key of LEGACY_PROFILE_KEYS) {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) continue;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(parsed)) continue;
+
+    const converted = key === "lovcode_llm_providers"
+      ? parsed.map(parseLovcodeProvider).filter((item): item is ProviderProfile => Boolean(item))
+      : parsed.map(parseLegacyProfile).filter((item): item is ProviderProfile => Boolean(item));
+
+    if (converted.length > 0) {
+      profiles.push(...converted);
+      consumedKeys.push(key);
+    }
+  }
+
+  return { profiles, consumedKeys };
+}
+
+function mergeProviderProfiles(
+  baseProfiles: ProviderProfile[],
+  legacyProfiles: ProviderProfile[],
+): ProviderProfile[] {
+  const mergedByFingerprint = new Map<string, ProviderProfile>();
+
+  const fingerprint = (profile: ProviderProfile) =>
+    `${profile.authToken.trim()}@@${normalizeProviderBaseUrl(profile.baseUrl)}@@${profile.name.trim().toLowerCase()}`;
+
+  const insert = (profile: ProviderProfile, preferNewer: boolean) => {
+    const key = fingerprint(profile);
+    const existing = mergedByFingerprint.get(key);
+    if (!existing) {
+      mergedByFingerprint.set(key, profile);
+      return;
+    }
+
+    if (preferNewer && (profile.updatedAt ?? 0) > (existing.updatedAt ?? 0)) {
+      // Keep insertion order stable; only replace value.
+      mergedByFingerprint.set(key, profile);
+    }
+  };
+
+  // Preserve persisted order from backend as the source of truth.
+  for (const profile of baseProfiles) insert(profile, false);
+  // Legacy entries are only for one-time补齐; do not reorder existing items.
+  for (const profile of legacyProfiles) insert(profile, true);
+
+  return Array.from(mergedByFingerprint.values());
+}
 
 interface SortableProviderItemRenderProps {
   dragHandleProps: HTMLAttributes<HTMLDivElement>;
@@ -149,7 +268,8 @@ export function LlmProviderView({
   const [search, setSearch] = useState("");
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
   const [viewMode, setViewMode] = useState<ProviderViewMode>(() => {
-    return (localStorage.getItem("llm_provider_view_mode") as ProviderViewMode) || "list";
+    const stored = getUiPreference<ProviderViewMode>("llm_provider_view_mode");
+    return stored === "list" || stored === "card" ? stored : "list";
   });
   const [profilesLoaded, setProfilesLoaded] = useState(false);
   const didBootstrapFromConfig = useRef(false);
@@ -186,39 +306,38 @@ export function LlmProviderView({
         const state = await invoke<LlmProfilesState>("get_llm_profiles_state");
         if (!active) return;
 
-        // If we don't have a local preference, use the one from backend
-        if (!localStorage.getItem("llm_provider_view_mode") && state?.viewMode) {
+        // If UI preference is absent, use backend value
+        const localView = getUiPreference<ProviderViewMode>("llm_provider_view_mode");
+        if ((localView !== "list" && localView !== "card") && state?.viewMode) {
           setViewMode(state.viewMode as ProviderViewMode);
+          setUiPreference("llm_provider_view_mode", state.viewMode as ProviderViewMode);
         }
 
-        if (state?.profiles?.length) {
-          setProfiles(state.profiles);
-          return;
-        }
+        const backendProfiles = state?.profiles ?? [];
+        const legacy = readLegacyProfilesFromLocalStorage();
+        const mergedProfiles = mergeProviderProfiles(backendProfiles, legacy.profiles);
 
-        let migratedProfiles: ProviderProfile[] = [];
-        try {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-              migratedProfiles = parsed;
-            }
-          }
-        } catch {
-          migratedProfiles = [];
-        }
+        setProfiles(mergedProfiles);
 
-        if (migratedProfiles.length > 0) {
-          setProfiles(migratedProfiles);
-          // Don't overwrite viewMode here, keep current (from local or backend)
+        // One-time migration from legacy localStorage to data.db (or merge fix when backend already had 1 profile)
+        if (
+          legacy.consumedKeys.length > 0 &&
+          mergedProfiles.length >= backendProfiles.length &&
+          mergedProfiles.length > 0
+        ) {
           await invoke("save_llm_profiles_state", {
-            state: { profiles: migratedProfiles, viewMode: viewMode },
+            state: {
+              profiles: mergedProfiles,
+              viewMode: state?.viewMode ?? viewMode,
+            } satisfies LlmProfilesState,
           });
-          localStorage.removeItem(STORAGE_KEY);
-        } else {
-          setProfiles([]);
-          // No need to setViewMode here, it's already initialized
+          queryClient.setQueryData(["llmProfilesState"], {
+            profiles: mergedProfiles,
+            viewMode: state?.viewMode ?? viewMode,
+          } satisfies LlmProfilesState);
+          for (const key of legacy.consumedKeys) {
+            window.localStorage.removeItem(key);
+          }
         }
       } finally {
         if (active) setProfilesLoaded(true);
@@ -229,7 +348,7 @@ export function LlmProviderView({
     return () => {
       active = false;
     };
-  }, []);
+  }, [queryClient, viewMode]);
 
   const hasCurrentConfig = Boolean(
     env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_BASE_URL
@@ -336,7 +455,7 @@ export function LlmProviderView({
   const handleViewModeChange = useCallback(
     (mode: ProviderViewMode) => {
       setViewMode(mode);
-      localStorage.setItem("llm_provider_view_mode", mode);
+      setUiPreference("llm_provider_view_mode", mode);
       persistProfilesState(profiles, mode).catch(() => { });
     },
     [persistProfilesState, profiles]

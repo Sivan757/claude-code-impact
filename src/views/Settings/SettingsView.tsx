@@ -42,7 +42,6 @@ import {
   SettingRow,
   SettingsEmptyState,
 } from "../../components/Settings";
-import { ConfigFileKind } from "../../config/types";
 import { useConfigDeleteKey, useConfigMerged, useConfigPaths, useConfigWrite } from "../../config/hooks/useConfig";
 import { cn } from "../../lib/utils";
 import { getConfigPathFor, getSettingsFileKindForScope } from "../../config/utils";
@@ -278,13 +277,11 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   // Get effective settings path from provenance
   const settingsKind = getSettingsFileKindForScope(selectedScope);
   const resolvedSettingsPath = getConfigPathFor(configPaths, selectedScope, settingsKind);
-  const settingsFilename = settingsKind === ConfigFileKind.SettingsLocal
-    ? "settings.local.json"
-    : "settings.json";
+  const fallbackSettingsPath = settingsPath
+    ? "<project>/.claude/settings.json"
+    : "~/.claude/settings.json";
   const effectiveSettingsPath = resolvedSettingsPath
-    ?? (settingsPath
-      ? `${settingsPath}/.claude/${settingsFilename}`
-      : `~/.claude/${settingsFilename}`);
+    ?? fallbackSettingsPath;
 
   const updateField = async (field: string, value: unknown) => {
     await writeMutation.mutateAsync({

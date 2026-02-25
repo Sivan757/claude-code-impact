@@ -47,10 +47,10 @@ import { useInvokeQuery, useTerminalLauncher } from "../../hooks";
 import { profileAtom } from "@/store";
 import { getPreferredTerminalApp } from "@/lib/terminalPreference";
 import { getUiPreference, setUiPreference } from "../../lib/uiPreferences";
+import { ExtensionsView } from "../Extensions/ExtensionsView";
 import { SettingsView } from "../Settings/SettingsView";
 import { LlmProviderView } from "../Settings/LlmProviderView";
 import { EnvSettingsView } from "../Settings/EnvSettingsView";
-import { ExtensionsView } from "../Extensions/ExtensionsView";
 import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
 import {
   resolveProviderNameFromProfiles,
@@ -78,8 +78,6 @@ interface LaunchSettingsRequest {
 }
 
 interface LaunchDraftResponse {
-  draft_project_path: string;
-  settings_path: string;
   settings: Record<string, unknown>;
 }
 
@@ -103,7 +101,7 @@ interface SessionLauncherDialogProps {
 
 function usePrepareLaunchDraft() {
   return useMutation<LaunchDraftResponse, string, LaunchSettingsRequest>({
-    mutationFn: (request) => invoke<LaunchDraftResponse>("prepare_launch_draft", { request }),
+    mutationFn: (request) => invoke<LaunchDraftResponse>("prepare_launch_snapshot", { request }),
   });
 }
 
@@ -323,6 +321,14 @@ function setRememberedTemplateId(projectPath: string, templateId: string) {
   setUiPreference(LAUNCHER_TEMPLATE_PREF_KEY, remembered);
 }
 
+function deriveDraftProjectPath(settingsPath: string): string {
+  const match = settingsPath.match(/^(.*)[\\/]\.claude[\\/]settings\.json$/i);
+  if (match?.[1]) {
+    return match[1];
+  }
+  return settingsPath;
+}
+
 export function SessionLauncherDialog({
   open,
   onOpenChange,
@@ -379,7 +385,6 @@ export function SessionLauncherDialog({
   const selectedTemplateQueryId = selectedTemplateId === "_none" ? null : selectedTemplateId;
   const { data: selectedTemplate, isLoading: selectedTemplateLoading } =
     useTemplateGet(selectedTemplateQueryId);
-
   const {
     data: draftMergedConfig,
     isLoading: draftConfigLoading,
@@ -418,12 +423,12 @@ export function SessionLauncherDialog({
 
   const currentDraftSettings = useMemo(() => {
     if (templateApplying && Object.keys(draftSettingsSnapshot).length > 0) {
-      return draftSettingsSnapshot;
+      return sanitizeLaunchSettings(draftSettingsSnapshot);
     }
     if (draftProjectPath && draftMergedConfig?.effective) {
       return sanitizeLaunchSettings(draftMergedConfig.effective);
     }
-    return draftSettingsSnapshot;
+    return sanitizeLaunchSettings(draftSettingsSnapshot);
   }, [draftMergedConfig?.effective, draftProjectPath, draftSettingsSnapshot, templateApplying]);
 
   const currentDraftSignature = useMemo(
@@ -487,8 +492,14 @@ export function SessionLauncherDialog({
     const plugins = currentDraftSettings.enabledPlugins;
     if (!isRecord(plugins)) return 0;
 
-    return Object.values(plugins).reduce<number>(
-      (count, value) => count + (value === true ? 1 : 0),
+    const logical = new Map<string, boolean>();
+    for (const [pluginId, value] of Object.entries(plugins)) {
+      const key = pluginId.split("@")[0];
+      const nextEnabled = value === true;
+      logical.set(key, Boolean(logical.get(key)) || nextEnabled);
+    }
+    return Array.from(logical.values()).reduce<number>(
+      (count, value) => count + (value ? 1 : 0),
       0,
     );
   }, [currentDraftSettings.enabledPlugins]);
@@ -582,39 +593,18 @@ export function SessionLauncherDialog({
     };
 
     void prepareLaunchDraft.mutateAsync(request)
-      .then(async (draft) => {
+      .then((draft) => {
         if (seedRunRef.current !== runId) return;
 
         const seededSettings = sanitizeLaunchSettings(draft.settings);
-        const nextDraftSettingsPath = draftSettingsPath ?? draft.settings_path;
-        const nextDraftProjectPath = draftProjectPath ?? draft.draft_project_path;
 
         setDraftBaseline({
           settingsSignature: JSON.stringify(seededSettings),
         });
 
-        // Optimistically update values first so the form only refreshes fields.
         setDraftSettingsSnapshot(seededSettings);
-
-        // Keep a stable draft path after first creation to avoid remount jitter.
-        if (!draftSettingsPath || !draftProjectPath) {
-          setDraftProjectPath(draft.draft_project_path);
-          setDraftSettingsPath(draft.settings_path);
-        } else {
-          await invoke<void>("write_file", {
-            path: draftSettingsPath,
-            content: JSON.stringify(seededSettings, null, 2),
-          });
-        }
-
-        if (seedRunRef.current !== runId) return;
-
-        await refetchDraftMerged();
-        if (seedRunRef.current !== runId) return;
-
-        // Ensure stable values if merged query still lags.
-        setDraftProjectPath(nextDraftProjectPath);
-        setDraftSettingsPath(nextDraftSettingsPath);
+        setDraftProjectPath(null);
+        setDraftSettingsPath(null);
         setTemplateApplying(false);
       })
       .catch((error) => {
@@ -630,10 +620,51 @@ export function SessionLauncherDialog({
     displayName,
     projectPath,
     mergeMode,
+  ]);
+
+  const ensureDraftWorkspace = useCallback(async () => {
+    if (draftProjectPath && draftSettingsPath) {
+      return { draftProjectPath, draftSettingsPath };
+    }
+
+    if (templateApplying || prepareLaunchDraft.isPending || selectedTemplateLoading) {
+      return null;
+    }
+
+    if (Object.keys(currentDraftSettings).length === 0) {
+      return null;
+    }
+
+    const settingsPath = await invoke<string>("materialize_launch_draft", {
+      settings: currentDraftSettings,
+    });
+    const nextDraftProjectPath = deriveDraftProjectPath(settingsPath);
+
+    setDraftProjectPath(nextDraftProjectPath);
+    setDraftSettingsPath(settingsPath);
+    await refetchDraftMerged();
+
+    return {
+      draftProjectPath: nextDraftProjectPath,
+      draftSettingsPath: settingsPath,
+    };
+  }, [
+    currentDraftSettings,
     draftProjectPath,
     draftSettingsPath,
+    prepareLaunchDraft.isPending,
     refetchDraftMerged,
+    selectedTemplateLoading,
+    templateApplying,
   ]);
+
+  useEffect(() => {
+    if (!advancedOpen) return;
+    if (draftProjectPath && draftSettingsPath) return;
+    void ensureDraftWorkspace().catch((error) => {
+      setLaunchError(String(error));
+    });
+  }, [advancedOpen, draftProjectPath, draftSettingsPath, ensureDraftWorkspace]);
 
   const handleSaveAsNew = useCallback(async () => {
     setSaveError(null);
@@ -688,25 +719,24 @@ export function SessionLauncherDialog({
     selectTemplate,
   ]);
 
-  const handleOverwrite = useCallback(async () => {
+  const handleUpdateTemplate = useCallback(async () => {
+    setTemplateActionError(null);
+    setTemplateActionNotice(null);
     setSaveError(null);
     setSaveNotice(null);
 
-    if (!selectedTemplate || selectedTemplate.is_builtin) {
-      return;
-    }
-
-    const name = templateName.trim();
-    if (!name) {
-      setSaveError(t("launcher.template_name_required", "Template name is required"));
+    if (!selectedTemplate || selectedTemplateId === "_none" || selectedTemplate.is_builtin) {
+      setTemplateActionError(
+        t("launcher.update_disabled", "Select a custom template to update"),
+      );
       return;
     }
 
     const confirmed = await confirmDialog({
-      title: t("launcher.overwrite_template", "Overwrite"),
-      description: t("launcher.confirm_overwrite", "Overwrite current template?"),
+      title: t("launcher.update_template", "Update Template"),
+      description: t("launcher.confirm_update_template", "Update current template with current draft settings?"),
       variant: "destructive",
-      confirmText: t("launcher.overwrite_template", "Overwrite"),
+      confirmText: t("launcher.update_template", "Update Template"),
     });
     if (!confirmed) return;
 
@@ -716,10 +746,10 @@ export function SessionLauncherDialog({
 
       const payload: ConfigTemplate = {
         id: selectedTemplate.id,
-        name,
-        description: templateDescription.trim(),
+        name: selectedTemplate.name,
+        description: selectedTemplate.description,
         author: selectedTemplate.author || "User",
-        tags: parseTagsInput(templateTagsInput),
+        tags: [...selectedTemplate.tags],
         created_at: selectedTemplate.created_at,
         updated_at: now,
         is_builtin: false,
@@ -730,26 +760,23 @@ export function SessionLauncherDialog({
       };
 
       await templateSave.mutateAsync(payload);
-      setSaveNotice(t("launcher.save_success_overwrite", "Template updated"));
-      setTemplateEditorOpen(false);
+      setTemplateActionNotice(t("launcher.update_template_success", "Template updated"));
       updateBaselineFromCurrentDraft();
     } catch (error) {
-      setSaveError(
-        t("launcher.save_failed", "Failed to save template")
+      setTemplateActionError(
+        t("launcher.update_template_failed", "Failed to update template")
         + ": "
         + String(error),
       );
     }
   }, [
+    confirmDialog,
     currentDraftSettings,
     selectedTemplate,
+    selectedTemplateId,
     t,
-    templateDescription,
-    templateName,
     templateSave,
-    templateTagsInput,
     updateBaselineFromCurrentDraft,
-    confirmDialog,
   ]);
 
   const handleDeleteTemplate = useCallback(async () => {
@@ -785,17 +812,22 @@ export function SessionLauncherDialog({
   }, [selectedTemplate, selectedTemplateId, selectTemplate, t, templateDelete, confirmDialog]);
 
   const handleModelChange = useCallback(async (value: string) => {
-    if (!draftSettingsPath) return;
-
     setQuickUpdating("model");
     setLaunchError(null);
     try {
-      await invoke<void>("update_settings_field", {
-        field: "model",
-        value,
-        path: draftSettingsPath,
-      });
-      await refetchDraftMerged();
+      if (draftSettingsPath) {
+        await invoke<void>("update_settings_field", {
+          field: "model",
+          value,
+          path: draftSettingsPath,
+        });
+        await refetchDraftMerged();
+      } else {
+        setDraftSettingsSnapshot((prev) => ({
+          ...sanitizeLaunchSettings(prev),
+          model: value,
+        }));
+      }
     } catch (error) {
       setLaunchError(String(error));
     } finally {
@@ -804,17 +836,28 @@ export function SessionLauncherDialog({
   }, [draftSettingsPath, refetchDraftMerged]);
 
   const handlePermissionModeChange = useCallback(async (value: PermissionMode) => {
-    if (!draftSettingsPath) return;
-
     setQuickUpdating("permission");
     setLaunchError(null);
     try {
-      await invoke<void>("update_settings_permission_field", {
-        field: "defaultMode",
-        value,
-        path: draftSettingsPath,
-      });
-      await refetchDraftMerged();
+      if (draftSettingsPath) {
+        await invoke<void>("update_settings_permission_field", {
+          field: "defaultMode",
+          value,
+          path: draftSettingsPath,
+        });
+        await refetchDraftMerged();
+      } else {
+        setDraftSettingsSnapshot((prev) => {
+          const next = sanitizeLaunchSettings(prev);
+          const permissions = isRecord(next.permissions)
+            ? { ...next.permissions }
+            : {};
+          permissions.defaultMode = value;
+          delete permissions.default_mode;
+          next.permissions = permissions;
+          return next;
+        });
+      }
     } catch (error) {
       setLaunchError(String(error));
     } finally {
@@ -825,13 +868,16 @@ export function SessionLauncherDialog({
   const handleLaunch = useCallback(async () => {
     setLaunchError(null);
 
-    if (!draftSettingsPath) {
+    if (Object.keys(currentDraftSettings).length === 0) {
       setLaunchError(t("launcher.draft_not_ready", "Draft settings are not ready"));
       return;
     }
 
     try {
-      const command = `claude --settings "${draftSettingsPath}"`;
+      const materializedSettingsPath = await invoke<string>("materialize_launch_draft", {
+        settings: currentDraftSettings,
+      });
+      const command = `claude --settings "${materializedSettingsPath}"`;
 
       await terminalLauncher.mutateAsync({
         cwd: projectPath,
@@ -844,7 +890,7 @@ export function SessionLauncherDialog({
       setLaunchError(String(err));
     }
   }, [
-    draftSettingsPath,
+    currentDraftSettings,
     onOpenChange,
     preferredTerminalApp,
     projectPath,
@@ -938,7 +984,7 @@ export function SessionLauncherDialog({
 
       if (!exportPath) return;
 
-      await invoke<void>("write_file", {
+      await invoke<void>("export_file", {
         path: exportPath,
         content: JSON.stringify(template, null, 2),
       });
@@ -958,6 +1004,9 @@ export function SessionLauncherDialog({
   const openAdvancedTab = (tab: SettingsTab) => {
     setSettingsTab(tab);
     setAdvancedOpen(true);
+    void ensureDraftWorkspace().catch((error) => {
+      setLaunchError(String(error));
+    });
   };
 
   const tabLabel = (tab: SettingsTab) => {
@@ -969,7 +1018,8 @@ export function SessionLauncherDialog({
 
   const renderSettingsPanel = () => {
     const hasSnapshot = Object.keys(draftSettingsSnapshot).length > 0;
-    const shouldBlockLoading = !hasSnapshot && (templateApplying || draftConfigLoading);
+    const shouldBlockLoading = !hasSnapshot
+      && (templateApplying || prepareLaunchDraft.isPending || selectedTemplateLoading || draftConfigLoading);
     if (!draftProjectPath || shouldBlockLoading) {
       return <LoadingState message={t("launcher.draft_loading", "Preparing draft settings...")} />;
     }
@@ -977,9 +1027,11 @@ export function SessionLauncherDialog({
     if (settingsTab === "general") {
       return <SettingsView embedded settingsPath={draftProjectPath} />;
     }
+
     if (settingsTab === "provider") {
       return <LlmProviderView embedded settingsPath={draftProjectPath} />;
     }
+
     if (settingsTab === "plugins") {
       return (
         <ExtensionsView
@@ -989,6 +1041,7 @@ export function SessionLauncherDialog({
         />
       );
     }
+
     return <EnvSettingsView embedded settingsPath={draftProjectPath} />;
   };
 
@@ -998,7 +1051,7 @@ export function SessionLauncherDialog({
   const showBlockingDraftLoading = !hasDraftSnapshot && (isPreparingDraft || draftConfigLoading);
   const showDraftRefreshingOverlay = hasDraftSnapshot && isPreparingDraft;
 
-  const saveDisabled = templateSave.isPending || !draftProjectPath;
+  const saveDisabled = templateSave.isPending || !hasDraftSnapshot;
 
   return (
     <>
@@ -1229,6 +1282,14 @@ export function SessionLauncherDialog({
                         {t("launcher.save_as_template", "Save as Template")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
+                        onClick={() => void handleUpdateTemplate()}
+                        disabled={templateSave.isPending || !canOverwrite}
+                        title={!canOverwrite ? t("launcher.update_disabled", "Select a custom template to update") : undefined}
+                      >
+                        <ReloadIcon className="w-3.5 h-3.5 mr-2" />
+                        {t("launcher.update_template", "Update Template")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => void handleDeleteTemplate()}
                         disabled={
                           templateDelete.isPending
@@ -1247,7 +1308,9 @@ export function SessionLauncherDialog({
                           : <TrashIcon className="w-3.5 h-3.5 mr-2" />}
                         {t("launcher.template_delete", "Delete Template")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setAdvancedOpen(true)}>
+                      <DropdownMenuItem
+                        onClick={() => openAdvancedTab("plugins")}
+                      >
                         <CodeIcon className="w-3.5 h-3.5 mr-2" />
                         {t("launcher.advanced_settings", "Advanced Settings")}
                       </DropdownMenuItem>
@@ -1403,7 +1466,7 @@ export function SessionLauncherDialog({
               </Button>
               <Button
                 onClick={handleLaunch}
-                disabled={isLaunching || isPreparingDraft || !draftSettingsPath}
+                disabled={isLaunching || isPreparingDraft || !hasDraftSnapshot}
                 className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5"
               >
                 {isLaunching ? (
@@ -1492,7 +1555,7 @@ export function SessionLauncherDialog({
           <DialogHeader>
             <DialogTitle>{t("launcher.template_editor", "Template Editor")}</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              {t("launcher.template_editor_desc", "Save current draft settings as a new template or overwrite the selected one")}
+              {t("launcher.template_editor_desc", "Save current draft settings as a new template")}
             </p>
           </DialogHeader>
 
@@ -1555,15 +1618,6 @@ export function SessionLauncherDialog({
               >
                 <PlusIcon className="w-3.5 h-3.5" />
                 {t("launcher.save_as_new", "Save as New")}
-              </Button>
-              <Button
-                size="sm"
-                className="h-9 rounded-lg"
-                onClick={() => void handleOverwrite()}
-                disabled={saveDisabled || !canOverwrite}
-                title={!canOverwrite ? t("launcher.overwrite_disabled", "Select a custom template to overwrite") : undefined}
-              >
-                {t("launcher.overwrite_template", "Overwrite")}
               </Button>
             </div>
           </DialogFooter>

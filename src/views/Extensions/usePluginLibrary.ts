@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { PluginScanResult } from "../../types";
@@ -50,19 +50,55 @@ function isProjectLikeScope(scope: PluginScope) {
   return scope === "project" || scope === "local";
 }
 
+function resolveEnabledOverride(
+  enabledPluginsOverride: Record<string, boolean>,
+  pluginId: string,
+): boolean | undefined {
+  const shortId = pluginId.split("@")[0];
+  const candidateKeys = new Set<string>([pluginId, shortId]);
+  const prefixed = `${shortId}@`;
+
+  for (const key of Object.keys(enabledPluginsOverride)) {
+    if (key.startsWith(prefixed)) {
+      candidateKeys.add(key);
+    }
+  }
+
+  for (const key of candidateKeys) {
+    if (enabledPluginsOverride[key] === false) {
+      return false;
+    }
+  }
+
+  for (const key of candidateKeys) {
+    if (enabledPluginsOverride[key] === true) {
+      return true;
+    }
+  }
+
+  return undefined;
+}
+
 export function usePluginLibrary(options?: {
   settingsPath?: string;
   scope?: PluginScope;
   projectPath?: string;
+  onSettingsMutated?: (raw: Record<string, unknown>) => void;
+  enabledPluginsOverride?: Record<string, boolean>;
+  onToggleOverride?: (pluginId: string, enabled: boolean) => void | Promise<void>;
 }) {
   const { t } = useTranslation();
   const confirmDialog = useConfirmDialog();
   const settingsPath = options?.settingsPath;
   const scope: PluginScope = options?.scope ?? "user";
   const projectPath = options?.projectPath;
+  const onSettingsMutated = options?.onSettingsMutated;
+  const enabledPluginsOverride = options?.enabledPluginsOverride;
+  const onToggleOverride = options?.onToggleOverride;
   const normalizedProjectPath = normalizePath(projectPath);
 
-  const invalidateKeys = [["pluginScan"], ["pluginRuntimeState"]];
+  const scanAndRuntimeInvalidate = [["pluginScan"], ["pluginRuntimeState"]] as const;
+  const runtimeOnlyInvalidate = [["pluginRuntimeState"]] as const;
 
   const scanQuery = useInvokeQuery<PluginScanResult>(["pluginScan"], "scan_plugins");
   const runtimeStateQuery = useInvokeQuery<PluginRuntimeState[]>(
@@ -80,6 +116,7 @@ export function usePluginLibrary(options?: {
   const [statusFilter, setStatusFilter] = useState<PluginStatusFilter>("all");
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [actionPluginId, setActionPluginId] = useState<string | null>(null);
@@ -90,23 +127,23 @@ export function usePluginLibrary(options?: {
 
   const installMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
     "install_plugin",
-    invalidateKeys,
+    [...scanAndRuntimeInvalidate],
   );
   const uninstallMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
     "uninstall_plugin",
-    invalidateKeys,
+    [...scanAndRuntimeInvalidate],
   );
   const enableMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
     "enable_plugin",
-    invalidateKeys,
+    [...runtimeOnlyInvalidate],
   );
   const disableMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
     "disable_plugin",
-    invalidateKeys,
+    [...runtimeOnlyInvalidate],
   );
   const updateMutation = useInvokeMutation<string, { pluginId: string; scope?: PluginScope; projectPath?: string }>(
     "update_plugin",
-    invalidateKeys,
+    [...scanAndRuntimeInvalidate],
   );
   const addMarketplaceMutation = useInvokeMutation<string, { source: string }>("add_extension_marketplace", [["pluginScan"]]);
   const removeMarketplaceMutation = useInvokeMutation<string, { name: string }>(
@@ -124,6 +161,13 @@ export function usePluginLibrary(options?: {
     }
     return String(error);
   };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const isNotInstalledError = (message: string) => {
     const lower = message.toLowerCase();
@@ -184,10 +228,15 @@ export function usePluginLibrary(options?: {
   const plugins = useMemo(() => {
     const base = scanResult.plugins.map((plugin) => {
       const state = scopedRuntimeState.get(plugin.id);
-      const isInstalled = Boolean(state);
-      let isEnabled = state?.enabled ?? false;
+      const isInstalled = state ? true : plugin.isInstalled;
+      let isEnabled = state?.enabled ?? plugin.isEnabled;
 
-      if (settingsPath) {
+      if (enabledPluginsOverride) {
+        const overrideEnabled = resolveEnabledOverride(enabledPluginsOverride, plugin.id);
+        if (overrideEnabled !== undefined) {
+          isEnabled = overrideEnabled;
+        }
+      } else if (settingsPath && enabledFromSettings[plugin.id] !== undefined) {
         isEnabled = enabledFromSettings[plugin.id] === true;
       }
 
@@ -207,10 +256,17 @@ export function usePluginLibrary(options?: {
         ? plugin
         : { ...plugin, isEnabled: pendingToggle[plugin.id] }
     );
-  }, [enabledFromSettings, pendingToggle, scanResult.plugins, scopedRuntimeState, settingsPath]);
+  }, [
+    enabledFromSettings,
+    enabledPluginsOverride,
+    pendingToggle,
+    scanResult.plugins,
+    scopedRuntimeState,
+    settingsPath,
+  ]);
 
   const scopedPlugins = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = debouncedSearch.trim().toLowerCase();
     let next = plugins;
 
     if (activeMarketplace !== "all") {
@@ -229,7 +285,7 @@ export function usePluginLibrary(options?: {
     }
 
     return next;
-  }, [activeMarketplace, plugins, search]);
+  }, [activeMarketplace, debouncedSearch, plugins]);
 
   const stats = useMemo<PluginStats>(() => {
     const installed = scopedPlugins.filter((plugin) => plugin.isInstalled).length;
@@ -255,10 +311,7 @@ export function usePluginLibrary(options?: {
   }, [scopedPlugins, statusFilter]);
 
   const isScanning =
-    scanQuery.isLoading ||
-    scanQuery.isFetching ||
-    runtimeStateQuery.isLoading ||
-    runtimeStateQuery.isFetching;
+    scanQuery.isLoading || scanQuery.isFetching;
   const scanError = scanQuery.error
     ? String(scanQuery.error)
     : (runtimeStateQuery.error ? String(runtimeStateQuery.error) : null);
@@ -317,13 +370,27 @@ export function usePluginLibrary(options?: {
     setActionError(null);
     setPendingToggle((prev) => ({ ...prev, [pluginId]: enabled }));
     try {
+      if (onToggleOverride) {
+        await Promise.resolve(onToggleOverride(pluginId, enabled));
+        return;
+      }
+
       if (settingsPath) {
         await invoke<void>("toggle_plugin", {
           pluginId,
           enabled,
           path: settingsPath,
         });
-        await settingsQuery.refetch();
+        const refreshed = await settingsQuery.refetch();
+        const refreshedRaw = refreshed.data?.raw;
+        if (
+          onSettingsMutated
+          && refreshedRaw
+          && typeof refreshedRaw === "object"
+          && !Array.isArray(refreshedRaw)
+        ) {
+          onSettingsMutated(refreshedRaw as Record<string, unknown>);
+        }
       } else {
         if (!ensureScopeContext()) {
           return;
@@ -336,6 +403,10 @@ export function usePluginLibrary(options?: {
       }
     } catch (error) {
       const message = normalizeError(error);
+      if (onToggleOverride) {
+        setActionError(message);
+        return;
+      }
       if (settingsPath) {
         setActionError(message);
         return;

@@ -24,7 +24,10 @@ pub(crate) fn resolve_user_path(path: &str) -> PathBuf {
         return home;
     }
 
-    if let Some(suffix) = trimmed.strip_prefix("~/").or_else(|| trimmed.strip_prefix("~\\")) {
+    if let Some(suffix) = trimmed
+        .strip_prefix("~/")
+        .or_else(|| trimmed.strip_prefix("~\\"))
+    {
         return home.join(suffix);
     }
 
@@ -48,4 +51,3 @@ pub(crate) fn get_default_unix_shell() -> String {
 
     "/bin/sh".to_string()
 }
-

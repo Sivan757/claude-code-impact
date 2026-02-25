@@ -199,7 +199,7 @@ export function StatusBar({ onOpenSettings }: StatusBarProps) {
       }
     }
     fetchTodayStats();
-    const timer = setInterval(fetchTodayStats, 30000);
+    const timer = setInterval(fetchTodayStats, 60000);
     return () => clearInterval(timer);
   }, []);
 

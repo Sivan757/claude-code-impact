@@ -1,6 +1,6 @@
 use crate::config::{
-    ensure_parent_dir, read_config_file, validate_config, ConfigError, ConfigFileKind,
-    ConfigScope, ConfigValue, WriteResult,
+    ensure_parent_dir, read_config_file, validate_config, ConfigError, ConfigFileKind, ConfigScope,
+    ConfigValue, WriteResult,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -183,13 +183,7 @@ pub fn delete_key(
 ) -> Result<WriteResult, ConfigError> {
     // Create nested structure with null value for deletion
     let patch = create_nested_value_for_delete(key);
-    merge_and_write(
-        path,
-        kind,
-        scope,
-        &patch,
-        create_backup,
-    )
+    merge_and_write(path, kind, scope, &patch, create_backup)
 }
 
 /// Convert a dot-path key into a nested JSON structure with null leaf

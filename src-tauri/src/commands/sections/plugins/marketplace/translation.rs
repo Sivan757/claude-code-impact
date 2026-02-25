@@ -172,7 +172,7 @@ fn build_runtime_payload_path() -> PathBuf {
 }
 
 fn load_anthropic_env_from_settings() -> (Option<String>, Option<String>) {
-    let settings_path = crate::infra::get_claude_dir().join("settings.json");
+    let settings_path = crate::infra::resolve_settings_path(None);
     let content = match fs::read_to_string(settings_path) {
         Ok(content) => content,
         Err(_) => return (None, None),

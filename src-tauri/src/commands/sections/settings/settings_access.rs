@@ -3,7 +3,7 @@
 #[tauri::command]
 fn get_settings(path: Option<String>) -> Result<ClaudeSettings, String> {
     let settings_path = resolve_settings_path(path);
-    let claude_json_path = get_claude_json_path();
+    let claude_json_path = resolve_mcp_config_path(None);
 
     // Read ~/.claude/settings.json for permissions, hooks, etc.
     let (mut raw, permissions, hooks) = if settings_path.exists() {
@@ -72,7 +72,7 @@ fn get_settings(path: Option<String>) -> Result<ClaudeSettings, String> {
         }
     }
 
-    // Read ~/.claude.json for MCP servers
+    // Read managed MCP config for MCP servers
     let mut mcp_servers = Vec::new();
     if claude_json_path.exists() {
         if let Ok(content) = fs::read_to_string(&claude_json_path) {
@@ -364,7 +364,7 @@ fn get_path_separator() -> String {
 
 #[tauri::command]
 fn get_distill_command_path() -> String {
-    get_claude_dir()
+    resolve_claude_dir(None)
         .join("commands")
         .join("distill.md")
         .to_string_lossy()
@@ -391,15 +391,12 @@ fn get_docs_distill_file_path(file: String) -> String {
 
 #[tauri::command]
 fn get_settings_path() -> String {
-    get_claude_dir()
-        .join("settings.json")
-        .to_string_lossy()
-        .to_string()
+    resolve_settings_path(None).to_string_lossy().to_string()
 }
 
 #[tauri::command]
 fn get_mcp_config_path() -> String {
-    get_claude_json_path().to_string_lossy().to_string()
+    resolve_mcp_config_path(None).to_string_lossy().to_string()
 }
 
 #[tauri::command]
@@ -420,98 +417,147 @@ pub struct TodayCodingStats {
     pub lines_deleted: usize,
 }
 
+impl Clone for TodayCodingStats {
+    fn clone(&self) -> Self {
+        Self {
+            lines_added: self.lines_added,
+            lines_deleted: self.lines_deleted,
+        }
+    }
+}
+
+static TODAY_CODING_STATS_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<Option<(std::time::Instant, TodayCodingStats)>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+
+fn parse_shortstat_line(output: &str, added: &mut usize, deleted: &mut usize) {
+    for part in output.split(',') {
+        let part = part.trim();
+        if part.contains("insertion") {
+            if let Some(num) = part.split_whitespace().next() {
+                *added += num.parse::<usize>().unwrap_or(0);
+            }
+        } else if part.contains("deletion") {
+            if let Some(num) = part.split_whitespace().next() {
+                *deleted += num.parse::<usize>().unwrap_or(0);
+            }
+        }
+    }
+}
+
 #[tauri::command]
-fn get_today_coding_stats() -> Result<TodayCodingStats, String> {
+async fn get_today_coding_stats() -> Result<TodayCodingStats, String> {
     use std::process::Command;
 
-    let workspace_path = dirs::data_local_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("claudecodeimpact")
-        .join("workspace.json");
+    const TODAY_STATS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(60);
 
-    if !workspace_path.exists() {
-        return Ok(TodayCodingStats {
-            lines_added: 0,
-            lines_deleted: 0,
-        });
-    }
-
-    let content = fs::read_to_string(&workspace_path).map_err(|e| e.to_string())?;
-    let workspace: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-
-    let mut total_added: usize = 0;
-    let mut total_deleted: usize = 0;
-
-    if let Some(projects) = workspace.get("projects").and_then(|p| p.as_array()) {
-        for project in projects {
-            if let Some(path) = project.get("path").and_then(|p| p.as_str()) {
-                // Run git diff --stat for today
-                let output = Command::new("git")
-                    .args([
-                        "-C",
-                        path,
-                        "diff",
-                        "--shortstat",
-                        "--since=midnight",
-                        "HEAD",
-                    ])
-                    .output();
-
-                if let Ok(output) = output {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    // Parse "X files changed, Y insertions(+), Z deletions(-)"
-                    for part in stdout.split(',') {
-                        let part = part.trim();
-                        if part.contains("insertion") {
-                            if let Some(num) = part.split_whitespace().next() {
-                                total_added += num.parse::<usize>().unwrap_or(0);
-                            }
-                        } else if part.contains("deletion") {
-                            if let Some(num) = part.split_whitespace().next() {
-                                total_deleted += num.parse::<usize>().unwrap_or(0);
-                            }
-                        }
-                    }
-                }
-
-                // Also check uncommitted changes
-                let output = Command::new("git")
-                    .args(["-C", path, "diff", "--shortstat"])
-                    .output();
-
-                if let Ok(output) = output {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    for part in stdout.split(',') {
-                        let part = part.trim();
-                        if part.contains("insertion") {
-                            if let Some(num) = part.split_whitespace().next() {
-                                total_added += num.parse::<usize>().unwrap_or(0);
-                            }
-                        } else if part.contains("deletion") {
-                            if let Some(num) = part.split_whitespace().next() {
-                                total_deleted += num.parse::<usize>().unwrap_or(0);
-                            }
-                        }
-                    }
-                }
+    if let Ok(cache) = TODAY_CODING_STATS_CACHE.lock() {
+        if let Some((cached_at, cached_stats)) = cache.as_ref() {
+            if cached_at.elapsed() < TODAY_STATS_CACHE_TTL {
+                return Ok(cached_stats.clone());
             }
         }
     }
 
-    Ok(TodayCodingStats {
-        lines_added: total_added,
-        lines_deleted: total_deleted,
+    let stats = tauri::async_runtime::spawn_blocking(move || -> Result<TodayCodingStats, String> {
+        let workspace_paths: Vec<String> = match read_data_key("ui.claudecodeimpact:workspaces")? {
+            Some(Value::Array(arr)) => arr
+                .iter()
+                .filter_map(|item| item.as_str().map(str::to_owned))
+                .collect(),
+            _ => Vec::new(),
+        };
+
+        if workspace_paths.is_empty() {
+            return Ok(TodayCodingStats {
+                lines_added: 0,
+                lines_deleted: 0,
+            });
+        }
+
+        let mut total_added: usize = 0;
+        let mut total_deleted: usize = 0;
+
+        for path in workspace_paths {
+            let today_output = Command::new("git")
+                .args([
+                    "-C",
+                    &path,
+                    "diff",
+                    "--shortstat",
+                    "--since=midnight",
+                    "HEAD",
+                ])
+                .output();
+            if let Ok(output) = today_output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                parse_shortstat_line(&stdout, &mut total_added, &mut total_deleted);
+            }
+
+            let working_tree_output = Command::new("git")
+                .args(["-C", &path, "diff", "--shortstat"])
+                .output();
+            if let Ok(output) = working_tree_output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                parse_shortstat_line(&stdout, &mut total_added, &mut total_deleted);
+            }
+        }
+
+        Ok(TodayCodingStats {
+            lines_added: total_added,
+            lines_deleted: total_deleted,
+        })
     })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    if let Ok(mut cache) = TODAY_CODING_STATS_CACHE.lock() {
+        *cache = Some((std::time::Instant::now(), stats.clone()));
+    }
+
+    Ok(stats)
 }
 
 #[tauri::command]
-fn write_file(path: String, content: String) -> Result<(), String> {
-    fs::write(&path, content).map_err(|e| e.to_string())
+fn write_managed_file(path: String, content: String) -> Result<(), String> {
+    let resolved = crate::services::platform::resolve_user_path(&path);
+    let managed_root = get_claudecodeimpact_dir();
+    if !resolved.starts_with(&managed_root) {
+        return Err(format!(
+            "Managed persistence path required. Expected under {}",
+            managed_root.to_string_lossy()
+        ));
+    }
+    ensure_parent_dir(&resolved)?;
+    fs::write(&resolved, content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
-    fs::write(&path, data).map_err(|e| e.to_string())
+fn write_managed_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    let resolved = crate::services::platform::resolve_user_path(&path);
+    let managed_root = get_claudecodeimpact_dir();
+    if !resolved.starts_with(&managed_root) {
+        return Err(format!(
+            "Managed persistence path required. Expected under {}",
+            managed_root.to_string_lossy()
+        ));
+    }
+    ensure_parent_dir(&resolved)?;
+    fs::write(&resolved, data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn export_file(path: String, content: String) -> Result<(), String> {
+    let resolved = crate::services::platform::resolve_user_path(&path);
+    ensure_parent_dir(&resolved)?;
+    fs::write(&resolved, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn export_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    let resolved = crate::services::platform::resolve_user_path(&path);
+    ensure_parent_dir(&resolved)?;
+    fs::write(&resolved, data).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -529,7 +575,7 @@ fn update_mcp_env(
     } else if project_path.is_some() {
         return Err(".mcp.json not found".to_string());
     } else {
-        return Err("~/.claude.json not found".to_string());
+        return Err("Managed MCP config not found".to_string());
     };
 
     if project_path.is_some() {

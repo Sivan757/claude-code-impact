@@ -1,6 +1,4 @@
-pub(crate) fn extract_content_with_meta(
-    value: &Option<serde_json::Value>,
-) -> (String, bool) {
+pub(crate) fn extract_content_with_meta(value: &Option<serde_json::Value>) -> (String, bool) {
     match value {
         Some(serde_json::Value::String(s)) => (s.clone(), false),
         Some(serde_json::Value::Array(arr)) => {

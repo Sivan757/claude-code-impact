@@ -118,10 +118,8 @@ fn build_command_stats(
                             }
                             for cap in command_pattern.captures_iter(line) {
                                 if let Some(cmd_name) = cap.get(1) {
-                                    let name = cmd_name
-                                        .as_str()
-                                        .trim_start_matches('/')
-                                        .to_string();
+                                    let name =
+                                        cmd_name.as_str().trim_start_matches('/').to_string();
                                     *stats.entry(name).or_insert(0) += 1;
                                 }
                             }

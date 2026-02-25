@@ -52,9 +52,11 @@ export const UI_PREFERENCE_KEYS = [
   "terminal:autoCopyOnSelect",
   // Launcher
   "claudecodeimpact:launcher:lastTemplateByProject",
+  // Navigation
+  "claudecodeimpact:lastPath",
+  // LLM provider view
+  "llm_provider_view_mode",
 ];
-
-const RAW_STRING_KEYS = new Set<string>(["claudecodeimpact:analytics:clientId"]);
 
 const preferenceCache = new Map<string, unknown>();
 let initialized = false;
@@ -63,17 +65,9 @@ const toDataKey = (key: string) => `${UI_PREF_PREFIX}${key}`;
 
 const canInvokeTauri = () =>
   typeof window !== "undefined" && typeof (window as { __TAURI__?: unknown }).__TAURI__ !== "undefined";
-const canUseLocalStorage = () => typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-
 async function persistPreference(key: string, value: unknown): Promise<void> {
   if (!canInvokeTauri()) {
-    if (canUseLocalStorage()) {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-      } catch {
-        // Ignore persistence failures to avoid blocking UI.
-      }
-    }
+    // No browser storage fallback: persistence must go through Tauri backend.
     return;
   }
   try {
@@ -85,76 +79,13 @@ async function persistPreference(key: string, value: unknown): Promise<void> {
 
 async function removePreference(key: string): Promise<void> {
   if (!canInvokeTauri()) {
-    if (canUseLocalStorage()) {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // Ignore removal failures to avoid blocking UI.
-      }
-    }
+    // No browser storage fallback: persistence must go through Tauri backend.
     return;
   }
   try {
     await invoke("remove_ui_preference", { key: toDataKey(key) });
   } catch {
     // Ignore persistence failures to avoid blocking UI.
-  }
-}
-
-function migrateLocalStorage(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (!canUseLocalStorage()) {
-    return;
-  }
-
-  const shouldRemoveLocal = canInvokeTauri();
-
-  for (const key of UI_PREFERENCE_KEYS) {
-    if (preferenceCache.has(key)) {
-      if (shouldRemoveLocal) {
-        try {
-          localStorage.removeItem(key);
-        } catch {
-          // Ignore removal errors.
-        }
-      }
-      continue;
-    }
-
-    let raw: string | null = null;
-    try {
-      raw = localStorage.getItem(key);
-    } catch {
-      raw = null;
-    }
-    if (raw === null) {
-      continue;
-    }
-
-    let parsed: unknown = raw;
-    if (!RAW_STRING_KEYS.has(key)) {
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        parsed = raw;
-      }
-    }
-
-    preferenceCache.set(key, parsed);
-    if (shouldRemoveLocal) {
-      void invoke("set_ui_preference", { key: toDataKey(key), value: parsed })
-        .then(() => {
-          try {
-            localStorage.removeItem(key);
-          } catch {
-            // Ignore removal errors.
-          }
-        })
-        .catch(() => {});
-    }
   }
 }
 
@@ -181,7 +112,6 @@ export async function initializeUiPreferences(): Promise<void> {
     }
   }
 
-  migrateLocalStorage();
 }
 
 export function getUiPreference<T>(key: string): T | undefined {
@@ -201,13 +131,6 @@ export function removeUiPreference(key: string): void {
 export function getSerializedUiPreference(key: string): string | null {
   if (preferenceCache.has(key)) {
     return JSON.stringify(preferenceCache.get(key));
-  }
-  if (!canInvokeTauri()) {
-    try {
-      return canUseLocalStorage() ? localStorage.getItem(key) : null;
-    } catch {
-      return null;
-    }
   }
   return null;
 }

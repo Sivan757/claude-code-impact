@@ -10,7 +10,9 @@ pub enum ConfigError {
     ParseError { path: String, message: String },
 
     /// Validation failed
-    ValidationError { violations: Vec<ValidationViolation> },
+    ValidationError {
+        violations: Vec<ValidationViolation>,
+    },
 
     /// Scope is read-only
     ReadOnly { scope: String, reason: String },

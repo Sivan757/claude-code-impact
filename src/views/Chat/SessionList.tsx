@@ -184,7 +184,7 @@ generator: "Claude Code Impact"
         filters: [{ name: "Markdown", extensions: ["md"] }],
       });
       if (path) {
-        await invoke("write_file", { path, content });
+        await invoke("export_file", { path, content });
       }
     } finally {
       setExporting(false);

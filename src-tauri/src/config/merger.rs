@@ -6,9 +6,7 @@ use crate::config::{
 use std::collections::HashMap;
 
 /// Build merged configuration view with provenance tracking
-pub fn build_merged_config(
-    project_path: Option<&str>,
-) -> Result<MergedConfigView, ConfigError> {
+pub fn build_merged_config(project_path: Option<&str>) -> Result<MergedConfigView, ConfigError> {
     // Start with default settings
     let mut effective = serde_json::json!({});
     let mut provenance: HashMap<String, ProvenanceEntry> = HashMap::new();
@@ -26,7 +24,8 @@ pub fn build_merged_config(
     for scope in scopes_in_order {
         // UserLocal and ProjectLocal scopes only read settings.local.json, not settings.json
         // Skip the settings.json read for these scopes to avoid duplicate/incorrect attribution
-        let should_read_settings = !matches!(scope, ConfigScope::UserLocal | ConfigScope::ProjectLocal);
+        let should_read_settings =
+            !matches!(scope, ConfigScope::UserLocal | ConfigScope::ProjectLocal);
 
         if should_read_settings {
             // Determine which file kind to use for this scope
@@ -66,11 +65,9 @@ pub fn build_merged_config(
 
         // Read settings.local.json for user/project local scopes
         if matches!(scope, ConfigScope::UserLocal | ConfigScope::ProjectLocal) {
-            if let Ok(path) = resolve_config_path(
-                ConfigFileKind::SettingsLocal,
-                scope,
-                project_path,
-            ) {
+            if let Ok(path) =
+                resolve_config_path(ConfigFileKind::SettingsLocal, scope, project_path)
+            {
                 match read_config_file(&path, ConfigFileKind::SettingsLocal) {
                     Ok(ConfigValue::Json { value }) => {
                         merge_layer(
@@ -119,9 +116,7 @@ fn merge_layer(
     scope: ConfigScope,
     file_path: String,
 ) {
-    if let (Some(effective_obj), Some(layer_obj)) =
-        (effective.as_object_mut(), layer.as_object())
-    {
+    if let (Some(effective_obj), Some(layer_obj)) = (effective.as_object_mut(), layer.as_object()) {
         for (key, value) in layer_obj {
             // Deep merge the value
             if let Some(existing_value) = effective_obj.get_mut(key) {
@@ -142,13 +137,7 @@ fn merge_layer(
             );
 
             // Recursively track nested keys
-            track_nested_provenance(
-                provenance,
-                value,
-                scope,
-                &file_path,
-                key,
-            );
+            track_nested_provenance(provenance, value, scope, &file_path, key);
         }
     }
 }
@@ -199,13 +188,7 @@ fn track_nested_provenance(
             );
 
             // Recursively track deeper nesting
-            track_nested_provenance(
-                provenance,
-                nested_value,
-                scope,
-                file_path,
-                &full_key,
-            );
+            track_nested_provenance(provenance, nested_value, scope, file_path, &full_key);
         }
     }
 }
@@ -329,10 +312,9 @@ fn build_mcp_servers_view(
     }
 
     // Collect from legacy ~/.claude.json
-    if let Ok(path) =
-        resolve_config_path(ConfigFileKind::LegacyConfig, ConfigScope::User, None)
-    {
-        if let Ok(ConfigValue::Json { value }) = read_config_file(&path, ConfigFileKind::LegacyConfig)
+    if let Ok(path) = resolve_config_path(ConfigFileKind::LegacyConfig, ConfigScope::User, None) {
+        if let Ok(ConfigValue::Json { value }) =
+            read_config_file(&path, ConfigFileKind::LegacyConfig)
         {
             if let Some(mcp_servers_obj) = value.get("mcpServers") {
                 if let Some(mcp_servers_map) = mcp_servers_obj.as_object() {
@@ -522,8 +504,17 @@ mod tests {
 
         // Verify provenance shows correct scopes
         assert_eq!(provenance["model"].scope, ConfigScope::User);
-        assert_eq!(provenance["model"].file_path, "/home/user/.claude/settings.json");
-        assert_eq!(provenance["always_thinking_enabled"].scope, ConfigScope::UserLocal);
-        assert_eq!(provenance["always_thinking_enabled"].file_path, "/home/user/.claude/settings.local.json");
+        assert_eq!(
+            provenance["model"].file_path,
+            "/home/user/.claude/settings.json"
+        );
+        assert_eq!(
+            provenance["always_thinking_enabled"].scope,
+            ConfigScope::UserLocal
+        );
+        assert_eq!(
+            provenance["always_thinking_enabled"].file_path,
+            "/home/user/.claude/settings.local.json"
+        );
     }
 }

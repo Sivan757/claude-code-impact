@@ -2,7 +2,7 @@
 
 #[tauri::command]
 fn list_local_commands() -> Result<Vec<LocalCommand>, String> {
-    let claude_dir = get_claude_dir();
+    let claude_dir = resolve_claude_dir(None);
     let commands_dir = claude_dir.join("commands");
     let dot_commands_dir = claude_dir.join(".commands");
     let archived_dir = dot_commands_dir.join("archived");
@@ -336,7 +336,7 @@ fn rename_command(
     }
 
     // Build destination path from command name
-    let commands_dir = get_claude_dir().join("commands");
+    let commands_dir = resolve_claude_dir(None).join("commands");
     let new_filename = if name.ends_with(".md") {
         name.to_string()
     } else {
@@ -507,7 +507,7 @@ fn update_aliases_on_rename(content: &str, old_name: &str, new_name: &str) -> St
     }
 }
 
-/// Deprecate a command by moving it to ~/.claude/.commands/archived/
+/// Deprecate a command by moving it to managed scope .commands/archived/
 /// This moves it outside the commands directory so Claude Code won't load it
 #[tauri::command]
 fn deprecate_command(
@@ -520,8 +520,9 @@ fn deprecate_command(
         return Err(format!("Command file not found: {}", path));
     }
 
-    let commands_dir = get_claude_dir().join("commands");
-    let archived_dir = get_claude_dir().join(".commands").join("archived");
+    let user_claude_dir = resolve_claude_dir(None);
+    let commands_dir = user_claude_dir.join("commands");
+    let archived_dir = user_claude_dir.join(".commands").join("archived");
 
     // Only allow deprecating active .md files from commands directory
     if !path.ends_with(".md") {
@@ -605,8 +606,9 @@ fn restore_command(path: String) -> Result<String, String> {
         return Err(format!("Command file not found: {}", path));
     }
 
-    let commands_dir = get_claude_dir().join("commands");
-    let archived_dir = get_claude_dir().join(".commands").join("archived");
+    let user_claude_dir = resolve_claude_dir(None);
+    let commands_dir = user_claude_dir.join("commands");
+    let archived_dir = user_claude_dir.join(".commands").join("archived");
     let path_str = src.to_string_lossy();
 
     // Determine source type and calculate destination

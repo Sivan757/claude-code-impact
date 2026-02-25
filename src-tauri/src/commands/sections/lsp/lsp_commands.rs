@@ -10,7 +10,7 @@ pub struct LspServer {
 
 #[tauri::command]
 fn list_lsp_servers() -> Result<Vec<LspServer>, String> {
-    let json_path = get_claude_json_path();
+    let json_path = resolve_mcp_config_path(None);
     let mut servers = Vec::new();
 
     if json_path.exists() {
@@ -73,12 +73,12 @@ fn list_lsp_servers() -> Result<Vec<LspServer>, String> {
 
 #[tauri::command]
 fn get_lsp_config_path_cmd() -> String {
-    get_claude_json_path().to_string_lossy().to_string()
+    resolve_mcp_config_path(None).to_string_lossy().to_string()
 }
 
 #[tauri::command]
 fn add_lsp_server(server: LspServer) -> Result<(), String> {
-    let json_path = get_claude_json_path();
+    let json_path = resolve_mcp_config_path(None);
     let mut json: Value = if json_path.exists() {
         let content = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
@@ -121,7 +121,7 @@ fn add_lsp_server(server: LspServer) -> Result<(), String> {
 
 #[tauri::command]
 fn remove_lsp_server(name: String) -> Result<(), String> {
-    let json_path = get_claude_json_path();
+    let json_path = resolve_mcp_config_path(None);
     if !json_path.exists() {
         return Ok(());
     }
@@ -144,7 +144,7 @@ fn update_lsp_server_env(
     env_key: String,
     env_value: String,
 ) -> Result<(), String> {
-    let json_path = get_claude_json_path();
+    let json_path = resolve_mcp_config_path(None);
     let mut json: Value = if json_path.exists() {
         let content = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?

@@ -135,7 +135,7 @@ export function ExportDialog({
       filters: [{ name: filterName, extensions: [ext] }],
     });
     if (path) {
-      await invoke("write_file", { path, content: generateOutput() });
+      await invoke("export_file", { path, content: generateOutput() });
       onOpenChange(false);
     }
   };

@@ -11,7 +11,7 @@ use tantivy::schema::{self, Value as TantivyValue, *};
 use tantivy::tokenizer::{LowerCaser, TextAnalyzer, Token, TokenStream, Tokenizer};
 use tantivy::{doc, Index, IndexWriter, ReloadPolicy};
 
-use crate::infra::{get_claude_dir, get_command_stats_path};
+use crate::infra::{get_claude_dir, get_claudecodeimpact_dir, get_command_stats_path};
 use crate::services::claude_format::RawLine;
 use crate::services::message_content::extract_content_with_meta;
 use crate::services::project_paths::decode_project_path;
@@ -87,10 +87,7 @@ struct SearchIndex {
 }
 
 fn get_index_dir() -> PathBuf {
-    dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("claudecodeimpact")
-        .join("search-index")
+    get_claudecodeimpact_dir().join("search-index")
 }
 
 const JIEBA_TOKENIZER_NAME: &str = "jieba";
@@ -171,8 +168,8 @@ pub(crate) fn build_search_index() -> Result<usize, String> {
 
     // === Command stats collection ===
     let mut command_stats: HashMap<String, HashMap<String, usize>> = HashMap::new();
-    let command_pattern = regex::Regex::new(r"<command-name>(/[^<]+)</command-name>")
-        .map_err(|e| e.to_string())?;
+    let command_pattern =
+        regex::Regex::new(r"<command-name>(/[^<]+)</command-name>").map_err(|e| e.to_string())?;
 
     // Build alias -> canonical name mapping
     let mut alias_map: HashMap<String, String> = HashMap::new();
@@ -242,7 +239,11 @@ pub(crate) fn build_search_index() -> Result<usize, String> {
             continue;
         }
 
-        let project_id = project_path_buf.file_name().unwrap().to_string_lossy().to_string();
+        let project_id = project_path_buf
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
         let display_path = decode_project_path(&project_id);
 
         for entry in fs::read_dir(&project_path_buf).map_err(|e| e.to_string())? {
@@ -306,10 +307,14 @@ pub(crate) fn build_search_index() -> Result<usize, String> {
                                     let week_key = ts.format("%Y-W%V").to_string();
                                     for cap in command_pattern.captures_iter(line) {
                                         if let Some(cmd_match) = cap.get(1) {
-                                            let raw_name =
-                                                cmd_match.as_str().trim_start_matches('/').to_string();
-                                            let name =
-                                                alias_map.get(&raw_name).cloned().unwrap_or(raw_name);
+                                            let raw_name = cmd_match
+                                                .as_str()
+                                                .trim_start_matches('/')
+                                                .to_string();
+                                            let name = alias_map
+                                                .get(&raw_name)
+                                                .cloned()
+                                                .unwrap_or(raw_name);
                                             command_stats
                                                 .entry(name)
                                                 .or_default()
@@ -432,7 +437,11 @@ pub(crate) fn search_chats(
             project_id: doc_project_id,
             project_path: get_text("project_path"),
             session_id: get_text("session_id"),
-            session_summary: if summary.is_empty() { None } else { Some(summary) },
+            session_summary: if summary.is_empty() {
+                None
+            } else {
+                Some(summary)
+            },
             timestamp: get_text("timestamp"),
             score,
         });

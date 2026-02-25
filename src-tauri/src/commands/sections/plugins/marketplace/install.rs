@@ -3,7 +3,7 @@
 
 #[tauri::command]
 fn install_command_template(name: String, content: String) -> Result<String, String> {
-    let commands_dir = get_claude_dir().join("commands");
+    let commands_dir = resolve_claude_dir(None).join("commands");
     fs::create_dir_all(&commands_dir).map_err(|e| e.to_string())?;
 
     let file_path = commands_dir.join(format!("{}.md", name));

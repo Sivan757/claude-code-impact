@@ -45,7 +45,8 @@ fn remove_settings_statusline(path: Option<String>) -> Result<(), String> {
 
 #[tauri::command]
 fn write_statusline_script(content: String) -> Result<String, String> {
-    let script_path = get_claude_dir().join("statusline.sh");
+    let script_path = get_claudecodeimpact_dir().join("statusline.sh");
+    ensure_parent_dir(&script_path)?;
     fs::write(&script_path, &content).map_err(|e| e.to_string())?;
 
     // Make executable on Unix
@@ -62,7 +63,7 @@ fn write_statusline_script(content: String) -> Result<String, String> {
     Ok(script_path.to_string_lossy().to_string())
 }
 
-/// Install statusline template to ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh
+/// Install statusline template to ~/.claudecodeimpact/statusline/{name}.sh
 #[tauri::command]
 fn install_statusline_template(name: String, content: String) -> Result<String, String> {
     let statusline_dir = get_statusline_dir();
@@ -85,8 +86,8 @@ fn install_statusline_template(name: String, content: String) -> Result<String, 
     Ok(script_path.to_string_lossy().to_string())
 }
 
-/// Apply statusline: copy from ~/.claudecodeimpact/claudecodeimpact/statusline/{name}.sh to ~/.claude/statusline.sh
-/// If ~/.claude/statusline.sh exists and is not already installed, backup to ~/.claudecodeimpact/claudecodeimpact/statusline/_previous.sh
+/// Apply statusline: copy from ~/.claudecodeimpact/statusline/{name}.sh to managed settings scope.
+/// If an existing statusline exists, backup to ~/.claudecodeimpact/statusline/_previous.sh
 #[tauri::command]
 fn apply_statusline(name: String) -> Result<String, String> {
     let source_path = get_statusline_dir().join(format!("{}.sh", name));
@@ -94,7 +95,8 @@ fn apply_statusline(name: String) -> Result<String, String> {
         return Err(format!("Statusline template not found: {}", name));
     }
 
-    let target_path = get_claude_dir().join("statusline.sh");
+    let target_path = get_claudecodeimpact_dir().join("statusline.sh");
+    ensure_parent_dir(&target_path)?;
     let backup_dir = get_statusline_dir();
     fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
 
@@ -135,7 +137,8 @@ fn restore_previous_statusline() -> Result<String, String> {
     }
 
     let content = fs::read_to_string(&backup_path).map_err(|e| e.to_string())?;
-    let target_path = get_claude_dir().join("statusline.sh");
+    let target_path = get_claudecodeimpact_dir().join("statusline.sh");
+    ensure_parent_dir(&target_path)?;
     fs::write(&target_path, &content).map_err(|e| e.to_string())?;
 
     // Make executable on Unix
@@ -240,7 +243,7 @@ fn save_statusbar_settings(settings: serde_json::Value) -> Result<(), String> {
     crate::infra::save_statusbar_settings(&settings)
 }
 
-/// Write Claude Code Impact statusbar script to ~/.claudecodeimpact/claudecodeimpact/statusbar/
+/// Write Claude Code Impact statusbar script to ~/.claudecodeimpact/statusbar/
 #[tauri::command]
 fn write_claudecodeimpact_statusbar_script(
     name: String,

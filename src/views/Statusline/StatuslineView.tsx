@@ -127,7 +127,7 @@ export function StatuslineView() {
       refreshSettings();
       setHasPrevious(false);
       // Reload script content
-      const scriptPath = await invoke<string>("resolve_user_path", { path: "~/.claude/statusline.sh" });
+      const scriptPath = await invoke<string>("resolve_user_path", { path: "~/.claudecodeimpact/statusline.sh" });
       const content = await invoke<string>("read_file", { path: scriptPath });
       setScriptContent(content);
     } catch (e) {
@@ -207,7 +207,7 @@ export function StatuslineView() {
                 <label className="text-xs font-medium text-ink">{t('statusline_view.command')}</label>
                 <input
                   className="w-full text-xs px-3 py-2 rounded-lg bg-canvas border border-border text-ink font-mono"
-                  placeholder="~/.claude/statusline.sh"
+                  placeholder="~/.claudecodeimpact/statusline.sh"
                   value={command}
                   onChange={(e) => setCommand(e.target.value)}
                 />

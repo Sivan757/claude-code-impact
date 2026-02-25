@@ -1,7 +1,6 @@
 // NOTE: This file is textually included via include!() in handlers.rs
 // build_merged_config is already imported by templates.rs
-// get_claudecodeimpact_dir is already imported below
-use crate::infra::get_claudecodeimpact_dir;
+// get_claudecodeimpact_dir is already imported in handlers.rs
 
 #[derive(Debug, Deserialize)]
 struct LaunchSettingsRequest {
@@ -16,9 +15,7 @@ struct LaunchSettingsRequest {
 }
 
 #[derive(Debug, Serialize)]
-struct LaunchDraftResponse {
-    draft_project_path: String,
-    settings_path: String,
+struct LaunchSnapshotResponse {
     settings: serde_json::Value,
 }
 
@@ -170,10 +167,46 @@ fn build_launch_settings_snapshot(request: &LaunchSettingsRequest) -> Result<ser
     Ok(settings)
 }
 
+fn write_launch_draft_file(settings: &serde_json::Value) -> Result<String, String> {
+    let drafts_root = get_claudecodeimpact_dir().join("launch-drafts");
+    fs::create_dir_all(&drafts_root)
+        .map_err(|e| format!("Failed to create launch-drafts directory: {}", e))?;
+
+    let draft_id = uuid::Uuid::new_v4().to_string();
+    let draft_project_path = drafts_root.join(draft_id);
+    let settings_path = draft_project_path.join(".claude").join("settings.json");
+
+    if let Some(parent) = settings_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create launch draft settings directory: {}", e))?;
+    }
+
+    let output = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize launch draft settings: {}", e))?;
+    fs::write(&settings_path, output)
+        .map_err(|e| format!("Failed to write launch draft settings file: {}", e))?;
+
+    Ok(settings_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn prepare_launch_snapshot(request: LaunchSettingsRequest) -> Result<LaunchSnapshotResponse, String> {
+    let settings = build_launch_settings_snapshot(&request)?;
+    Ok(LaunchSnapshotResponse { settings })
+}
+
+#[tauri::command]
+fn materialize_launch_draft(settings: serde_json::Value) -> Result<String, String> {
+    if !settings.is_object() {
+        return Err("Launch settings must be an object".to_string());
+    }
+    write_launch_draft_file(&settings)
+}
+
 /// Create a session-specific launch settings file.
 ///
 /// Reads the merged config for the given project, applies optional overrides,
-/// and writes the result to `~/.claudecodeimpact/claudecodeimpact/launch-settings/settings-{uuid}.json`.
+/// and writes the result to `~/.claudecodeimpact/launch-settings/settings-{uuid}.json`.
 /// Returns the absolute file path so the frontend can pass `--settings "<path>"` to claude.
 #[tauri::command]
 fn create_launch_settings(request: LaunchSettingsRequest) -> Result<String, String> {
@@ -195,39 +228,6 @@ fn create_launch_settings(request: LaunchSettingsRequest) -> Result<String, Stri
         .map_err(|e| format!("Failed to write launch settings file: {}", e))?;
 
     Ok(file_path.to_string_lossy().to_string())
-}
-
-/// Prepare a writable draft project containing `.claude/settings.json`.
-///
-/// The draft lives under `~/.claudecodeimpact/launch-drafts/<uuid>/` and is intended
-/// for temporary in-dialog editing. It does not modify real project/global config files.
-#[tauri::command]
-fn prepare_launch_draft(request: LaunchSettingsRequest) -> Result<LaunchDraftResponse, String> {
-    let settings = build_launch_settings_snapshot(&request)?;
-
-    let drafts_root = get_claudecodeimpact_dir().join("launch-drafts");
-    fs::create_dir_all(&drafts_root)
-        .map_err(|e| format!("Failed to create launch-drafts directory: {}", e))?;
-
-    let draft_id = uuid::Uuid::new_v4().to_string();
-    let draft_project_path = drafts_root.join(draft_id);
-    let settings_path = draft_project_path.join(".claude").join("settings.json");
-
-    if let Some(parent) = settings_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create draft settings directory: {}", e))?;
-    }
-
-    let output = serde_json::to_string_pretty(&settings)
-        .map_err(|e| format!("Failed to serialize launch draft settings: {}", e))?;
-    fs::write(&settings_path, output)
-        .map_err(|e| format!("Failed to write launch draft settings file: {}", e))?;
-
-    Ok(LaunchDraftResponse {
-        draft_project_path: draft_project_path.to_string_lossy().to_string(),
-        settings_path: settings_path.to_string_lossy().to_string(),
-        settings,
-    })
 }
 
 /// Remove launch settings files older than 24 hours.

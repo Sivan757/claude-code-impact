@@ -2,7 +2,10 @@ use crate::config::{ConfigError, ConfigFileKind, ConfigScope, ConfigValue};
 use std::fs;
 
 /// Read a configuration file
-pub fn read_config_file(path: &std::path::Path, kind: ConfigFileKind) -> Result<ConfigValue, ConfigError> {
+pub fn read_config_file(
+    path: &std::path::Path,
+    kind: ConfigFileKind,
+) -> Result<ConfigValue, ConfigError> {
     // Check if file exists
     if !path.exists() {
         return Ok(ConfigValue::NotFound);
@@ -41,7 +44,9 @@ fn parse_json_content(content: &str, path: &std::path::Path) -> Result<ConfigVal
 }
 
 /// Read settings.json with typed structure
-pub fn read_settings_json(path: &std::path::Path) -> Result<Option<crate::config::SettingsJson>, ConfigError> {
+pub fn read_settings_json(
+    path: &std::path::Path,
+) -> Result<Option<crate::config::SettingsJson>, ConfigError> {
     if !path.exists() {
         return Ok(None);
     }
@@ -62,12 +67,7 @@ pub fn read_settings_json(path: &std::path::Path) -> Result<Option<crate::config
 /// Read multiple config files
 pub fn read_multiple_configs(
     paths: Vec<(ConfigScope, ConfigFileKind, std::path::PathBuf)>,
-) -> Vec<(
-    ConfigScope,
-    ConfigFileKind,
-    std::path::PathBuf,
-    ConfigValue,
-)> {
+) -> Vec<(ConfigScope, ConfigFileKind, std::path::PathBuf, ConfigValue)> {
     paths
         .into_iter()
         .map(|(scope, kind, path)| {

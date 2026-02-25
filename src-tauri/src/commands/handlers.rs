@@ -7,11 +7,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
 use crate::infra::{
-    ensure_parent_dir, get_claude_dir, get_claude_json_path, resolve_claude_dir,
-    resolve_mcp_config_path,
-    get_docs_distill_dir, get_docs_reference_dir, get_statusbar_dir, get_statusline_dir,
-    load_custom_keys, load_disabled_env, load_disabled_hooks, read_data_key, remove_data_key,
-    resolve_settings_path, save_custom_keys, save_disabled_env, save_disabled_hooks, write_data_key,
+    ensure_parent_dir, get_claude_dir, get_claudecodeimpact_dir, get_docs_distill_dir,
+    get_docs_reference_dir, get_statusbar_dir, get_statusline_dir, load_custom_keys,
+    load_disabled_env, load_disabled_hooks, read_data_key, read_data_keys, remove_data_key,
+    resolve_claude_dir, resolve_mcp_config_path, resolve_settings_path, save_custom_keys,
+    save_disabled_env, save_disabled_hooks, write_data_key,
 };
 use crate::services::claude_format::{HistoryEntry, RawLine};
 use crate::services::message_content::extract_content_with_meta;
@@ -75,7 +75,8 @@ pub fn build_invoke_handler(
         get_project_context,
         get_settings,
         create_launch_settings,
-        prepare_launch_draft,
+        prepare_launch_snapshot,
+        materialize_launch_draft,
         cleanup_launch_settings,
         get_command_stats,
         get_command_weekly_stats,
@@ -128,8 +129,10 @@ pub fn build_invoke_handler(
         get_home_dir,
         get_env_var,
         get_today_coding_stats,
-        write_file,
-        write_binary_file,
+        write_managed_file,
+        write_managed_binary_file,
+        export_file,
+        export_binary_file,
         update_mcp_env,
         update_settings_env,
         delete_settings_env,

@@ -8,8 +8,8 @@ pub fn config_read(
     scope: ConfigScope,
     project_path: Option<String>,
 ) -> Result<ConfigValue, String> {
-    let path = resolve_config_path(kind, scope, project_path.as_deref())
-        .map_err(|e| e.to_string())?;
+    let path =
+        resolve_config_path(kind, scope, project_path.as_deref()).map_err(|e| e.to_string())?;
 
     read_config_file(&path, kind).map_err(|e| e.to_string())
 }
@@ -29,14 +29,13 @@ pub fn config_write(
     key: Option<String>,
     value: serde_json::Value,
 ) -> Result<WriteResult, String> {
-    let path = resolve_config_path(kind, scope, project_path.as_deref())
-        .map_err(|e| e.to_string())?;
+    let path =
+        resolve_config_path(kind, scope, project_path.as_deref()).map_err(|e| e.to_string())?;
 
     if let Some(key_path) = key {
         // Parse dot-path and create nested structure
         let patch = create_nested_value(&key_path, value);
-        merge_and_write(&path, kind, scope, &patch, true)
-            .map_err(|e| e.to_string())
+        merge_and_write(&path, kind, scope, &patch, true).map_err(|e| e.to_string())
     } else {
         // Write entire value
         write_config(&path, kind, scope, &value, true).map_err(|e| e.to_string())
@@ -68,8 +67,8 @@ pub fn config_write_markdown(
     project_path: Option<String>,
     content: String,
 ) -> Result<WriteResult, String> {
-    let path = resolve_config_path(kind, scope, project_path.as_deref())
-        .map_err(|e| e.to_string())?;
+    let path =
+        resolve_config_path(kind, scope, project_path.as_deref()).map_err(|e| e.to_string())?;
 
     write_markdown(&path, scope, &content, true).map_err(|e| e.to_string())
 }
@@ -82,8 +81,8 @@ pub fn config_delete_key(
     project_path: Option<String>,
     key: String,
 ) -> Result<WriteResult, String> {
-    let path = resolve_config_path(kind, scope, project_path.as_deref())
-        .map_err(|e| e.to_string())?;
+    let path =
+        resolve_config_path(kind, scope, project_path.as_deref()).map_err(|e| e.to_string())?;
 
     delete_key(&path, kind, scope, &key, true).map_err(|e| e.to_string())
 }
@@ -99,9 +98,7 @@ pub fn config_validate(
 
 /// Get all configuration file paths
 #[tauri::command]
-pub fn config_get_paths(
-    project_path: Option<String>,
-) -> Result<HashMap<String, String>, String> {
+pub fn config_get_paths(project_path: Option<String>) -> Result<HashMap<String, String>, String> {
     let paths = get_all_config_paths(project_path.as_deref()).map_err(|e| e.to_string())?;
 
     let mut result = HashMap::new();
@@ -120,18 +117,15 @@ pub fn config_list_backups(
     scope: ConfigScope,
     project_path: Option<String>,
 ) -> Result<Vec<BackupEntry>, String> {
-    let path = resolve_config_path(kind, scope, project_path.as_deref())
-        .map_err(|e| e.to_string())?;
+    let path =
+        resolve_config_path(kind, scope, project_path.as_deref()).map_err(|e| e.to_string())?;
 
     list_backups(&path).map_err(|e| e.to_string())
 }
 
 /// Restore from backup
 #[tauri::command]
-pub fn config_restore_backup(
-    backup_path: String,
-    target_path: String,
-) -> Result<(), String> {
+pub fn config_restore_backup(backup_path: String, target_path: String) -> Result<(), String> {
     restore_backup(
         std::path::Path::new(&backup_path),
         std::path::Path::new(&target_path),
@@ -158,7 +152,8 @@ pub fn config_init_watcher(
     }
 
     // Create new watcher
-    let watcher = ConfigWatcher::new(app.clone(), project_path.clone()).map_err(|e| e.to_string())?;
+    let watcher =
+        ConfigWatcher::new(app.clone(), project_path.clone()).map_err(|e| e.to_string())?;
 
     // Store watcher in state so it doesn't get dropped
     let mut watcher_guard = state.watcher.lock().unwrap();
@@ -176,11 +171,7 @@ mod tests {
 
     #[test]
     fn test_config_read_nonexistent() {
-        let result = config_read(
-            ConfigFileKind::Settings,
-            ConfigScope::User,
-            None,
-        );
+        let result = config_read(ConfigFileKind::Settings, ConfigScope::User, None);
 
         // Should return NotFound, not an error
         assert!(result.is_ok());

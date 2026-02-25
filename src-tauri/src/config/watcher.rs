@@ -1,6 +1,5 @@
 use crate::config::{ConfigError, ConfigFileKind, ConfigScope};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -36,46 +35,45 @@ impl ConfigWatcher {
             message: format!("Failed to create watcher: {}", e),
         })?;
 
-        // Watch user config directory (~/.claude/)
+        // Watch native Claude paths.
         if let Some(home_dir) = dirs::home_dir() {
-            let claude_dir = home_dir.join(".claude");
-            if claude_dir.exists() {
-                watcher
-                    .watch(&claude_dir, RecursiveMode::NonRecursive)
-                    .map_err(|e| ConfigError::WatchError {
-                        message: format!("Failed to watch user config: {}", e),
-                    })?;
+            let user_claude_dir = home_dir.join(".claude");
+            if !user_claude_dir.exists() {
+                let _ = std::fs::create_dir_all(&user_claude_dir);
             }
+            watcher
+                .watch(&user_claude_dir, RecursiveMode::Recursive)
+                .map_err(|e| ConfigError::WatchError {
+                    message: format!("Failed to watch user Claude directory: {}", e),
+                })?;
 
-            // Watch ~/.claude.json (legacy)
-            let legacy_path = home_dir.join(".claude.json");
-            if legacy_path.exists() {
+            let user_mcp = home_dir.join(".claude.json");
+            if user_mcp.exists() {
                 watcher
-                    .watch(&legacy_path, RecursiveMode::NonRecursive)
+                    .watch(&user_mcp, RecursiveMode::NonRecursive)
                     .map_err(|e| ConfigError::WatchError {
-                        message: format!("Failed to watch legacy config: {}", e),
+                        message: format!("Failed to watch user .claude.json: {}", e),
                     })?;
             }
         }
 
-        // Watch project config directory (.claude/)
-        if let Some(ref proj_path) = project_path {
-            let project_claude_dir = PathBuf::from(proj_path).join(".claude");
-            if project_claude_dir.exists() {
+        if let Some(project) = project_path.as_deref() {
+            let project_root = crate::services::platform::resolve_user_path(project);
+            if project_root.exists() {
+                // Watch project root non-recursively for .mcp.json and .claude directory creation.
                 watcher
-                    .watch(&project_claude_dir, RecursiveMode::NonRecursive)
+                    .watch(&project_root, RecursiveMode::NonRecursive)
                     .map_err(|e| ConfigError::WatchError {
-                        message: format!("Failed to watch project config: {}", e),
+                        message: format!("Failed to watch project root: {}", e),
                     })?;
             }
 
-            // Watch .mcp.json
-            let mcp_path = PathBuf::from(proj_path).join(".mcp.json");
-            if mcp_path.exists() {
+            let project_claude_dir = project_root.join(".claude");
+            if project_claude_dir.exists() {
                 watcher
-                    .watch(&mcp_path, RecursiveMode::NonRecursive)
+                    .watch(&project_claude_dir, RecursiveMode::Recursive)
                     .map_err(|e| ConfigError::WatchError {
-                        message: format!("Failed to watch .mcp.json: {}", e),
+                        message: format!("Failed to watch project .claude directory: {}", e),
                     })?;
             }
         }
@@ -98,7 +96,11 @@ impl ConfigWatcher {
 }
 
 /// Process watcher events
-fn process_events(receiver: Arc<Mutex<Receiver<notify::Result<Event>>>>, app: AppHandle, project_path: Option<String>) {
+fn process_events(
+    receiver: Arc<Mutex<Receiver<notify::Result<Event>>>>,
+    app: AppHandle,
+    project_path: Option<String>,
+) {
     // Debounce state
     let mut last_event_time = std::time::Instant::now();
     let debounce_duration = Duration::from_millis(300);
@@ -153,26 +155,42 @@ fn process_event(event: &Event, project_path: Option<&str>) -> Option<ConfigChan
         let normalized_path = path_str.replace('\\', "/");
 
         // Determine kind and scope
-        let (kind, scope) = if normalized_path.contains("/.claude/") {
-            if normalized_path.ends_with("settings.json") {
-                (ConfigFileKind::Settings, infer_scope(&path_str, "settings.json", project_path))
-            } else if normalized_path.ends_with("settings.local.json") {
-                (
-                    ConfigFileKind::SettingsLocal,
-                    infer_scope(&path_str, "settings.local.json", project_path),
-                )
-            } else if normalized_path.ends_with("CLAUDE.md") {
-                (ConfigFileKind::ClaudeMd, infer_scope(&path_str, "CLAUDE.md", project_path))
-            } else if normalized_path.ends_with("CLAUDE.local.md") {
-                (
-                    ConfigFileKind::ClaudeMdLocal,
-                    infer_scope(&path_str, "CLAUDE.local.md", project_path),
-                )
-            } else if normalized_path.ends_with("config.json") {
-                (ConfigFileKind::ApiConfig, ConfigScope::User)
-            } else {
-                continue;
-            }
+        let (kind, scope) = if normalized_path.contains("/.claudecodeimpact/settings-scopes/")
+            && normalized_path.ends_with(".json")
+        {
+            (
+                ConfigFileKind::Settings,
+                infer_scope(&path_str, "settings.json", project_path),
+            )
+        } else if normalized_path.contains("/.claudecodeimpact/mcp-scopes/")
+            && normalized_path.ends_with(".json")
+        {
+            (
+                ConfigFileKind::McpJson,
+                infer_scope(&path_str, ".mcp.json", project_path),
+            )
+        } else if normalized_path.ends_with("settings.json") {
+            (
+                ConfigFileKind::Settings,
+                infer_scope(&path_str, "settings.json", project_path),
+            )
+        } else if normalized_path.ends_with("settings.local.json") {
+            (
+                ConfigFileKind::SettingsLocal,
+                infer_scope(&path_str, "settings.local.json", project_path),
+            )
+        } else if normalized_path.ends_with("CLAUDE.md") {
+            (
+                ConfigFileKind::ClaudeMd,
+                infer_scope(&path_str, "CLAUDE.md", project_path),
+            )
+        } else if normalized_path.ends_with("CLAUDE.local.md") {
+            (
+                ConfigFileKind::ClaudeMdLocal,
+                infer_scope(&path_str, "CLAUDE.local.md", project_path),
+            )
+        } else if normalized_path.ends_with("config.json") {
+            (ConfigFileKind::ApiConfig, ConfigScope::User)
         } else if normalized_path.ends_with(".claude.json") {
             (ConfigFileKind::LegacyConfig, ConfigScope::User)
         } else if normalized_path.ends_with(".mcp.json") {
@@ -198,40 +216,86 @@ fn process_event(event: &Event, project_path: Option<&str>) -> Option<ConfigChan
 }
 
 /// Infer scope from path
-fn infer_scope(path: &str, filename: &str, project_path: Option<&str>) -> ConfigScope {
+fn infer_scope(path: &str, filename: &str, _project_path: Option<&str>) -> ConfigScope {
     // Check if it's a local file
     let is_local = filename.contains(".local.");
 
     // Normalize path separators for cross-platform comparison
     let normalized_path = path.replace('\\', "/");
-
-    // Check if it's in user home directory
     if let Some(home_dir) = dirs::home_dir() {
-        let home_claude = home_dir.join(".claude");
-        let home_claude_normalized = home_claude.to_string_lossy().replace('\\', "/");
-        if normalized_path.starts_with(&home_claude_normalized) {
+        let home = home_dir.to_string_lossy().replace('\\', "/");
+        let home = home.trim_end_matches('/');
+        let user_claude_prefix = format!("{}/.claude/", home);
+        if normalized_path.starts_with(&user_claude_prefix) {
             return if is_local {
                 ConfigScope::UserLocal
             } else {
                 ConfigScope::User
             };
         }
-    }
-
-    // Check if it's in project directory
-    if let Some(proj_path) = project_path {
-        let project_claude = PathBuf::from(proj_path).join(".claude");
-        let project_claude_normalized = project_claude.to_string_lossy().replace('\\', "/");
-        if normalized_path.starts_with(&project_claude_normalized) {
-            return if is_local {
-                ConfigScope::ProjectLocal
-            } else {
-                ConfigScope::Project
-            };
+        if normalized_path == format!("{}/.claude.json", home) {
+            return ConfigScope::User;
         }
     }
 
-    // Default to User if can't determine
+    if normalized_path.ends_with("/.claude.json") {
+        return ConfigScope::User;
+    }
+
+    if normalized_path.contains("/.claude/") {
+        return if is_local {
+            ConfigScope::ProjectLocal
+        } else {
+            ConfigScope::Project
+        };
+    }
+
+    if normalized_path.ends_with("/.mcp.json") {
+        return ConfigScope::Project;
+    }
+
+    // Legacy managed paths (kept for backward compatibility during migration)
+    if normalized_path.contains("/.claudecodeimpact/settings-scopes/") {
+        if normalized_path.contains("/external-") {
+            return ConfigScope::Project;
+        }
+        return ConfigScope::User;
+    }
+    if normalized_path.contains("/.claudecodeimpact/mcp-scopes/") {
+        if normalized_path.contains("/project-") {
+            return ConfigScope::Project;
+        }
+        return ConfigScope::User;
+    }
+    if normalized_path.contains("/.claudecodeimpact/scopes/user/") {
+        return ConfigScope::User;
+    }
+    if normalized_path.contains("/.claudecodeimpact/scopes/") {
+        return if is_local {
+            ConfigScope::ProjectLocal
+        } else {
+            ConfigScope::Project
+        };
+    }
+    if normalized_path.contains("/.claudecodeimpact/config/user-local/") {
+        return ConfigScope::UserLocal;
+    }
+    if normalized_path.contains("/.claudecodeimpact/config/user/") {
+        return ConfigScope::User;
+    }
+    if normalized_path.contains("/.claudecodeimpact/config/projects-local/") {
+        return if is_local {
+            ConfigScope::ProjectLocal
+        } else {
+            ConfigScope::Project
+        };
+    }
+    if normalized_path.contains("/.claudecodeimpact/config/projects/") {
+        return ConfigScope::Project;
+    }
+    if normalized_path.contains("/.claudecodeimpact/config/managed/") {
+        return ConfigScope::Managed;
+    }
     ConfigScope::User
 }
 
@@ -259,17 +323,15 @@ mod tests {
 
     #[test]
     fn test_infer_scope_project() {
-        let project_path = "/tmp/test-project";
-        let path = format!("{}/.claude/settings.json", project_path);
-        let scope = infer_scope(&path, "settings.json", Some(project_path));
+        let path = "/tmp/home/project/.claude/settings.json";
+        let scope = infer_scope(&path, "settings.json", Some("/tmp/test-project"));
         assert_eq!(format!("{:?}", scope), "Project");
     }
 
     #[test]
     fn test_infer_scope_project_local() {
-        let project_path = "/tmp/test-project";
-        let path = format!("{}/.claude/settings.local.json", project_path);
-        let scope = infer_scope(&path, "settings.local.json", Some(project_path));
+        let path = "/tmp/home/project/.claude/settings.local.json";
+        let scope = infer_scope(&path, "settings.local.json", Some("/tmp/test-project"));
         assert_eq!(format!("{:?}", scope), "ProjectLocal");
     }
 

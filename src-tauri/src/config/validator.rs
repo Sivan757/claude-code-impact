@@ -1,6 +1,4 @@
-use crate::config::{
-    ConfigError, ConfigFileKind, ValidationViolation, ViolationSeverity,
-};
+use crate::config::{ConfigError, ConfigFileKind, ValidationViolation, ViolationSeverity};
 
 /// Validate configuration value before write
 pub fn validate_config(
@@ -29,11 +27,9 @@ fn validate_settings_json(
     value: &serde_json::Value,
     violations: &mut Vec<ValidationViolation>,
 ) -> Result<(), ConfigError> {
-    let obj = value
-        .as_object()
-        .ok_or_else(|| ConfigError::Other {
-            message: "Settings must be a JSON object".to_string(),
-        })?;
+    let obj = value.as_object().ok_or_else(|| ConfigError::Other {
+        message: "Settings must be a JSON object".to_string(),
+    })?;
 
     // Validate model field (warning only - new models may appear)
     if let Some(model) = obj.get("model") {
@@ -225,11 +221,9 @@ fn validate_mcp_servers(
     mcp_servers: &serde_json::Value,
     violations: &mut Vec<ValidationViolation>,
 ) -> Result<(), ConfigError> {
-    let obj = mcp_servers
-        .as_object()
-        .ok_or_else(|| ConfigError::Other {
-            message: "mcp_servers must be an object".to_string(),
-        })?;
+    let obj = mcp_servers.as_object().ok_or_else(|| ConfigError::Other {
+        message: "mcp_servers must be an object".to_string(),
+    })?;
 
     for (server_name, server_config) in obj {
         validate_mcp_server(server_config, server_name, violations)?;
@@ -325,7 +319,9 @@ mod tests {
         });
 
         let violations = validate_config(ConfigFileKind::Settings, &settings).unwrap();
-        assert!(violations.iter().all(|v| v.severity == ViolationSeverity::Warning));
+        assert!(violations
+            .iter()
+            .all(|v| v.severity == ViolationSeverity::Warning));
     }
 
     #[test]
@@ -337,7 +333,9 @@ mod tests {
         });
 
         let violations = validate_config(ConfigFileKind::Settings, &settings).unwrap();
-        assert!(violations.iter().any(|v| v.severity == ViolationSeverity::Error));
+        assert!(violations
+            .iter()
+            .any(|v| v.severity == ViolationSeverity::Error));
     }
 
     #[test]

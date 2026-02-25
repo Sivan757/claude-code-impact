@@ -18,6 +18,7 @@ import { shortenPathsAtom, profileAtom } from "../store";
 import { AppConfigContext, type AppConfig } from "../context";
 import { featureFromPath, featureToPath } from "@/navigation/featureRoutes";
 import type { FeatureType } from "../types";
+import { getUiPreference, setUiPreference } from "@/lib/uiPreferences";
 
 // ============================================================================
 // Layout Component
@@ -66,7 +67,7 @@ export default function RootLayout() {
     const LAST_PATH_KEY = "claudecodeimpact:lastPath";
     // Only attempt restore if we are at root (fresh load default)
     if (location.pathname === "/") {
-      const saved = localStorage.getItem(LAST_PATH_KEY);
+      const saved = getUiPreference<string>(LAST_PATH_KEY);
       if (saved && saved !== "/") {
         navigate(saved, { replace: true });
       }
@@ -76,7 +77,7 @@ export default function RootLayout() {
   // Save current path on change
   useEffect(() => {
     const LAST_PATH_KEY = "claudecodeimpact:lastPath";
-    localStorage.setItem(LAST_PATH_KEY, location.pathname + location.search);
+    setUiPreference(LAST_PATH_KEY, location.pathname + location.search);
   }, [location]);
 
   const formatPath = useCallback((path: string) => {

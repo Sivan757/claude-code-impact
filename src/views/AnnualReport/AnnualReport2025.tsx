@@ -814,7 +814,7 @@ export function AnnualReport2025({ onClose }: AnnualReport2025Props) {
         const data = Array.from(new Uint8Array(arrayBuffer));
 
         // Write file using Tauri command
-        await invoke("write_binary_file", { path, data });
+        await invoke("export_binary_file", { path, data });
 
         // Reveal in Finder
         await revealItemInDir(path);

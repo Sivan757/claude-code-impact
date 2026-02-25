@@ -71,7 +71,7 @@ export function ProjectHubView() {
     const selected = await open({ directory: true, multiple: false });
     if (selected && typeof selected === "string") {
       const updated = [...savedWorkspaces, selected];
-      setUiPreference("claudecodeimpact:workspaces", JSON.stringify(updated));
+      setUiPreference("claudecodeimpact:workspaces", updated);
       window.location.reload();
     }
   };

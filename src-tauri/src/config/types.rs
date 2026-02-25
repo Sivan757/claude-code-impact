@@ -71,7 +71,10 @@ impl ConfigFileKind {
 
     /// Check if this kind is a JSON file
     pub fn is_json(&self) -> bool {
-        !matches!(self, ConfigFileKind::ClaudeMd | ConfigFileKind::ClaudeMdLocal)
+        !matches!(
+            self,
+            ConfigFileKind::ClaudeMd | ConfigFileKind::ClaudeMdLocal
+        )
     }
 }
 
