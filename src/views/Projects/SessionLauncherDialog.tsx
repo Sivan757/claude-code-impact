@@ -46,6 +46,7 @@ import type { ConfigTemplate } from "../../config/templates/types";
 import { useInvokeQuery, useTerminalLauncher } from "../../hooks";
 import { profileAtom } from "@/store";
 import { getPreferredTerminalApp } from "@/lib/terminalPreference";
+import { resolveLaunchDraftRetentionSeconds } from "@/lib/launchDraftRetention";
 import { getUiPreference, setUiPreference } from "../../lib/uiPreferences";
 import { ExtensionsView } from "../Extensions/ExtensionsView";
 import { SettingsView } from "../Settings/SettingsView";
@@ -56,6 +57,7 @@ import {
   resolveProviderNameFromProfiles,
   type LlmProfilesState,
 } from "../../lib/llmProfiles";
+import type { PluginScanResult } from "../../types";
 
 type MergeMode = "merge" | "fill" | "replace";
 type PreviewMode = "form" | "json";
@@ -79,6 +81,12 @@ interface LaunchSettingsRequest {
 
 interface LaunchDraftResponse {
   settings: Record<string, unknown>;
+}
+
+interface MaterializedLaunchDraftResponse {
+  draft_id: string;
+  project_path: string;
+  settings_path: string;
 }
 
 interface DraftBaseline {
@@ -128,6 +136,52 @@ function normalizeStringMap(value: unknown): Record<string, string> {
     result[key] = typeof item === "string" ? item : String(item);
   }
   return result;
+}
+
+function normalizeEnabledPluginsMap(value: unknown): Record<string, boolean> {
+  if (!isRecord(value)) return {};
+  const result: Record<string, boolean> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    result[key] = raw === true;
+  }
+  return result;
+}
+
+function collectPluginAliasKeys(enabledPlugins: Record<string, boolean>, pluginId: string): string[] {
+  const shortId = pluginId.split("@")[0];
+  const prefixed = `${shortId}@`;
+  const keys = new Set<string>([pluginId, shortId]);
+
+  for (const key of Object.keys(enabledPlugins)) {
+    if (key === pluginId || key === shortId || key.startsWith(prefixed)) {
+      keys.add(key);
+    }
+  }
+
+  return Array.from(keys);
+}
+
+function countEnabledPlugins(enabledPlugins: Record<string, boolean>): number {
+  const logical = new Map<string, boolean>();
+
+  for (const [pluginId, enabled] of Object.entries(enabledPlugins)) {
+    const key = pluginId.split("@")[0];
+    const previous = logical.get(key);
+
+    if (previous === false) continue;
+    if (enabled === false) {
+      logical.set(key, false);
+      continue;
+    }
+    if (previous === undefined) {
+      logical.set(key, true);
+    }
+  }
+
+  return Array.from(logical.values()).reduce<number>(
+    (count, enabled) => count + (enabled ? 1 : 0),
+    0,
+  );
 }
 
 const VALID_PERMISSION_MODES = new Set<PermissionMode>([
@@ -321,14 +375,6 @@ function setRememberedTemplateId(projectPath: string, templateId: string) {
   setUiPreference(LAUNCHER_TEMPLATE_PREF_KEY, remembered);
 }
 
-function deriveDraftProjectPath(settingsPath: string): string {
-  const match = settingsPath.match(/^(.*)[\\/]\.claude[\\/]settings\.json$/i);
-  if (match?.[1]) {
-    return match[1];
-  }
-  return settingsPath;
-}
-
 export function SessionLauncherDialog({
   open,
   onOpenChange,
@@ -343,6 +389,10 @@ export function SessionLauncherDialog({
 
   const [profile] = useAtom(profileAtom);
   const preferredTerminalApp = getPreferredTerminalApp(profile);
+  const launchDraftRetentionSeconds = useMemo(
+    () => resolveLaunchDraftRetentionSeconds(profile),
+    [profile],
+  );
 
   const prepareLaunchDraft = usePrepareLaunchDraft();
   const terminalLauncher = useTerminalLauncher();
@@ -362,6 +412,7 @@ export function SessionLauncherDialog({
   const [templateDescription, setTemplateDescription] = useState("");
   const [templateTagsInput, setTemplateTagsInput] = useState("");
 
+  const [draftWorkspaceId, setDraftWorkspaceId] = useState<string | null>(null);
   const [draftProjectPath, setDraftProjectPath] = useState<string | null>(null);
   const [draftSettingsPath, setDraftSettingsPath] = useState<string | null>(null);
   const [draftSettingsSnapshot, setDraftSettingsSnapshot] = useState<Record<string, unknown>>({});
@@ -377,6 +428,8 @@ export function SessionLauncherDialog({
   const [templateApplying, setTemplateApplying] = useState(false);
 
   const seedRunRef = useRef(0);
+  const draftWorkspaceIdRef = useRef<string | null>(null);
+  const preserveDraftOnCloseRef = useRef(false);
 
   const [draftBaseline, setDraftBaseline] = useState<DraftBaseline>({
     settingsSignature: "{}",
@@ -394,6 +447,10 @@ export function SessionLauncherDialog({
   const { data: runtimePluginStates = [] } = useInvokeQuery<PluginRuntimeState[]>(
     ["pluginRuntimeState"],
     "list_plugin_runtime_state",
+  );
+  const { data: pluginScanResult } = useInvokeQuery<PluginScanResult>(
+    ["pluginScan"],
+    "scan_plugins",
   );
   const { data: llmProfilesState } = useInvokeQuery<LlmProfilesState>(
     ["llmProfilesState"],
@@ -467,6 +524,11 @@ export function SessionLauncherDialog({
     return Object.keys(env).length;
   }, [currentDraftSettings.env]);
 
+  const draftEnabledPluginsMap = useMemo(
+    () => normalizeEnabledPluginsMap(currentDraftSettings.enabledPlugins),
+    [currentDraftSettings.enabledPlugins],
+  );
+
   const providerLabel = useMemo(
     () => {
       const resolved = resolveProviderNameFromProfiles(currentDraftSettings, providerProfiles);
@@ -489,27 +551,72 @@ export function SessionLauncherDialog({
   );
 
   const enabledPluginsCount = useMemo(() => {
-    const plugins = currentDraftSettings.enabledPlugins;
-    if (!isRecord(plugins)) return 0;
-
-    const logical = new Map<string, boolean>();
-    for (const [pluginId, value] of Object.entries(plugins)) {
-      const key = pluginId.split("@")[0];
-      const nextEnabled = value === true;
-      logical.set(key, Boolean(logical.get(key)) || nextEnabled);
-    }
-    return Array.from(logical.values()).reduce<number>(
-      (count, value) => count + (value ? 1 : 0),
-      0,
-    );
-  }, [currentDraftSettings.enabledPlugins]);
+    return countEnabledPlugins(draftEnabledPluginsMap);
+  }, [draftEnabledPluginsMap]);
 
   const installedPluginsCount = useMemo(() => {
-    const unique = new Set(
-      runtimePluginStates.map((item) => `${item.id}:${item.scope}:${item.projectPath ?? ""}`),
-    );
-    return unique.size;
-  }, [runtimePluginStates]);
+    const runtimeInstalled = new Set(runtimePluginStates.map((item) => item.id)).size;
+    if (runtimeInstalled > 0) {
+      return runtimeInstalled;
+    }
+    if (!pluginScanResult) {
+      return 0;
+    }
+    return pluginScanResult.plugins.filter((item) => item.isInstalled).length;
+  }, [pluginScanResult, runtimePluginStates]);
+
+  const handleDraftSettingsMutated = useCallback(async (raw: Record<string, unknown>) => {
+    setDraftSettingsSnapshot(sanitizeLaunchSettings(raw));
+    await refetchDraftMerged();
+  }, [refetchDraftMerged]);
+
+  const handleLauncherPluginToggle = useCallback(async (pluginId: string, enabled: boolean) => {
+    const aliasKeys = collectPluginAliasKeys(draftEnabledPluginsMap, pluginId);
+
+    if (draftSettingsPath) {
+      for (const key of aliasKeys) {
+        await invoke<void>("toggle_plugin", {
+          pluginId: key,
+          enabled,
+          path: draftSettingsPath,
+        });
+      }
+
+      const refreshed = await invoke<{ raw: Record<string, unknown> | null }>("get_settings", {
+        path: draftSettingsPath,
+      });
+
+      if (refreshed.raw && isRecord(refreshed.raw)) {
+        await handleDraftSettingsMutated(refreshed.raw);
+      } else {
+        await refetchDraftMerged();
+      }
+      return;
+    }
+
+    setDraftSettingsSnapshot((prev) => {
+      const next = sanitizeLaunchSettings(prev);
+      const enabledPlugins = normalizeEnabledPluginsMap(next.enabledPlugins);
+      for (const key of aliasKeys) {
+        enabledPlugins[key] = enabled;
+      }
+      next.enabledPlugins = enabledPlugins;
+      return next;
+    });
+  }, [draftEnabledPluginsMap, draftSettingsPath, handleDraftSettingsMutated, refetchDraftMerged]);
+
+  const releaseDraftWorkspace = useCallback(async (draftId: string | null | undefined) => {
+    if (!draftId) return;
+    try {
+      await invoke<void>("release_launch_draft", { draft_id: draftId });
+    } catch {
+      // Avoid blocking UX on best-effort cleanup.
+    }
+  }, []);
+
+  useEffect(() => {
+    draftWorkspaceIdRef.current = draftWorkspaceId;
+  }, [draftWorkspaceId]);
 
   const updateBaselineFromCurrentDraft = useCallback(() => {
     setDraftBaseline({
@@ -533,15 +640,20 @@ export function SessionLauncherDialog({
 
   useEffect(() => {
     if (open) return;
+    if (!preserveDraftOnCloseRef.current) {
+      void releaseDraftWorkspace(draftWorkspaceId);
+    }
+    preserveDraftOnCloseRef.current = false;
     setAdvancedOpen(false);
     setTemplateEditorOpen(false);
+    setDraftWorkspaceId(null);
     setDraftProjectPath(null);
     setDraftSettingsPath(null);
     setDraftSettingsSnapshot({});
     setTemplateActionError(null);
     setTemplateActionNotice(null);
     setTemplateApplying(false);
-  }, [open]);
+  }, [draftWorkspaceId, open, releaseDraftWorkspace]);
 
   useEffect(() => {
     setSelectedTemplateId(getRememberedTemplateId(projectPath));
@@ -585,6 +697,7 @@ export function SessionLauncherDialog({
     setTemplateTagsInput(initialTags);
 
     const runId = ++seedRunRef.current;
+    const previousDraftWorkspaceId = draftWorkspaceIdRef.current;
 
     const request: LaunchSettingsRequest = {
       project_path: projectPath,
@@ -602,6 +715,8 @@ export function SessionLauncherDialog({
           settingsSignature: JSON.stringify(seededSettings),
         });
 
+        void releaseDraftWorkspace(previousDraftWorkspaceId);
+        setDraftWorkspaceId(null);
         setDraftSettingsSnapshot(seededSettings);
         setDraftProjectPath(null);
         setDraftSettingsPath(null);
@@ -618,13 +733,14 @@ export function SessionLauncherDialog({
     selectedTemplate,
     selectedTemplateLoading,
     displayName,
+    releaseDraftWorkspace,
     projectPath,
     mergeMode,
   ]);
 
   const ensureDraftWorkspace = useCallback(async () => {
-    if (draftProjectPath && draftSettingsPath) {
-      return { draftProjectPath, draftSettingsPath };
+    if (draftWorkspaceId && draftProjectPath && draftSettingsPath) {
+      return { draftWorkspaceId, draftProjectPath, draftSettingsPath };
     }
 
     if (templateApplying || prepareLaunchDraft.isPending || selectedTemplateLoading) {
@@ -635,27 +751,34 @@ export function SessionLauncherDialog({
       return null;
     }
 
-    const settingsPath = await invoke<string>("materialize_launch_draft", {
-      settings: currentDraftSettings,
+    const materialized = await invoke<MaterializedLaunchDraftResponse>("materialize_launch_draft", {
+      request: {
+        settings: currentDraftSettings,
+        draft_id: draftWorkspaceId ?? undefined,
+        retention_secs: launchDraftRetentionSeconds,
+      },
     });
-    const nextDraftProjectPath = deriveDraftProjectPath(settingsPath);
 
-    setDraftProjectPath(nextDraftProjectPath);
-    setDraftSettingsPath(settingsPath);
+    setDraftWorkspaceId(materialized.draft_id);
+    setDraftProjectPath(materialized.project_path);
+    setDraftSettingsPath(materialized.settings_path);
     await refetchDraftMerged();
 
     return {
-      draftProjectPath: nextDraftProjectPath,
-      draftSettingsPath: settingsPath,
+      draftWorkspaceId: materialized.draft_id,
+      draftProjectPath: materialized.project_path,
+      draftSettingsPath: materialized.settings_path,
     };
   }, [
     currentDraftSettings,
+    draftWorkspaceId,
     draftProjectPath,
     draftSettingsPath,
     prepareLaunchDraft.isPending,
     refetchDraftMerged,
     selectedTemplateLoading,
     templateApplying,
+    launchDraftRetentionSeconds,
   ]);
 
   useEffect(() => {
@@ -874,10 +997,17 @@ export function SessionLauncherDialog({
     }
 
     try {
-      const materializedSettingsPath = await invoke<string>("materialize_launch_draft", {
-        settings: currentDraftSettings,
+      const materialized = await invoke<MaterializedLaunchDraftResponse>("materialize_launch_draft", {
+        request: {
+          settings: currentDraftSettings,
+          draft_id: draftWorkspaceId ?? undefined,
+          retention_secs: launchDraftRetentionSeconds,
+        },
       });
-      const command = `claude --settings "${materializedSettingsPath}"`;
+      setDraftWorkspaceId(materialized.draft_id);
+      setDraftProjectPath(materialized.project_path);
+      setDraftSettingsPath(materialized.settings_path);
+      const command = `claude --settings "${materialized.settings_path}"`;
 
       await terminalLauncher.mutateAsync({
         cwd: projectPath,
@@ -885,15 +1015,18 @@ export function SessionLauncherDialog({
         command,
       });
 
+      preserveDraftOnCloseRef.current = true;
       onOpenChange(false);
     } catch (err) {
       setLaunchError(String(err));
     }
   }, [
     currentDraftSettings,
+    draftWorkspaceId,
     onOpenChange,
     preferredTerminalApp,
     projectPath,
+    launchDraftRetentionSeconds,
     t,
     terminalLauncher,
   ]);
@@ -1038,6 +1171,9 @@ export function SessionLauncherDialog({
           embedded
           settingsPath={draftSettingsPath ?? undefined}
           projectPath={projectPath}
+          onSettingsMutated={handleDraftSettingsMutated}
+          enabledPluginsOverride={draftEnabledPluginsMap}
+          onToggleOverride={handleLauncherPluginToggle}
         />
       );
     }

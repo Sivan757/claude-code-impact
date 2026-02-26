@@ -77,6 +77,7 @@ pub fn build_invoke_handler(
         create_launch_settings,
         prepare_launch_snapshot,
         materialize_launch_draft,
+        release_launch_draft,
         cleanup_launch_settings,
         get_command_stats,
         get_command_weekly_stats,

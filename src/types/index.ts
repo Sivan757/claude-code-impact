@@ -293,6 +293,7 @@ export interface UserProfile {
   nickname: string;
   avatarUrl: string;
   terminalPreference?: TerminalPreference;
+  launchDraftRetentionHours?: number;
 }
 
 export type TerminalPreferenceMode = "system" | "custom";

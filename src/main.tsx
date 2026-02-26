@@ -1,8 +1,10 @@
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { loader } from "@monaco-editor/react";
+import { invoke } from "@tauri-apps/api/core";
 import { AppRouter } from "./router";
 import { initializeUiPreferences } from "./lib/uiPreferences";
+import { getConfiguredLaunchDraftRetentionSeconds } from "./lib/launchDraftRetention";
 import "./index.css";
 import "./i18n";
 
@@ -30,6 +32,14 @@ async function bootstrap() {
     await initializeUiPreferences();
   } catch {
     // Ignore preference initialization errors to avoid blocking startup.
+  }
+
+  try {
+    await invoke<number>("cleanup_launch_settings", {
+      retention_secs: getConfiguredLaunchDraftRetentionSeconds(),
+    });
+  } catch {
+    // Ignore launch artifact cleanup errors to avoid blocking startup.
   }
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

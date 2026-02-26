@@ -562,11 +562,20 @@ pub(crate) fn resolve_settings_path(path: Option<String>) -> PathBuf {
 
     if let Some(path) = input {
         let resolved = crate::services::platform::resolve_user_path(&path);
-        if resolved.starts_with(get_claudecodeimpact_dir()) {
-            return resolved;
-        }
         if looks_like_json_path(&resolved) {
             return resolved;
+        }
+        if resolved.starts_with(get_claudecodeimpact_dir()) {
+            let is_claude_dir = resolved
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case(".claude"));
+
+            if is_claude_dir {
+                return resolved.join("settings.json");
+            }
+
+            return resolved.join(".claude").join("settings.json");
         }
         let (project_root, claude_dir) = resolve_native_claude_dir_from_input(&resolved);
         let target = claude_dir.join("settings.json");

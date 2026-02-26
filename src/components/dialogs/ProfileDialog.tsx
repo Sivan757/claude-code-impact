@@ -14,6 +14,10 @@ import {
   normalizeTerminalPreference,
   resolveTerminalAppLabel,
 } from "@/lib/terminalPreference";
+import {
+  LAUNCH_DRAFT_RETENTION_OPTIONS_HOURS,
+  resolveLaunchDraftRetentionHours,
+} from "@/lib/launchDraftRetention";
 import type { UserProfile } from "@/types";
 
 interface ProfileDialogProps {
@@ -33,6 +37,9 @@ export function ProfileDialog({ open, onClose, profile, onSave }: ProfileDialogP
     normalizeTerminalPreference(profile.terminalPreference).customPath,
   );
   const [shortenPathsDraft, setShortenPathsDraft] = useState(shortenPaths);
+  const [launchDraftRetentionHours, setLaunchDraftRetentionHours] = useState(
+    resolveLaunchDraftRetentionHours(profile),
+  );
   const [terminalPickerError, setTerminalPickerError] = useState<string | null>(null);
   const platform = useMemo(() => detectTerminalPlatform(), []);
   const presetTerminalOptions = useMemo(() => getTerminalAppOptions(platform), [platform]);
@@ -55,11 +62,24 @@ export function ProfileDialog({ open, onClose, profile, onSave }: ProfileDialogP
       ...presetTerminalOptions,
     ];
   }, [platform, presetTerminalOptions, t, terminalCustomPath]);
+  const formatRetentionOptionLabel = (hours: number) => {
+    if (hours % 24 === 0) {
+      return t("profile_dialog.launch_draft_retention_days", {
+        count: hours / 24,
+        defaultValue: `${hours / 24} day(s)`,
+      });
+    }
+    return t("profile_dialog.launch_draft_retention_hours", {
+      count: hours,
+      defaultValue: `${hours} hour(s)`,
+    });
+  };
 
   useEffect(() => {
     const normalizedTerminalPreference = normalizeTerminalPreference(profile.terminalPreference);
     setTerminalMode(normalizedTerminalPreference.mode);
     setTerminalCustomPath(normalizedTerminalPreference.customPath);
+    setLaunchDraftRetentionHours(resolveLaunchDraftRetentionHours(profile));
     setShortenPathsDraft(shortenPaths);
     setTerminalPickerError(null);
   }, [profile, shortenPaths]);
@@ -117,6 +137,7 @@ export function ProfileDialog({ open, onClose, profile, onSave }: ProfileDialogP
     onSave({
       ...profile,
       terminalPreference,
+      launchDraftRetentionHours,
     });
     onClose();
   };
@@ -214,6 +235,45 @@ export function ProfileDialog({ open, onClose, profile, onSave }: ProfileDialogP
                 )}
               </div>
             )}
+          </section>
+
+          <section className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("profile_dialog.launch_draft_section_title", "Launch Draft")}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t(
+                  "profile_dialog.launch_draft_retention_desc",
+                  "Auto-clean temporary launch draft files older than this duration",
+                )}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="launch-draft-retention">
+                {t("profile_dialog.launch_draft_retention_label", "Retention Duration")}
+              </Label>
+              <Select
+                value={String(launchDraftRetentionHours)}
+                onValueChange={(value) => {
+                  const parsed = Number.parseInt(value, 10);
+                  if (!Number.isNaN(parsed)) {
+                    setLaunchDraftRetentionHours(parsed);
+                  }
+                }}
+              >
+                <SelectTrigger id="launch-draft-retention" className="w-full rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LAUNCH_DRAFT_RETENTION_OPTIONS_HOURS.map((hours) => (
+                    <SelectItem key={hours} value={String(hours)}>
+                      {formatRetentionOptionLabel(hours)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </section>
 
           <section className="rounded-2xl border border-border/50 bg-card/40 p-4">

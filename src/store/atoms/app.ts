@@ -1,6 +1,7 @@
 import { atomWithStorage } from "@/store/persistence";
 import type { FeatureType, TemplateCategory, UserProfile } from "@/types";
 import { DEFAULT_TERMINAL_PREFERENCE } from "@/lib/terminalPreference";
+import { LAUNCH_DRAFT_RETENTION_DEFAULT_HOURS } from "@/lib/launchDraftRetention";
 
 // Marketplace 分类
 export const marketplaceCategoryAtom = atomWithStorage<TemplateCategory>("claudecodeimpact:marketplaceCategory", "skills");
@@ -13,6 +14,7 @@ export const profileAtom = atomWithStorage<UserProfile>("claudecodeimpact:profil
   nickname: "",
   avatarUrl: "",
   terminalPreference: DEFAULT_TERMINAL_PREFERENCE,
+  launchDraftRetentionHours: LAUNCH_DRAFT_RETENTION_DEFAULT_HOURS,
 });
 
 
