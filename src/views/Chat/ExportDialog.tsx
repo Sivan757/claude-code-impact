@@ -129,7 +129,7 @@ export function ExportDialog({
 
   const handleExport = async () => {
     const ext = format === "json" ? "json" : "md";
-    const filterName = format === "json" ? "JSON" : "Markdown";
+    const filterName = format === "json" ? t("export.format_json") : t("export.format_markdown");
     const path = await save({
       defaultPath: `${defaultName}.${ext}`,
       filters: [{ name: filterName, extensions: [ext] }],
@@ -168,8 +168,8 @@ export function ExportDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="markdown">Markdown</SelectItem>
-              <SelectItem value="json">JSON</SelectItem>
+              <SelectItem value="markdown">{t("export.format_markdown")}</SelectItem>
+              <SelectItem value="json">{t("export.format_json")}</SelectItem>
             </SelectContent>
           </Select>
 

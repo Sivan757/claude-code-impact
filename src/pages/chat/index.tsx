@@ -1,13 +1,5 @@
-import { useNavigate } from "react-router-dom";
-import { ProjectList } from "../../views/Chat";
+import { HistoryWorkbench } from "../../views/Chat";
 
 export default function ChatProjectsPage() {
-  const navigate = useNavigate();
-
-  return (
-    <ProjectList
-      onSelectProject={(p) => navigate(`/chat/${encodeURIComponent(p.id)}`)}
-      onSelectSession={(s) => navigate(`/chat/${encodeURIComponent(s.project_id)}/${encodeURIComponent(s.id)}`)}
-    />
-  );
+  return <HistoryWorkbench />;
 }

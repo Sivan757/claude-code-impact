@@ -7,8 +7,7 @@ export {
 // Chat atoms
 export {
   originalChatAtom, markdownPreviewAtom,
-  sessionContextTabAtom, sessionSelectModeAtom, hideEmptySessionsAtom, userPromptsOnlyAtom,
-  chatViewModeAtom, allProjectsSortByAtom, hideEmptySessionsAllAtom,
+  hideEmptySessionsAtom,
 } from "./atoms/chat";
 
 // Commands atoms

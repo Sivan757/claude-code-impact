@@ -33,6 +33,7 @@ pub struct Message {
     pub uuid: String,
     pub role: String,
     pub content: String,
+    pub raw_content: Option<serde_json::Value>,
     pub timestamp: String,
     pub is_meta: bool, // slash command 展开的内容
     pub is_tool: bool, // tool_use 或 tool_result

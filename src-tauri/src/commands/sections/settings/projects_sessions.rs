@@ -709,11 +709,24 @@ async fn get_session_messages(
                         let (content, is_tool) = extract_content_with_meta(&msg.content);
                         let is_meta = parsed.is_meta.unwrap_or(false);
 
-                        if !content.is_empty() {
+                        let has_structured_content = msg
+                            .content
+                            .as_ref()
+                            .map(|raw| match raw {
+                                serde_json::Value::String(text) => !text.trim().is_empty(),
+                                serde_json::Value::Array(items) => !items.is_empty(),
+                                serde_json::Value::Object(obj) => !obj.is_empty(),
+                                serde_json::Value::Null => false,
+                                _ => true,
+                            })
+                            .unwrap_or(false);
+
+                        if !content.trim().is_empty() || has_structured_content {
                             messages.push(Message {
                                 uuid: parsed.uuid.unwrap_or_default(),
                                 role,
                                 content,
+                                raw_content: msg.content.clone(),
                                 timestamp: parsed.timestamp.unwrap_or_default(),
                                 is_meta,
                                 is_tool,

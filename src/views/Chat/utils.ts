@@ -2,6 +2,54 @@ import { useAtomValue } from "jotai";
 import { originalChatAtom } from "../../store";
 import i18n from "../../i18n";
 
+export interface TeammateMessageMeta {
+  isTeammate: boolean;
+  teammateId: string | null;
+  content: string;
+}
+
+const TEAMMATE_OPEN_TAG_RE = /<teammate-message\b([^>]*)>/i;
+const TEAMMATE_OPEN_TAG_GLOBAL_RE = /<teammate-message\b[^>]*>/gi;
+const TEAMMATE_CLOSE_TAG_GLOBAL_RE = /<\/teammate-message>/gi;
+
+function parseTeammateId(attributeChunk: string): string | null {
+  const match = attributeChunk.match(
+    /\bteammate_id\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i,
+  );
+  const candidate = match?.[1] ?? match?.[2] ?? match?.[3];
+  if (!candidate) return null;
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function parseTeammateMessage(text: string | null | undefined): TeammateMessageMeta {
+  const raw = text ?? "";
+  const openTagMatch = raw.match(TEAMMATE_OPEN_TAG_RE);
+  if (!openTagMatch) {
+    return {
+      isTeammate: false,
+      teammateId: null,
+      content: raw,
+    };
+  }
+
+  const teammateId = parseTeammateId(openTagMatch[1] ?? "");
+  const content = raw
+    .replace(TEAMMATE_OPEN_TAG_GLOBAL_RE, "")
+    .replace(TEAMMATE_CLOSE_TAG_GLOBAL_RE, "")
+    .trim();
+
+  return {
+    isTeammate: true,
+    teammateId,
+    content,
+  };
+}
+
+export function stripTeammateMessageTags(text: string | null | undefined): string {
+  return parseTeammateMessage(text).content;
+}
+
 export function restoreSlashCommand(content: string): string {
   // Use [\s\S]*? to match any chars including newlines between tags
   const pattern = /<command-message>[\s\S]*?<\/command-message>[\s\S]*?<command-name>(\/[^\n<]+)<\/command-name>(?:[\s\S]*?<command-args>([\s\S]*?)<\/command-args>)?/g;

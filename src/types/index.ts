@@ -72,6 +72,7 @@ export interface Message {
   uuid: string;
   role: string;
   content: string;
+  raw_content?: unknown;
   timestamp: string;
   is_meta: boolean;
   is_tool: boolean;

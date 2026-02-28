@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { FolderOpen, Copy, Download } from "lucide-react";
 import { ExternalLinkIcon, ChatBubbleIcon } from "@radix-ui/react-icons";
+import { useTranslation } from "react-i18next";
 import {
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
@@ -49,6 +50,7 @@ export function SessionDropdownMenuItems({
   onExport,
   onResume,
 }: SessionMenuConfig) {
+  const { t } = useTranslation();
   const { handleReveal, handleOpenInEditor, handleCopyPath, handleCopySessionId } =
     useSessionMenuHandlers(projectId, sessionId);
   const revealLabel = useRevealLabel();
@@ -59,11 +61,11 @@ export function SessionDropdownMenuItems({
         <>
           <DropdownMenuItem onClick={handleCopySessionId} className="gap-2">
             <Copy size={14} />
-            Copy Session ID
+            {t("session_menu.copy_session_id")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onResume} className="gap-2">
             <ChatBubbleIcon className="w-3.5 h-3.5" />
-            Resume Session
+            {t("session_menu.resume_session")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
         </>
@@ -74,23 +76,23 @@ export function SessionDropdownMenuItems({
       </DropdownMenuItem>
       <DropdownMenuItem onClick={handleOpenInEditor} className="gap-2">
         <ExternalLinkIcon width={14} />
-        Open in Editor
+        {t("common.open_in_editor")}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={handleCopyPath} className="gap-2">
         <Copy size={14} />
-        Copy Path
+        {t("common.copy_path")}
       </DropdownMenuItem>
       {(setOriginalChat || setMarkdownPreview) && (
         <>
           <DropdownMenuSeparator />
           {setOriginalChat && (
             <DropdownMenuCheckboxItem checked={originalChat} onCheckedChange={setOriginalChat}>
-              Readable Slash Command
+              {t("session_menu.readable_slash_command")}
             </DropdownMenuCheckboxItem>
           )}
           {setMarkdownPreview && (
             <DropdownMenuCheckboxItem checked={markdownPreview} onCheckedChange={setMarkdownPreview}>
-              Markdown Preview
+              {t("session_menu.markdown_preview")}
             </DropdownMenuCheckboxItem>
           )}
         </>
@@ -100,7 +102,7 @@ export function SessionDropdownMenuItems({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onExport} className="gap-2">
             <Download size={14} />
-            Export
+            {t("common.export")}
           </DropdownMenuItem>
         </>
       )}
@@ -119,6 +121,7 @@ export function SessionContextMenuItems({
   onExport,
   onResume,
 }: SessionMenuConfig) {
+  const { t } = useTranslation();
   const { handleReveal, handleOpenInEditor, handleCopyPath, handleCopySessionId } =
     useSessionMenuHandlers(projectId, sessionId);
   const revealLabel = useRevealLabel();
@@ -129,11 +132,11 @@ export function SessionContextMenuItems({
         <>
           <ContextMenuItem onClick={handleCopySessionId} className="gap-2">
             <Copy size={14} />
-            Copy Session ID
+            {t("session_menu.copy_session_id")}
           </ContextMenuItem>
           <ContextMenuItem onClick={onResume} className="gap-2">
             <ChatBubbleIcon className="w-3.5 h-3.5" />
-            Resume Session
+            {t("session_menu.resume_session")}
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -144,23 +147,23 @@ export function SessionContextMenuItems({
       </ContextMenuItem>
       <ContextMenuItem onClick={handleOpenInEditor} className="gap-2">
         <ExternalLinkIcon width={14} />
-        Open in Editor
+        {t("common.open_in_editor")}
       </ContextMenuItem>
       <ContextMenuItem onClick={handleCopyPath} className="gap-2">
         <Copy size={14} />
-        Copy Path
+        {t("common.copy_path")}
       </ContextMenuItem>
       {(setOriginalChat || setMarkdownPreview) && (
         <>
           <ContextMenuSeparator />
           {setOriginalChat && (
             <ContextMenuCheckboxItem checked={originalChat} onCheckedChange={setOriginalChat}>
-              Readable Slash Command
+              {t("session_menu.readable_slash_command")}
             </ContextMenuCheckboxItem>
           )}
           {setMarkdownPreview && (
             <ContextMenuCheckboxItem checked={markdownPreview} onCheckedChange={setMarkdownPreview}>
-              Markdown Preview
+              {t("session_menu.markdown_preview")}
             </ContextMenuCheckboxItem>
           )}
         </>
@@ -170,7 +173,7 @@ export function SessionContextMenuItems({
           <ContextMenuSeparator />
           <ContextMenuItem onClick={onExport} className="gap-2">
             <Download size={14} />
-            Export
+            {t("common.export")}
           </ContextMenuItem>
         </>
       )}

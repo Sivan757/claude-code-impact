@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.2
+
+- Rebuild Chat History workspace with a three-column layout and improved full-height usability.
+- Replace legacy virtual list implementation with `react-virtuoso` for smoother long-session scrolling and trailing-follow behavior.
+- Add assistant/tool-chain merge rendering and specialized tool cards (Read/Bash/Edit/WebSearch) with default-collapsed tool result views.
+- Improve conversation content rendering for command tags, markdown blocks, teammate messages, and tool-result pairing.
+- Complete i18n coverage for chat history/navigator/tool cards/session menu and export format labels.
+
 ## 0.1.1
 
 - Refactor launch draft lifecycle to runtime workspace model with stable `draft_id` reuse and explicit release command.
