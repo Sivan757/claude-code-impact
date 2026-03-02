@@ -1,5 +1,3 @@
-import { useAtomValue } from "jotai";
-import { originalChatAtom } from "../../store";
 import i18n from "../../i18n";
 
 export interface TeammateMessageMeta {
@@ -90,9 +88,8 @@ export function formatDate(ts: number): string {
 
 /** Hook that returns a function to convert text based on global readable setting */
 export function useReadableText(): (text: string | null | undefined) => string {
-  const readable = useAtomValue(originalChatAtom);
   return (text) => {
     if (!text) return "";
-    return readable ? restoreSlashCommand(text) : text;
+    return restoreSlashCommand(text);
   };
 }

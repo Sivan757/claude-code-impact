@@ -62,6 +62,8 @@ pub fn build_invoke_handler(
         list_all_sessions,
         list_all_chats,
         get_session_messages,
+        get_session_messages_snapshot,
+        get_session_messages_delta,
         build_search_index,
         search_chats,
         list_local_commands,

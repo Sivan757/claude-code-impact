@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { ListTree, PanelRight, PanelRightClose, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -111,6 +111,16 @@ function getRoleLabel(role: string): string {
   return i18n.t(`chat.roles.${role}`, { defaultValue: role });
 }
 
+function getRoleAccentClass(role: string): string {
+  if (role === "teammate" || role === "summary") {
+    return "text-amber-700 dark:text-amber-300";
+  }
+  if (role === "tool") {
+    return "text-emerald-700 dark:text-emerald-300";
+  }
+  return "text-primary";
+}
+
 export function MessageNavigator({
   messages,
   selectedMessageId,
@@ -124,6 +134,8 @@ export function MessageNavigator({
 }: MessageNavigatorProps) {
   const { t } = useTranslation();
   const [filterText, setFilterText] = useState("");
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const entryRefs = useRef(new Map<string, HTMLButtonElement>());
 
   const entries = useMemo<NavigatorEntry[]>(() => {
     const allEntries = messages.map((message) => ({
@@ -140,6 +152,24 @@ export function MessageNavigator({
       entry.role.toLowerCase().includes(keyword),
     );
   }, [filterText, messages, toReadable, i18n.language]);
+
+  useEffect(() => {
+    if (!selectedMessageId) return;
+    const listNode = listRef.current;
+    const entryNode = entryRefs.current.get(selectedMessageId);
+    if (!listNode || !entryNode) return;
+
+    const entryTop = entryNode.offsetTop;
+    const entryBottom = entryTop + entryNode.offsetHeight;
+    const viewportTop = listNode.scrollTop;
+    const viewportBottom = viewportTop + listNode.clientHeight;
+    if (entryTop >= viewportTop && entryBottom <= viewportBottom) return;
+
+    listNode.scrollTo({
+      top: Math.max(0, entryTop - 12),
+      behavior: "smooth",
+    });
+  }, [entries.length, selectedMessageId]);
 
   if (collapsed) {
     return (
@@ -162,7 +192,7 @@ export function MessageNavigator({
   return (
     <aside
       className={cn(
-        "relative flex h-full shrink-0 flex-col border-l border-border/60 bg-card-alt/40",
+        "relative flex h-full shrink-0 flex-col border-l border-border/60 bg-card-alt/40 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2",
         !isResizing && "transition-[width] duration-200 ease-out",
         isResizing && "select-none",
       )}
@@ -217,32 +247,35 @@ export function MessageNavigator({
           {t("chat.navigator.no_entries")}
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+        <div
+          ref={listRef}
+          className="min-h-0 flex-1 overflow-y-auto px-2 py-2 scroll-smooth"
+        >
           <div className="space-y-1">
             {entries.map((entry) => {
               const active = selectedMessageId === entry.id;
               return (
                 <button
                   key={entry.id}
+                  ref={(node) => {
+                    if (node) {
+                      entryRefs.current.set(entry.id, node);
+                      return;
+                    }
+                    entryRefs.current.delete(entry.id);
+                  }}
                   type="button"
                   onClick={() => onSelectMessage(entry.id)}
                   className={cn(
-                    "w-full rounded-md border px-2 py-1.5 text-left transition-colors",
+                    "w-full rounded-md border px-2 py-1.5 text-left transition-all duration-200 ease-out",
                     active
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-background hover:border-primary/60",
+                      ? "border-primary bg-primary/10 shadow-xs"
+                      : "border-border bg-background",
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span
-                      className={cn(
-                        "text-[11px] font-medium uppercase tracking-wide",
-                        entry.role === "teammate"
-                          ? "text-amber-700 dark:text-amber-300"
-                          : entry.role === "tool"
-                            ? "text-emerald-700 dark:text-emerald-300"
-                            : "text-primary",
-                      )}
+                      className={cn("text-[11px] font-medium uppercase tracking-wide", getRoleAccentClass(entry.role))}
                     >
                       {getRoleLabel(entry.role)}
                     </span>

@@ -179,7 +179,10 @@ fn get_session_summary(project_id: String, session_id: String) -> Result<Option<
         return Err("Session file not found".to_string());
     }
     let (summary, _) = read_session_head(&path, 20);
-    Ok(summary)
+    let history_display = build_session_index_from_history()
+        .get(&(project_id, session_id))
+        .and_then(|(_, display)| display.clone());
+    Ok(resolve_session_summary(summary, history_display))
 }
 
 #[tauri::command]

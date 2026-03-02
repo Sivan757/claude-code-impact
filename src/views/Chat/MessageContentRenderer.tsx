@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Brain,
@@ -158,6 +158,13 @@ function normalizeToolResultPayload(result: ContentRecord): unknown {
 function shortenText(text: string, maxLength = 1200): string {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength)}\n...`;
+}
+
+function toCollapsedPreview(text: string, maxLength = 180): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength)}...`;
 }
 
 function stringify(value: unknown): string {
@@ -453,6 +460,24 @@ function getToolPreview(input: ContentRecord): string | null {
   return null;
 }
 
+function getToolResultPreview(toolResult: ContentRecord): string {
+  const payload = normalizeToolResultPayload(toolResult);
+  if (typeof payload === "string") {
+    return toCollapsedPreview(payload, 220);
+  }
+
+  const textPayload = extractTextPayload(payload);
+  if (textPayload.trim()) {
+    return toCollapsedPreview(textPayload, 220);
+  }
+
+  if (payload === null || payload === undefined) {
+    return "";
+  }
+
+  return toCollapsedPreview(stringify(payload), 220);
+}
+
 function getToolLabel(toolName: string): string {
   if (!toolName) return translate("message_view.tool");
   if (toolName === "Bash") return translate("message_view.terminal");
@@ -636,6 +661,9 @@ function Card({
   children,
   subtitle,
   badge,
+  collapsible = false,
+  defaultExpanded = true,
+  collapsedPreview,
 }: {
   title: string;
   icon: ReactNode;
@@ -643,7 +671,11 @@ function Card({
   subtitle?: string;
   badge?: ReactNode;
   children: ReactNode;
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
+  collapsedPreview?: string | null;
 }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const styles = CARD_TONE_STYLES[tone];
 
   return (
@@ -661,10 +693,37 @@ function Card({
               {subtitle}
             </code>
           ) : null}
+          {collapsible ? (
+            <button
+              type="button"
+              className={cn("ml-auto rounded p-0.5 transition-colors", styles.badge)}
+              onClick={() => setExpanded((value) => !value)}
+              aria-label={
+                expanded
+                  ? translate("message_view.collapse_card")
+                  : translate("message_view.expand_card")
+              }
+            >
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 transition-transform",
+                  expanded && "rotate-180",
+                )}
+              />
+            </button>
+          ) : null}
         </div>
       </header>
 
-      <div className="space-y-2 px-3 py-2 empty:hidden">{children}</div>
+      {!collapsible || expanded ? (
+        <div className="space-y-2 px-3 py-2 empty:hidden">{children}</div>
+      ) : (
+        <div className="px-3 py-2">
+          <p className="line-clamp-2 text-xs text-muted-foreground">
+            {collapsedPreview?.trim() || translate("message_view.collapsed_preview_empty")}
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -1191,16 +1250,25 @@ function ToolExecutionCard({
   const status = getToolExecutionStatus(toolResults);
   const tone = getToolTone(toolName, status);
   const statusMeta = getStatusMeta(status);
-  const preview = getToolPreview(input);
-  const specializedBody = isReadTool(toolName)
-    ? renderReadToolBody(input, toolResults)
-    : isBashTool(toolName)
-      ? renderBashToolBody(input, toolResults)
-      : isEditTool(toolName)
-        ? renderEditToolBody(input, toolResults)
-        : isWebSearchTool(toolName)
-          ? renderWebSearchToolBody(input, toolResults)
-          : null;
+  const preview = useMemo(() => getToolPreview(input), [input]);
+  const collapsedPreview = useMemo(
+    () =>
+      toCollapsedPreview(
+        [preview, toolResults[0] ? getToolResultPreview(toolResults[0]) : ""]
+          .filter((segment): segment is string => Boolean(segment && segment.trim()))
+          .join(" · "),
+        220,
+      ),
+    [preview, toolResults],
+  );
+  const specializedBody = useMemo(() => {
+    if (!expanded) return null;
+    if (isReadTool(toolName)) return renderReadToolBody(input, toolResults);
+    if (isBashTool(toolName)) return renderBashToolBody(input, toolResults);
+    if (isEditTool(toolName)) return renderEditToolBody(input, toolResults);
+    if (isWebSearchTool(toolName)) return renderWebSearchToolBody(input, toolResults);
+    return null;
+  }, [expanded, input, toolName, toolResults]);
 
   return (
     <Card
@@ -1301,7 +1369,11 @@ function ToolExecutionCard({
             )}
           </>
         )
-      ) : null}
+      ) : (
+        <p className="line-clamp-2 text-xs text-muted-foreground">
+          {collapsedPreview || translate("message_view.collapsed_preview_empty")}
+        </p>
+      )}
     </Card>
   );
 }
@@ -1311,6 +1383,7 @@ function SingleToolResultCard({ toolResult }: { toolResult: ContentRecord }) {
   const isError = toolResult.is_error === true;
   const tone: CardTone = isError ? "danger" : "success";
   const [expanded, setExpanded] = useState(false);
+  const collapsedPreview = getToolResultPreview(toolResult);
 
   return (
     <Card
@@ -1353,7 +1426,11 @@ function SingleToolResultCard({ toolResult }: { toolResult: ContentRecord }) {
         renderStructuredResultContent(toolResult.content ?? toolResult, {
           preferMarkdown: true,
         })
-      ) : null}
+      ) : (
+        <p className="line-clamp-2 text-xs text-muted-foreground">
+          {collapsedPreview || translate("message_view.collapsed_preview_empty")}
+        </p>
+      )}
     </Card>
   );
 }
@@ -1395,6 +1472,9 @@ function renderContentItem({
         title={translate("message_view.thinking")}
         icon={<Brain className="h-3.5 w-3.5" />}
         tone="warning"
+        collapsible
+        defaultExpanded={false}
+        collapsedPreview={toCollapsedPreview(thinking)}
       >
         <CollapsibleContent content={thinking} markdown={false} />
       </Card>
@@ -1408,6 +1488,9 @@ function renderContentItem({
         title={translate("message_view.redacted_thinking")}
         icon={<Brain className="h-3.5 w-3.5" />}
         tone="warning"
+        collapsible
+        defaultExpanded={false}
+        collapsedPreview={toCollapsedPreview(translate("message_view.redacted_thinking_desc"))}
       >
         <p className="text-xs text-muted-foreground">{translate("message_view.redacted_thinking_desc")}</p>
       </Card>
@@ -1443,6 +1526,8 @@ function renderContentItem({
         title={translate("message_view.image")}
         icon={<ImageIcon className="h-3.5 w-3.5" />}
         tone="info"
+        collapsible
+        collapsedPreview={toCollapsedPreview(translate("message_view.image"))}
       >
         {/* eslint-disable-next-line jsx-a11y/alt-text */}
         <img
@@ -1468,6 +1553,8 @@ function renderContentItem({
         icon={<FileText className="h-3.5 w-3.5" />}
         tone="info"
         subtitle={sourceType ?? undefined}
+        collapsible
+        collapsedPreview={toCollapsedPreview(context ?? sourceUrl ?? sourceData ?? title)}
       >
         {context ? (
           <p className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
@@ -1510,6 +1597,8 @@ function renderContentItem({
         icon={<Search className="h-3.5 w-3.5" />}
         tone="info"
         subtitle={source ?? undefined}
+        collapsible
+        collapsedPreview={toCollapsedPreview(contentText || source || title)}
       >
         {contentText ? (
           <CollapsibleContent
@@ -1531,6 +1620,8 @@ function renderContentItem({
         title={translate("message_view.command")}
         icon={<Terminal className="h-3.5 w-3.5" />}
         tone="neutral"
+        collapsible
+        collapsedPreview={toCollapsedPreview(commandText ?? "")}
       >
         {commandText ? (
           <CollapsibleContent content={commandText} markdown={false} />
@@ -1547,13 +1638,15 @@ function renderContentItem({
       title={translate("message_view.content_type", { type: itemType })}
       icon={<AlertTriangle className="h-3.5 w-3.5" />}
       tone="warning"
+      collapsible
+      collapsedPreview={toCollapsedPreview(stringify(item))}
     >
       <JsonBlock value={item} />
     </Card>
   );
 }
 
-export function MessageContentRenderer({
+function MessageContentRendererInner({
   message,
   markdown,
   toReadable,
@@ -1605,3 +1698,19 @@ export function MessageContentRenderer({
     preferMarkdown: markdown || message.role === "assistant",
   });
 }
+
+function areMessageContentRendererPropsEqual(
+  prev: MessageContentRendererProps,
+  next: MessageContentRendererProps,
+): boolean {
+  return prev.message === next.message &&
+    prev.markdown === next.markdown &&
+    prev.toReadable === next.toReadable;
+}
+
+export const MessageContentRenderer = memo(
+  MessageContentRendererInner,
+  areMessageContentRendererPropsEqual,
+);
+
+MessageContentRenderer.displayName = "MessageContentRenderer";

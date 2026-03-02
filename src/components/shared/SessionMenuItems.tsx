@@ -4,12 +4,10 @@ import { ExternalLinkIcon, ChatBubbleIcon } from "@radix-ui/react-icons";
 import { useTranslation } from "react-i18next";
 import {
   DropdownMenuItem,
-  DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   ContextMenuItem,
-  ContextMenuCheckboxItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { useRevealLabel } from "@/hooks";
@@ -17,10 +15,6 @@ import { useRevealLabel } from "@/hooks";
 export interface SessionMenuConfig {
   projectId: string;
   sessionId: string;
-  originalChat?: boolean;
-  setOriginalChat?: (v: boolean) => void;
-  markdownPreview?: boolean;
-  setMarkdownPreview?: (v: boolean) => void;
   onExport?: () => void;
   onResume?: () => void;
   onCopySessionId?: () => void;
@@ -43,10 +37,6 @@ export function useSessionMenuHandlers(projectId: string, sessionId: string) {
 export function SessionDropdownMenuItems({
   projectId,
   sessionId,
-  originalChat,
-  setOriginalChat,
-  markdownPreview,
-  setMarkdownPreview,
   onExport,
   onResume,
 }: SessionMenuConfig) {
@@ -82,21 +72,6 @@ export function SessionDropdownMenuItems({
         <Copy size={14} />
         {t("common.copy_path")}
       </DropdownMenuItem>
-      {(setOriginalChat || setMarkdownPreview) && (
-        <>
-          <DropdownMenuSeparator />
-          {setOriginalChat && (
-            <DropdownMenuCheckboxItem checked={originalChat} onCheckedChange={setOriginalChat}>
-              {t("session_menu.readable_slash_command")}
-            </DropdownMenuCheckboxItem>
-          )}
-          {setMarkdownPreview && (
-            <DropdownMenuCheckboxItem checked={markdownPreview} onCheckedChange={setMarkdownPreview}>
-              {t("session_menu.markdown_preview")}
-            </DropdownMenuCheckboxItem>
-          )}
-        </>
-      )}
       {onExport && (
         <>
           <DropdownMenuSeparator />
@@ -114,10 +89,6 @@ export function SessionDropdownMenuItems({
 export function SessionContextMenuItems({
   projectId,
   sessionId,
-  originalChat,
-  setOriginalChat,
-  markdownPreview,
-  setMarkdownPreview,
   onExport,
   onResume,
 }: SessionMenuConfig) {
@@ -153,21 +124,6 @@ export function SessionContextMenuItems({
         <Copy size={14} />
         {t("common.copy_path")}
       </ContextMenuItem>
-      {(setOriginalChat || setMarkdownPreview) && (
-        <>
-          <ContextMenuSeparator />
-          {setOriginalChat && (
-            <ContextMenuCheckboxItem checked={originalChat} onCheckedChange={setOriginalChat}>
-              {t("session_menu.readable_slash_command")}
-            </ContextMenuCheckboxItem>
-          )}
-          {setMarkdownPreview && (
-            <ContextMenuCheckboxItem checked={markdownPreview} onCheckedChange={setMarkdownPreview}>
-              {t("session_menu.markdown_preview")}
-            </ContextMenuCheckboxItem>
-          )}
-        </>
-      )}
       {onExport && (
         <>
           <ContextMenuSeparator />

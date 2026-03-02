@@ -4,9 +4,11 @@ use serde::Deserialize;
 pub(crate) struct RawLine {
     #[serde(rename = "type")]
     pub(crate) line_type: Option<String>,
+    pub(crate) subtype: Option<String>,
     pub(crate) summary: Option<String>,
     pub(crate) uuid: Option<String>,
     pub(crate) message: Option<RawMessage>,
+    pub(crate) content: Option<String>,
     pub(crate) timestamp: Option<String>,
     #[serde(rename = "isMeta")]
     pub(crate) is_meta: Option<bool>,

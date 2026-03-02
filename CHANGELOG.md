@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.3
+
+- Refactor Chat History into split panes (`HistorySessionListPane` / `HistorySessionDetailPane`) to reduce cross-pane rerender jitter.
+- Improve loading flow when switching projects and sessions with panel-scoped loading overlays.
+- Stabilize long-list message browsing with `react-virtuoso` tuning and navigator/list interaction cleanup.
+- Remove card hover lift effects in history panels to keep interactions visually stable during dense session review.
+
 ## 0.1.2
 
 - Rebuild Chat History workspace with a three-column layout and improved full-height usability.

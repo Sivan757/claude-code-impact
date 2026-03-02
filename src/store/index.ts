@@ -6,8 +6,8 @@ export {
 
 // Chat atoms
 export {
-  originalChatAtom, markdownPreviewAtom,
-  hideEmptySessionsAtom,
+  originalChatAtom,
+  markdownPreviewAtom,
 } from "./atoms/chat";
 
 // Commands atoms

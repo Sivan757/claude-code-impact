@@ -160,6 +160,7 @@ async fn list_sessions(project_id: String) -> Result<Vec<Session>, String> {
             return Err("Project not found".to_string());
         }
 
+        let history_index = build_session_index_from_history();
         let mut sessions = Vec::new();
 
         for entry in fs::read_dir(&project_dir).map_err(|e| e.to_string())? {
@@ -172,6 +173,10 @@ async fn list_sessions(project_id: String) -> Result<Vec<Session>, String> {
 
                 // Only read head for summary (much faster)
                 let (summary, message_count) = read_session_head(&path, 20);
+                let history_display = history_index
+                    .get(&(project_id.clone(), session_id.clone()))
+                    .and_then(|(_, display)| display.clone());
+                let final_summary = resolve_session_summary(summary, history_display);
 
                 let metadata = fs::metadata(&path).ok();
                 let last_modified = metadata
@@ -184,7 +189,7 @@ async fn list_sessions(project_id: String) -> Result<Vec<Session>, String> {
                     id: session_id,
                     project_id: project_id.clone(),
                     project_path: None,
-                    summary,
+                    summary: final_summary,
                     message_count,
                     last_modified,
                     usage: None,
@@ -314,36 +319,11 @@ fn read_session_head(path: &Path, max_lines: usize) -> (Option<String>, usize) {
                 // Capture first user message as fallback summary
                 if first_user_message.is_none() {
                     if let Some(msg) = &parsed.message {
-                        if let Some(content) = &msg.content {
-                            // Extract text from content (can be string or array)
-                            let text_content = match content {
-                                serde_json::Value::String(s) => Some(s.clone()),
-                                serde_json::Value::Array(arr) => {
-                                    // Find first text block
-                                    arr.iter().find_map(|item| {
-                                        if item.get("type").and_then(|t| t.as_str()) == Some("text")
-                                        {
-                                            item.get("text")
-                                                .and_then(|t| t.as_str())
-                                                .map(|s| s.to_string())
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                }
-                                _ => None,
-                            };
-                            if let Some(text) = text_content {
-                                // Apply restore_slash_command BEFORE truncation to preserve XML structure
-                                let restored = restore_slash_command(&text);
-                                // Truncate to reasonable length for display (UTF-8 safe)
-                                let display = if restored.chars().count() > 80 {
-                                    format!("{}...", restored.chars().take(80).collect::<String>())
-                                } else {
-                                    restored
-                                };
-                                first_user_message = Some(display);
-                            }
+                        if let Some(text) = extract_text_from_message_content(&msg.content) {
+                            // Apply restore_slash_command BEFORE truncation to preserve XML structure
+                            let restored = normalize_summary_text(&text);
+                            // Truncate to reasonable length for display (UTF-8 safe)
+                            first_user_message = Some(truncate_summary(&restored, 80));
                         }
                     }
                 }
@@ -354,11 +334,95 @@ fn read_session_head(path: &Path, max_lines: usize) -> (Option<String>, usize) {
         }
     }
 
-    // Use summary if available, otherwise fall back to first user message
-    let final_summary = summary
-        .or(first_user_message)
-        .map(|s| restore_slash_command(&s));
+    // Use summary if available, otherwise fall back to first user message.
+    // Prefer renamed titles when present.
+    let final_summary = resolve_session_summary(summary.or(first_user_message), None);
     (final_summary, message_count)
+}
+
+fn truncate_summary(content: &str, max_chars: usize) -> String {
+    if content.chars().count() > max_chars {
+        format!("{}...", content.chars().take(max_chars).collect::<String>())
+    } else {
+        content.to_string()
+    }
+}
+
+fn extract_text_from_message_content(content: &Option<serde_json::Value>) -> Option<String> {
+    match content {
+        Some(serde_json::Value::String(s)) => Some(s.clone()),
+        Some(serde_json::Value::Array(arr)) => arr.iter().find_map(|item| {
+            if item.get("type").and_then(|t| t.as_str()) == Some("text") {
+                item.get("text")
+                    .and_then(|t| t.as_str())
+                    .map(|s| s.to_string())
+            } else {
+                None
+            }
+        }),
+        _ => None,
+    }
+}
+
+fn normalize_summary_text(content: &str) -> String {
+    restore_slash_command(content).trim().to_string()
+}
+
+fn extract_renamed_session_title(content: &str) -> Option<String> {
+    use regex::Regex;
+    lazy_static::lazy_static! {
+        static ref RENAME_COMMAND_RE: Regex =
+            Regex::new(r"(?is)^\s*/rename(?:\s+(.+?))?\s*$").unwrap();
+        static ref LOCAL_COMMAND_TAG_RE: Regex =
+            Regex::new(r"(?is)</?local-command-(?:stdout|stderr)>").unwrap();
+        static ref RENAME_STDOUT_RE: Regex =
+            Regex::new(r"(?is)^\s*Session(?:\s+and\s+agent)?\s+renamed\s+to:\s*(.+?)\s*$").unwrap();
+    }
+
+    let restored = restore_slash_command(content);
+    if let Some(captures) = RENAME_COMMAND_RE.captures(restored.trim()) {
+        let renamed = captures
+            .get(1)
+            .map(|m| m.as_str().trim())
+            .unwrap_or_default();
+        if !renamed.is_empty() {
+            return Some(renamed.to_string());
+        }
+    }
+
+    let without_local_tags = LOCAL_COMMAND_TAG_RE.replace_all(restored.as_str(), "");
+    if let Some(captures) = RENAME_STDOUT_RE.captures(without_local_tags.trim()) {
+        let renamed = captures
+            .get(1)
+            .map(|m| m.as_str().trim())
+            .unwrap_or_default();
+        if !renamed.is_empty() {
+            return Some(renamed.to_string());
+        }
+    }
+
+    None
+}
+
+fn resolve_session_summary(
+    primary_summary: Option<String>,
+    history_display: Option<String>,
+) -> Option<String> {
+    if let Some(display) = history_display.as_ref() {
+        if let Some(renamed) = extract_renamed_session_title(display) {
+            return Some(renamed);
+        }
+    }
+
+    if let Some(summary) = primary_summary.as_ref() {
+        if let Some(renamed) = extract_renamed_session_title(summary) {
+            return Some(renamed);
+        }
+    }
+
+    primary_summary
+        .or(history_display)
+        .map(|s| normalize_summary_text(&s))
 }
 
 /// Convert <command-message>...</command-message><command-name>/cmd</command-name> to /cmd format
@@ -472,10 +536,7 @@ async fn list_all_sessions() -> Result<Vec<Session>, String> {
 
             // Only read head for summary (first 20 lines should be enough)
             let (summary, head_msg_count) = read_session_head(&session_path, 20);
-
-            // Use display as fallback summary (also needs restore_slash_command)
-            let final_summary =
-                summary.or_else(|| display.clone().map(|d| restore_slash_command(&d)));
+            let final_summary = resolve_session_summary(summary, display.clone());
 
             // Use file mtime for accurate last_modified
             let metadata = fs::metadata(&session_path).ok();
@@ -526,6 +587,7 @@ async fn list_all_sessions() -> Result<Vec<Session>, String> {
 
                     // Read only head for summary
                     let (summary, head_msg_count) = read_session_head(&path, 20);
+                    let final_summary = resolve_session_summary(summary, None);
 
                     let metadata = fs::metadata(&path).ok();
                     let last_modified = metadata
@@ -538,7 +600,7 @@ async fn list_all_sessions() -> Result<Vec<Session>, String> {
                         id: session_id,
                         project_id: project_id.clone(),
                         project_path: Some(display_path.clone()),
-                        summary,
+                        summary: final_summary,
                         message_count: head_msg_count,
                         last_modified,
                         usage: None,
@@ -615,6 +677,7 @@ async fn list_all_chats(
 
         // Sort by last modified (newest first)
         session_files.sort_by(|a, b| b.3.cmp(&a.3));
+        let history_index = build_session_index_from_history();
 
         let mut all_chats: Vec<ChatMessage> = Vec::new();
 
@@ -622,6 +685,9 @@ async fn list_all_chats(
         for (path, project_id, project_path, _) in session_files {
             let session_id = path.file_stem().unwrap().to_string_lossy().to_string();
             let content = fs::read_to_string(&path).unwrap_or_default();
+            let history_display = history_index
+                .get(&(project_id.clone(), session_id.clone()))
+                .and_then(|(_, display)| display.clone());
 
             let mut session_summary: Option<String> = None;
             let mut session_messages: Vec<ChatMessage> = Vec::new();
@@ -631,10 +697,24 @@ async fn list_all_chats(
                     let line_type = parsed.line_type.as_deref();
 
                     if line_type == Some("summary") {
-                        session_summary = parsed.summary;
+                        session_summary = parsed.summary.clone();
                     }
 
-                    if line_type == Some("user") || line_type == Some("assistant") {
+                    if line_type == Some("summary") {
+                        let summary_text = parsed.summary.clone().unwrap_or_default();
+                        if !summary_text.trim().is_empty() {
+                            session_messages.push(ChatMessage {
+                                uuid: parsed.uuid.unwrap_or_default(),
+                                role: "summary".to_string(),
+                                content: summary_text,
+                                timestamp: parsed.timestamp.unwrap_or_default(),
+                                project_id: project_id.clone(),
+                                project_path: project_path.clone(),
+                                session_id: session_id.clone(),
+                                session_summary: None, // Will be filled later
+                            });
+                        }
+                    } else if line_type == Some("user") || line_type == Some("assistant") {
                         if let Some(msg) = &parsed.message {
                             let role = msg.role.clone().unwrap_or_default();
                             let (text_content, _is_tool) = extract_content_with_meta(&msg.content);
@@ -654,13 +734,31 @@ async fn list_all_chats(
                                 });
                             }
                         }
+                    } else if line_type == Some("system")
+                        && parsed.subtype.as_deref() == Some("local_command")
+                    {
+                        let is_meta = parsed.is_meta.unwrap_or(false);
+                        let text_content = parsed.content.clone().unwrap_or_default();
+                        if !is_meta && !text_content.trim().is_empty() {
+                            session_messages.push(ChatMessage {
+                                uuid: parsed.uuid.unwrap_or_default(),
+                                role: "system".to_string(),
+                                content: text_content,
+                                timestamp: parsed.timestamp.unwrap_or_default(),
+                                project_id: project_id.clone(),
+                                project_path: project_path.clone(),
+                                session_id: session_id.clone(),
+                                session_summary: None, // Will be filled later
+                            });
+                        }
                     }
                 }
             }
 
             // Update session_summary for all messages
+            let resolved_session_summary = resolve_session_summary(session_summary, history_display);
             for msg in &mut session_messages {
-                msg.session_summary = session_summary.clone();
+                msg.session_summary = resolved_session_summary.clone();
             }
 
             all_chats.extend(session_messages);
@@ -697,48 +795,208 @@ async fn get_session_messages(
             return Err("Session not found".to_string());
         }
 
-        let content = fs::read_to_string(&session_path).map_err(|e| e.to_string())?;
-        let mut messages = Vec::new();
+        let snapshot = read_session_messages_chunk(&session_path, 0, 0)?;
+        Ok(snapshot.messages)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 
-        for (idx, line) in content.lines().enumerate() {
-            if let Ok(parsed) = serde_json::from_str::<RawLine>(line) {
-                let line_type = parsed.line_type.as_deref();
-                if line_type == Some("user") || line_type == Some("assistant") {
-                    if let Some(msg) = &parsed.message {
-                        let role = msg.role.clone().unwrap_or_default();
-                        let (content, is_tool) = extract_content_with_meta(&msg.content);
-                        let is_meta = parsed.is_meta.unwrap_or(false);
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionMessagesChunk {
+    pub messages: Vec<Message>,
+    pub last_line: usize,
+    pub next_offset: u64,
+    pub reset_required: bool,
+}
 
-                        let has_structured_content = msg
-                            .content
-                            .as_ref()
-                            .map(|raw| match raw {
-                                serde_json::Value::String(text) => !text.trim().is_empty(),
-                                serde_json::Value::Array(items) => !items.is_empty(),
-                                serde_json::Value::Object(obj) => !obj.is_empty(),
-                                serde_json::Value::Null => false,
-                                _ => true,
-                            })
-                            .unwrap_or(false);
+fn parse_message_line(parsed: &RawLine, line_number: usize) -> Option<Message> {
+    let line_type = parsed.line_type.as_deref();
 
-                        if !content.trim().is_empty() || has_structured_content {
-                            messages.push(Message {
-                                uuid: parsed.uuid.unwrap_or_default(),
-                                role,
-                                content,
-                                raw_content: msg.content.clone(),
-                                timestamp: parsed.timestamp.unwrap_or_default(),
-                                is_meta,
-                                is_tool,
-                                line_number: idx + 1,
-                            });
-                        }
-                    }
-                }
-            }
+    if line_type == Some("summary") {
+        let summary_text = parsed.summary.clone().unwrap_or_default();
+        if summary_text.trim().is_empty() {
+            return None;
         }
 
-        Ok(messages)
+        return Some(Message {
+            uuid: parsed.uuid.clone().unwrap_or_default(),
+            role: "summary".to_string(),
+            content: summary_text,
+            raw_content: None,
+            timestamp: parsed.timestamp.clone().unwrap_or_default(),
+            is_meta: false,
+            is_tool: false,
+            line_number,
+        });
+    }
+
+    if line_type == Some("user") || line_type == Some("assistant") {
+        if let Some(msg) = &parsed.message {
+            let role = msg.role.clone().unwrap_or_default();
+            let (content, is_tool) = extract_content_with_meta(&msg.content);
+            let is_meta = parsed.is_meta.unwrap_or(false);
+
+            let has_structured_content = msg
+                .content
+                .as_ref()
+                .map(|raw| match raw {
+                    serde_json::Value::String(text) => !text.trim().is_empty(),
+                    serde_json::Value::Array(items) => !items.is_empty(),
+                    serde_json::Value::Object(obj) => !obj.is_empty(),
+                    serde_json::Value::Null => false,
+                    _ => true,
+                })
+                .unwrap_or(false);
+
+            if content.trim().is_empty() && !has_structured_content {
+                return None;
+            }
+
+            return Some(Message {
+                uuid: parsed.uuid.clone().unwrap_or_default(),
+                role,
+                content,
+                raw_content: msg.content.clone(),
+                timestamp: parsed.timestamp.clone().unwrap_or_default(),
+                is_meta,
+                is_tool,
+                line_number,
+            });
+        }
+
+        return None;
+    }
+
+    if line_type == Some("system") && parsed.subtype.as_deref() == Some("local_command") {
+        let content = parsed.content.clone().unwrap_or_default();
+        let is_meta = parsed.is_meta.unwrap_or(false);
+        if is_meta || content.trim().is_empty() {
+            return None;
+        }
+
+        return Some(Message {
+            uuid: parsed.uuid.clone().unwrap_or_default(),
+            role: "system".to_string(),
+            content,
+            raw_content: None,
+            timestamp: parsed.timestamp.clone().unwrap_or_default(),
+            is_meta,
+            is_tool: false,
+            line_number,
+        });
+    }
+
+    None
+}
+
+fn read_session_messages_chunk(
+    session_path: &Path,
+    from_line: usize,
+    from_offset: u64,
+) -> Result<SessionMessagesChunk, String> {
+    use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+
+    let metadata = fs::metadata(session_path).map_err(|e| e.to_string())?;
+    let file_len = metadata.len();
+
+    let mut effective_line = from_line;
+    let mut effective_offset = from_offset;
+    let mut reset_required = false;
+
+    if effective_offset > file_len {
+        effective_line = 0;
+        effective_offset = 0;
+        reset_required = true;
+    }
+
+    let mut file = fs::File::open(session_path).map_err(|e| e.to_string())?;
+
+    if effective_offset > 0 {
+        file.seek(SeekFrom::Start(effective_offset.saturating_sub(1)))
+            .map_err(|e| e.to_string())?;
+        let mut marker = [0_u8; 1];
+        file.read_exact(&mut marker).map_err(|e| e.to_string())?;
+        if marker[0] != b'\n' && effective_offset < file_len {
+            effective_line = 0;
+            effective_offset = 0;
+            reset_required = true;
+        }
+    }
+
+    file.seek(SeekFrom::Start(effective_offset))
+        .map_err(|e| e.to_string())?;
+
+    let mut reader = BufReader::new(file);
+    let mut messages = Vec::new();
+    let mut buffer = String::new();
+    let mut line_number = effective_line;
+    let mut next_offset = effective_offset;
+
+    loop {
+        buffer.clear();
+        let bytes_read = reader.read_line(&mut buffer).map_err(|e| e.to_string())?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        line_number += 1;
+        next_offset += bytes_read as u64;
+
+        if let Ok(parsed) = serde_json::from_str::<RawLine>(&buffer) {
+            if let Some(message) = parse_message_line(&parsed, line_number) {
+                messages.push(message);
+            }
+        }
+    }
+
+    Ok(SessionMessagesChunk {
+        messages,
+        last_line: line_number,
+        next_offset,
+        reset_required,
+    })
+}
+
+#[tauri::command]
+async fn get_session_messages_snapshot(
+    project_id: String,
+    session_id: String,
+) -> Result<SessionMessagesChunk, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let session_path = get_claude_dir()
+            .join("projects")
+            .join(&project_id)
+            .join(format!("{}.jsonl", session_id));
+
+        if !session_path.exists() {
+            return Err("Session not found".to_string());
+        }
+
+        read_session_messages_chunk(&session_path, 0, 0)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn get_session_messages_delta(
+    project_id: String,
+    session_id: String,
+    from_line: usize,
+    from_offset: u64,
+) -> Result<SessionMessagesChunk, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let session_path = get_claude_dir()
+            .join("projects")
+            .join(&project_id)
+            .join(format!("{}.jsonl", session_id));
+
+        if !session_path.exists() {
+            return Err("Session not found".to_string());
+        }
+
+        read_session_messages_chunk(&session_path, from_line, from_offset)
     })
     .await
     .map_err(|e| e.to_string())?
