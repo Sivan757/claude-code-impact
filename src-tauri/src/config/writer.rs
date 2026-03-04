@@ -41,6 +41,10 @@ pub fn write_config(
         None
     };
 
+    // settings.json is edited frequently from UI controls; suppress automatic
+    // timestamped backups to avoid generating a new backup on every small change.
+    let create_backup = create_backup && kind != ConfigFileKind::Settings;
+
     // Create backup if requested and file exists
     let backup_path = if create_backup && path.exists() {
         Some(create_backup_file(path)?)
@@ -301,6 +305,38 @@ mod tests {
     #[test]
     fn test_write_and_backup() {
         let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("settings.local.json");
+
+        // Initial write
+        let value1 = json!({"model": "opus"});
+        write_config(
+            &config_path,
+            ConfigFileKind::SettingsLocal,
+            ConfigScope::User,
+            &value1,
+            false,
+        )
+        .unwrap();
+
+        assert!(config_path.exists());
+
+        // Second write with backup
+        let value2 = json!({"model": "sonnet"});
+        let result = write_config(
+            &config_path,
+            ConfigFileKind::SettingsLocal,
+            ConfigScope::User,
+            &value2,
+            true,
+        )
+        .unwrap();
+
+        assert!(result.backup_path.is_some());
+    }
+
+    #[test]
+    fn test_settings_write_skips_auto_backup() {
+        let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("settings.json");
 
         // Initial write
@@ -314,9 +350,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(config_path.exists());
-
-        // Second write with backup
+        // Follow-up write still should not create a backup for settings.json
         let value2 = json!({"model": "sonnet"});
         let result = write_config(
             &config_path,
@@ -327,7 +361,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(result.backup_path.is_some());
+        assert!(result.backup_path.is_none());
     }
 
     #[test]

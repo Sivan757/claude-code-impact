@@ -24,6 +24,7 @@ interface NavigatorEntry {
   id: string;
   role: string;
   preview: string;
+  searchText: string;
   timestamp: string;
 }
 
@@ -107,11 +108,24 @@ function getPreview(
   return stripTeammateMessageTags(toReadable(message.content));
 }
 
+function toCompactPreview(text: string, maxLength = 160): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength)}...`;
+}
+
 function getRoleLabel(role: string): string {
   return i18n.t(`chat.roles.${role}`, { defaultValue: role });
 }
 
 function getRoleAccentClass(role: string): string {
+  if (role === "assistant") {
+    return "text-sky-700 dark:text-sky-300";
+  }
+  if (role === "user") {
+    return "text-orange-700 dark:text-orange-300";
+  }
   if (role === "teammate" || role === "summary") {
     return "text-amber-700 dark:text-amber-300";
   }
@@ -119,6 +133,27 @@ function getRoleAccentClass(role: string): string {
     return "text-emerald-700 dark:text-emerald-300";
   }
   return "text-primary";
+}
+
+function getRoleCardClass(role: string, active: boolean): string {
+  if (role === "assistant") {
+    return active
+      ? "border-sky-500/55 bg-sky-500/[0.12] ring-1 ring-sky-500/30"
+      : "border-sky-500/30 bg-sky-500/[0.04] hover:border-sky-500/45 hover:bg-sky-500/[0.08]";
+  }
+  if (role === "user") {
+    return active
+      ? "border-orange-500/55 bg-orange-500/[0.12] ring-1 ring-orange-500/30"
+      : "border-orange-500/30 bg-orange-500/[0.04] hover:border-orange-500/45 hover:bg-orange-500/[0.08]";
+  }
+  if (role === "tool") {
+    return active
+      ? "border-emerald-500/55 bg-emerald-500/[0.12] ring-1 ring-emerald-500/30"
+      : "border-emerald-500/30 bg-emerald-500/[0.04] hover:border-emerald-500/45 hover:bg-emerald-500/[0.08]";
+  }
+  return active
+    ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/20"
+    : "border-border bg-background hover:border-primary/30 hover:bg-card";
 }
 
 export function MessageNavigator({
@@ -141,14 +176,15 @@ export function MessageNavigator({
     const allEntries = messages.map((message) => ({
       id: `${message.uuid}:${message.line_number}`,
       role: getDisplayRole(message),
-      preview: getPreview(message, toReadable),
+      preview: toCompactPreview(getPreview(message, toReadable)),
+      searchText: getPreview(message, toReadable).toLowerCase(),
       timestamp: message.timestamp,
     }));
 
     const keyword = filterText.trim().toLowerCase();
     if (!keyword) return allEntries;
     return allEntries.filter((entry) =>
-      entry.preview.toLowerCase().includes(keyword) ||
+      entry.searchText.includes(keyword) ||
       entry.role.toLowerCase().includes(keyword),
     );
   }, [filterText, messages, toReadable, i18n.language]);
@@ -183,8 +219,16 @@ export function MessageNavigator({
           <PanelRight className="h-4 w-4" />
         </button>
         <div className="my-2 h-px w-6 bg-border/60" />
-        <ListTree className="h-4 w-4 text-muted-foreground" />
-        <span className="mt-1 text-[10px] font-mono text-muted-foreground">{messages.length}</span>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="flex w-9 flex-col items-center rounded-md py-1 text-muted-foreground transition-colors hover:bg-background hover:text-ink"
+          aria-label={t("chat.expand_navigator")}
+          title={t("chat.expand_navigator")}
+        >
+          <ListTree className="h-4 w-4" />
+          <span className="mt-1 text-[10px] font-mono">{messages.length}</span>
+        </button>
       </aside>
     );
   }
@@ -251,7 +295,7 @@ export function MessageNavigator({
           ref={listRef}
           className="min-h-0 flex-1 overflow-y-auto px-2 py-2 scroll-smooth"
         >
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {entries.map((entry) => {
               const active = selectedMessageId === entry.id;
               return (
@@ -268,9 +312,7 @@ export function MessageNavigator({
                   onClick={() => onSelectMessage(entry.id)}
                   className={cn(
                     "w-full rounded-md border px-2 py-1.5 text-left transition-all duration-200 ease-out",
-                    active
-                      ? "border-primary bg-primary/10 shadow-xs"
-                      : "border-border bg-background",
+                    getRoleCardClass(entry.role, active),
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -283,7 +325,7 @@ export function MessageNavigator({
                       {entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : ""}
                     </span>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-ink">
+                  <p className="mt-0.5 truncate text-xs leading-4 text-ink">
                     {entry.preview || t("chat.navigator.empty_preview")}
                   </p>
                 </button>

@@ -1,35 +1,27 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { DotsHorizontalIcon } from "@radix-ui/react-icons";
+import { useQuery } from "@tanstack/react-query";
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Virtuoso } from "react-virtuoso";
 
-import { SessionDropdownMenuItems } from "@/components/shared/SessionMenuItems";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@/hooks";
 import { cn } from "@/lib/utils";
-import type { Project, SearchResult, Session } from "@/types";
+import type { Project, SearchResult } from "@/types";
 
-import { LoadingOverlayMask } from "./LoadingOverlayMask";
-import { formatDate, formatRelativeTime, stripTeammateMessageTags, useReadableText } from "./utils";
-import { useMinimumLoadingOverlay } from "./useMinimumLoadingOverlay";
+import { HistoryProjectThreadGroup } from "./HistoryProjectThreadGroup";
+import { formatRelativeTime, restoreSlashCommand, stripTeammateMessageTags } from "./utils";
 import { useResizablePanel } from "./useResizablePanel";
 
-const SEARCH_DEBOUNCE_MS = 280;
 const SIDEBAR_COLLAPSE_BREAKPOINT = 1080;
+const SEARCH_DEBOUNCE_MS = 280;
 
 interface HistorySessionListPaneProps {
   projects: Project[];
   loadingProjects: boolean;
   selectedProjectId: string | null;
-  selectedProject: Project | null;
   selectedSessionId: string | null;
-  visibleSessions: Session[];
-  loadingSessions: boolean;
   formatPath: (path: string) => string;
   onOpenProject: (projectId: string) => void;
   onOpenSession: (projectId: string, sessionId: string) => void;
@@ -40,58 +32,59 @@ function getInitialWindowCollapse(breakpoint: number, fallback: boolean): boolea
   return window.innerWidth < breakpoint;
 }
 
+function formatSearchTimestamp(timestamp: string): string {
+  const numeric = Number(timestamp);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    const seconds = numeric > 1_000_000_000_000 ? numeric / 1000 : numeric;
+    return formatRelativeTime(seconds);
+  }
+
+  const parsed = Date.parse(timestamp);
+  if (Number.isFinite(parsed)) {
+    return formatRelativeTime(parsed / 1000);
+  }
+
+  return "";
+}
+
+function toReadableText(text: string | null | undefined): string {
+  return stripTeammateMessageTags(restoreSlashCommand(text ?? ""));
+}
+
 export function HistorySessionListPane(props: HistorySessionListPaneProps): ReactNode {
   const {
     projects,
     loadingProjects,
     selectedProjectId,
-    selectedProject,
     selectedSessionId,
-    visibleSessions,
-    loadingSessions,
     formatPath,
     onOpenProject,
     onOpenSession,
   } = props;
   const { t } = useTranslation();
-  const toReadable = useReadableText();
+  const queryClient = useQueryClient();
 
   const [projectFilter, setProjectFilter] = useState("");
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [searchIndexMissing, setSearchIndexMissing] = useState(false);
-  const [buildingIndex, setBuildingIndex] = useState(false);
-  const [searchTick, setSearchTick] = useState(0);
-  const [sidebarTab, setSidebarTab] = useState<"projects" | "sessions">("sessions");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     getInitialWindowCollapse(SIDEBAR_COLLAPSE_BREAKPOINT, false),
   );
+  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(new Set());
+  const [searchTick, setSearchTick] = useState(0);
+  const [buildingIndex, setBuildingIndex] = useState(false);
+  const [showFullProjectPath, setShowFullProjectPath] = useState(false);
 
   const {
     width: sidebarWidth,
     isResizing: sidebarResizing,
     onResizeStart: onSidebarResizeStart,
   } = useResizablePanel({
-    defaultWidth: 332,
-    minWidth: 250,
-    maxWidth: 560,
+    defaultWidth: 360,
+    minWidth: 270,
+    maxWidth: 620,
     storageKey: "chat-history-sidebar-width",
   });
-
-  const sessionListOverlay = useMinimumLoadingOverlay(loadingSessions, {
-    minimumDurationMs: 180,
-  });
-
-  const filteredProjects = useMemo(() => {
-    const keyword = projectFilter.trim().toLowerCase();
-    if (!keyword) return projects;
-    return projects.filter(
-      (project) =>
-        project.path.toLowerCase().includes(keyword) ||
-        formatPath(project.path).toLowerCase().includes(keyword),
-    );
-  }, [formatPath, projectFilter, projects]);
 
   useEffect(() => {
     const onResize = () => {
@@ -104,159 +97,167 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
   }, []);
 
   useEffect(() => {
-    if (!selectedProjectId) {
-      setSearchResults(null);
-      setSearching(false);
-      return;
-    }
+    if (!selectedProjectId) return;
+    setExpandedProjectIds((prev) => {
+      if (prev.has(selectedProjectId)) return prev;
+      const next = new Set(prev);
+      next.add(selectedProjectId);
+      return next;
+    });
+  }, [selectedProjectId]);
 
-    const query = sessionSearchQuery.trim();
-    if (!query) {
-      setSearchResults(null);
-      setSearching(false);
-      setSearchIndexMissing(false);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      setSearching(true);
-      try {
-        const results = await invoke<SearchResult[]>("search_chats", {
-          query,
-          limit: 80,
-          projectId: selectedProjectId,
-        });
-        if (!cancelled) {
-          setSearchResults(results);
-          setSearchIndexMissing(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          const message = String(error).toLowerCase();
-          setSearchIndexMissing(message.includes("not built"));
-          setSearchResults([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setSearching(false);
-        }
-      }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(sessionSearchQuery.trim());
     }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [sessionSearchQuery]);
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [searchTick, selectedProjectId, sessionSearchQuery]);
+  useEffect(() => {
+    if (!sessionSearchQuery.trim()) return;
+    void queryClient.cancelQueries({ queryKey: ["chatSessionSearch"] });
+  }, [queryClient, sessionSearchQuery]);
 
-  const rebuildIndex = async () => {
+  const filteredProjects = useMemo(() => {
+    const keyword = projectFilter.trim().toLowerCase();
+    if (!keyword) return projects;
+    return projects.filter(
+      (project) =>
+        project.path.toLowerCase().includes(keyword)
+        || formatPath(project.path).toLowerCase().includes(keyword),
+    );
+  }, [formatPath, projectFilter, projects]);
+
+  const inSearchMode = debouncedSearchQuery.length > 0;
+
+  const formatProjectLabel = useCallback((path: string): string => {
+    if (showFullProjectPath) return formatPath(path);
+    const normalized = path.replace(/[\\/]+$/, "");
+    if (!normalized) return path;
+    const segments = normalized.split(/[\\/]/).filter(Boolean);
+    return segments[segments.length - 1] ?? path;
+  }, [formatPath, showFullProjectPath]);
+
+  const {
+    data: searchResults = [],
+    isFetching: searching,
+    error: searchError,
+  } = useQuery<SearchResult[]>({
+    queryKey: ["chatSessionSearch", debouncedSearchQuery, searchTick],
+    enabled: inSearchMode,
+    queryFn: async () => invoke<SearchResult[]>("search_chats", {
+      query: debouncedSearchQuery,
+      limit: 120,
+    }),
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const searchErrorMessage = useMemo(
+    () => (searchError ? String(searchError).toLowerCase() : ""),
+    [searchError],
+  );
+  const searchIndexMissing = inSearchMode && searchErrorMessage.includes("not built");
+
+  const rebuildIndex = useCallback(async () => {
     if (buildingIndex) return;
     setBuildingIndex(true);
     try {
       await invoke<number>("build_search_index");
-      setSearchIndexMissing(false);
       setSearchTick((value) => value + 1);
-    } catch {
-      setSearchIndexMissing(true);
+      await queryClient.invalidateQueries({ queryKey: ["chatSessionSearch"] });
     } finally {
       setBuildingIndex(false);
     }
-  };
+  }, [buildingIndex, queryClient]);
 
-  const handleOpenProject = (projectId: string) => {
-    sessionListOverlay.show();
+  const handleToggleProjectExpanded = useCallback((projectId: string) => {
+    setExpandedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleOpenProject = useCallback((projectId: string) => {
+    setExpandedProjectIds((prev) => {
+      if (prev.has(projectId)) return prev;
+      const next = new Set(prev);
+      next.add(projectId);
+      return next;
+    });
     onOpenProject(projectId);
-    setSidebarTab("sessions");
-  };
+  }, [onOpenProject]);
 
-  const handleOpenSession = (projectId: string, sessionId: string) => {
-    onOpenSession(projectId, sessionId);
-    setSidebarTab("sessions");
-  };
-
-  const renderSessionListContent = (): ReactNode => {
-    if (sessionSearchQuery.trim() && searchResults !== null) {
+  const renderSearchResults = () => {
+    if (searchIndexMissing) {
       return (
-        <div className="space-y-2">
-          <p className="px-1 text-xs text-muted-foreground">
-            {t("session.search_results", { count: searchResults.length })}
-          </p>
-          {searchResults.map((result) => (
-            <button
-              key={result.uuid}
-              type="button"
-              onClick={() => handleOpenSession(result.project_id, result.session_id)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-left transition-all duration-200 ease-out"
-            >
-              <p className="line-clamp-1 text-xs text-muted-foreground">
-                {stripTeammateMessageTags(toReadable(result.session_summary)) || t("chat.untitled_session")}
-              </p>
-              <p className="line-clamp-2 text-sm text-ink">
-                {stripTeammateMessageTags(toReadable(result.content))}
-              </p>
-            </button>
-          ))}
-          {searchResults.length === 0 ? (
-            <p className="p-3 text-sm text-muted-foreground">{t("session.no_results")}</p>
-          ) : null}
+        <div className="rounded-lg border border-border bg-background p-3">
+          <p className="text-xs text-muted-foreground">{t("chat.index_not_built")}</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2 h-7 px-2 text-xs"
+            disabled={buildingIndex}
+            onClick={rebuildIndex}
+          >
+            {buildingIndex ? t("chat.building") : t("chat.rebuild")}
+          </Button>
         </div>
       );
     }
 
-    if (visibleSessions.length === 0) {
-      return <p className="p-3 text-sm text-muted-foreground">{t("chat.no_sessions")}</p>;
+    if (searching) {
+      return (
+        <p className="p-3 text-sm text-muted-foreground">
+          {t("chat.loading", { viewMode: t("session.search_results", { count: 0 }) })}
+        </p>
+      );
+    }
+
+    if (searchResults.length === 0) {
+      return <p className="p-3 text-sm text-muted-foreground">{t("session.no_results")}</p>;
     }
 
     return (
-      <div className="space-y-2">
-        {visibleSessions.map((session) => {
-          const selected = session.id === selectedSessionId;
-          return (
-            <div
-              key={session.id}
-              className={cn(
-                "group rounded-xl border px-3 py-2 transition-all duration-200 ease-out",
-                selected
-                  ? "border-primary bg-primary/10 shadow-xs"
-                  : "border-border bg-background",
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
+      <div className="flex h-full min-h-0 flex-col">
+        <p className="px-1 pb-2 text-xs text-muted-foreground">
+          {t("session.search_results", { count: searchResults.length })}
+        </p>
+        <div className="min-h-0 flex-1">
+        <Virtuoso
+          style={{ height: "100%" }}
+          data={searchResults}
+          overscan={300}
+          itemContent={(_index, result) => {
+              const sessionTitle = toReadableText(result.session_summary) || t("chat.untitled_session");
+              const snippet = toReadableText(result.content);
+              const timeLabel = formatSearchTimestamp(result.timestamp);
+            return (
+              <div className="pb-1.5">
                 <button
+                  key={`${result.project_id}:${result.session_id}:${result.uuid}`}
                   type="button"
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => handleOpenSession(session.project_id, session.id)}
+                  onClick={() => onOpenSession(result.project_id, result.session_id)}
+                  className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-left transition-colors hover:bg-card-alt/60"
                 >
-                  <p className="line-clamp-2 text-sm font-medium text-ink">
-                    {stripTeammateMessageTags(toReadable(session.summary)) || t("chat.untitled_session")}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("chat.message_count", { count: session.message_count })} ·{" "}
-                    {formatDate(session.last_modified)}
+                  <p className="line-clamp-1 text-[13px] font-medium leading-tight text-ink">{sessionTitle}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{snippet}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    {formatProjectLabel(result.project_path)}
+                    {timeLabel ? ` · ${timeLabel}` : ""}
                   </p>
                 </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-card-alt hover:text-ink"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <DotsHorizontalIcon />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <SessionDropdownMenuItems
-                      projectId={session.project_id}
-                      sessionId={session.id}
-                    />
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
-            </div>
-          );
-        })}
+              );
+            }}
+          />
+        </div>
       </div>
     );
   };
@@ -264,7 +265,7 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
   return (
     <aside
       className={cn(
-        "relative h-full shrink-0 border-r border-border/60 bg-card-alt/40",
+        "relative h-full min-h-0 shrink-0 border-r border-border/60 bg-card-alt/40 flex flex-col",
         !sidebarResizing && "transition-[width] duration-200 ease-out",
         sidebarResizing && "select-none",
       )}
@@ -284,148 +285,82 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
             onMouseDown={onSidebarResizeStart}
           />
 
-          <header className="border-b border-border/60 px-3 py-2">
+          <header className="shrink-0 border-b border-border/60 px-3 py-2">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t("chat.workspace")}
+                {t("chat.title")}
               </p>
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed(true)}
-                className="rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-ink"
-                aria-label={t("chat.collapse_sidebar")}
-              >
-                <PanelLeftClose className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="rounded px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-background hover:text-ink"
+                  onClick={() => setShowFullProjectPath((value) => !value)}
+                  title={showFullProjectPath
+                    ? t("chat.use_short_project_name", "Use folder name")
+                    : t("chat.show_full_project_path", "Show full path")}
+                >
+                  {showFullProjectPath
+                    ? t("chat.path_mode_name", "Name")
+                    : t("chat.path_mode_path", "Path")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-ink"
+                  aria-label={t("chat.collapse_sidebar")}
+                >
+                  <PanelLeftClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
-            <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
-              <button
-                type="button"
-                onClick={() => setSidebarTab("projects")}
-                className={cn(
-                  "h-7 flex-1 rounded-md px-2 text-xs font-medium",
-                  sidebarTab === "projects"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-card-alt",
-                )}
-              >
-                {t("chat.projects")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSidebarTab("sessions")}
-                className={cn(
-                  "h-7 flex-1 rounded-md px-2 text-xs font-medium",
-                  sidebarTab === "sessions"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-card-alt",
-                )}
-              >
-                {t("chat.sessions")}
-              </button>
+            <div className="space-y-2">
+              <input
+                value={projectFilter}
+                onChange={(event) => setProjectFilter(event.target.value)}
+                placeholder={t("chat.project_filter_placeholder")}
+                className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-ink placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <input
+                value={sessionSearchQuery}
+                onChange={(event) => setSessionSearchQuery(event.target.value)}
+                placeholder={t("session.search_placeholder")}
+                className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-ink placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
             </div>
           </header>
 
-          {sidebarTab === "projects" ? (
-            <div
-              key="projects-panel"
-              className="flex h-full min-h-0 flex-col motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2"
-            >
-              <div className="border-b border-border/60 p-3">
-                <input
-                  value={projectFilter}
-                  onChange={(event) => setProjectFilter(event.target.value)}
-                  placeholder={t("chat.project_filter_placeholder")}
-                  className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-ink placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                />
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                {loadingProjects ? (
-                  <p className="p-3 text-sm text-muted-foreground">
-                    {t("chat.loading", { viewMode: t("chat.projects") })}
-                  </p>
-                ) : filteredProjects.length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">
-                    {t("chat.no_projects")}
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredProjects.map((project) => {
-                      const selected = project.id === selectedProjectId;
-                      return (
-                        <button
-                          key={project.id}
-                          type="button"
-                          onClick={() => handleOpenProject(project.id)}
-                          className={cn(
-                            "w-full rounded-xl border px-3 py-2 text-left transition-all duration-200 ease-out",
-                            selected
-                              ? "border-primary bg-primary/10 shadow-xs"
-                              : "border-border bg-background",
-                          )}
-                        >
-                          <p className="truncate text-sm font-medium text-ink">
-                            {formatPath(project.path)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {t("chat.session_count", { count: project.session_count })} ·{" "}
-                            {formatRelativeTime(project.last_active)}
-                          </p>
-                        </button>
-                      );
-                    })}
+          <div className="min-h-0 flex-1 p-2">
+            {loadingProjects ? (
+              <p className="p-3 text-sm text-muted-foreground">
+                {t("chat.loading", { viewMode: t("chat.projects") })}
+              </p>
+            ) : inSearchMode ? (
+              renderSearchResults()
+            ) : filteredProjects.length === 0 ? (
+              <p className="p-3 text-sm text-muted-foreground">{t("chat.no_projects")}</p>
+            ) : (
+              <Virtuoso
+                style={{ height: "100%" }}
+                data={filteredProjects}
+                overscan={360}
+                itemContent={(_index, project) => (
+                  <div className="pb-1.5">
+                    <HistoryProjectThreadGroup
+                      project={project}
+                      projectLabel={formatProjectLabel(project.path)}
+                      projectTitle={formatPath(project.path)}
+                      selectedProjectId={selectedProjectId}
+                      selectedSessionId={selectedSessionId}
+                      expanded={expandedProjectIds.has(project.id)}
+                      onToggleExpanded={handleToggleProjectExpanded}
+                      onOpenProject={handleOpenProject}
+                      onOpenSession={onOpenSession}
+                    />
                   </div>
                 )}
-              </div>
-            </div>
-          ) : (
-            <div
-              key="sessions-panel"
-              className="flex h-full min-h-0 flex-col motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2"
-            >
-              <div className="border-b border-border/60 p-3">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-xs uppercase tracking-wide text-muted-foreground">
-                    {selectedProject ? formatPath(selectedProject.path) : t("chat.sessions")}
-                  </p>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    value={sessionSearchQuery}
-                    onChange={(event) => setSessionSearchQuery(event.target.value)}
-                    placeholder={t("session.search_placeholder")}
-                    className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-ink placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                  />
-                  {searching ? <span className="text-xs text-muted-foreground">...</span> : null}
-                </div>
-                {searchIndexMissing ? (
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5">
-                    <span className="text-xs text-muted-foreground">{t("chat.index_not_built")}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-xs"
-                      disabled={buildingIndex}
-                      onClick={rebuildIndex}
-                    >
-                      {buildingIndex ? t("chat.building") : t("chat.rebuild")}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-
-              <div
-                key={`session-list-${selectedProjectId ?? "none"}`}
-                className="relative min-h-0 flex-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-1"
-              >
-                <div className="h-full overflow-y-auto p-2">{renderSessionListContent()}</div>
-                <LoadingOverlayMask
-                  label={t("session.loading_project")}
-                  visible={sessionListOverlay.visible}
-                />
-              </div>
-            </div>
-          )}
+              />
+            )}
+          </div>
         </>
       ) : (
         <div className="flex h-full flex-col items-center py-2">
@@ -440,32 +375,8 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
           <div className="my-2 h-px w-6 bg-border/60" />
           <button
             type="button"
-            onClick={() => {
-              setSidebarCollapsed(false);
-              setSidebarTab("projects");
-            }}
-            className={cn(
-              "mb-1 flex h-8 w-8 items-center justify-center rounded-md text-xs",
-              sidebarTab === "projects"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-background",
-            )}
-            aria-label={t("chat.projects")}
-          >
-            P
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSidebarCollapsed(false);
-              setSidebarTab("sessions");
-            }}
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-md text-xs",
-              sidebarTab === "sessions"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-background",
-            )}
+            onClick={() => setSidebarCollapsed(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-xs text-muted-foreground transition-colors hover:bg-background"
             aria-label={t("chat.sessions")}
           >
             S

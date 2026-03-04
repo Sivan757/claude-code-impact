@@ -152,7 +152,11 @@ async fn list_projects() -> Result<Vec<Project>, String> {
 }
 
 #[tauri::command]
-async fn list_sessions(project_id: String) -> Result<Vec<Session>, String> {
+async fn list_sessions(
+    project_id: String,
+    offset: Option<usize>,
+    limit: Option<usize>,
+) -> Result<Vec<Session>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let project_dir = get_claude_dir().join("projects").join(&project_id);
 
@@ -198,7 +202,14 @@ async fn list_sessions(project_id: String) -> Result<Vec<Session>, String> {
         }
 
         sessions.sort_by(|a, b| b.last_modified.cmp(&a.last_modified));
-        Ok(sessions)
+
+        let skip = offset.unwrap_or(0);
+        let paged = match limit {
+            Some(take) => sessions.into_iter().skip(skip).take(take).collect(),
+            None => sessions.into_iter().skip(skip).collect(),
+        };
+
+        Ok(paged)
     })
     .await
     .map_err(|e| e.to_string())?

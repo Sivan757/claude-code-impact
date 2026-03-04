@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAppConfig } from "@/context";
-import { useInvokeQuery } from "@/hooks";
+import { useInvokeQuery, useQueryClient } from "@/hooks";
 import type { Project, Session } from "@/types";
 
 import { HistorySessionDetailPane } from "./HistorySessionDetailPane";
@@ -12,11 +12,6 @@ import { HistorySessionListPane } from "./HistorySessionListPane";
 
 const SESSIONS_REFRESH_MS = 8000;
 const PROJECTS_REFRESH_MS = 20000;
-
-type HistoryRouteParams = {
-  projectId?: string;
-  sessionId?: string;
-};
 
 function safeDecodePath(value?: string): string | null {
   if (!value) return null;
@@ -27,13 +22,29 @@ function safeDecodePath(value?: string): string | null {
   }
 }
 
+function parseHistoryRoute(pathname: string): {
+  projectId: string | null;
+  sessionId: string | null;
+} {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] !== "chat") {
+    return { projectId: null, sessionId: null };
+  }
+  return {
+    projectId: safeDecodePath(segments[1] ?? undefined),
+    sessionId: safeDecodePath(segments[2] ?? undefined),
+  };
+}
+
 export function HistoryWorkbench() {
   const { formatPath } = useAppConfig();
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<HistoryRouteParams>();
-  const routeProjectId = safeDecodePath(params.projectId);
-  const routeSessionId = safeDecodePath(params.sessionId);
+  const queryClient = useQueryClient();
+  const previousProjectIdRef = useRef<string | null>(null);
+  const routeInfo = useMemo(() => parseHistoryRoute(location.pathname), [location.pathname]);
+  const routeProjectId = routeInfo.projectId;
+  const routeSessionId = routeInfo.sessionId;
 
   const {
     data: projects = [],
@@ -71,22 +82,40 @@ export function HistoryWorkbench() {
   );
 
   const selectedSessionId = useMemo(() => {
-    if (!routeSessionId) return null;
-    if (!visibleSessions.some((session) => session.id === routeSessionId)) {
-      return null;
-    }
-    return routeSessionId;
-  }, [routeSessionId, visibleSessions]);
-
-  const selectedProject = useMemo(
-    () => projects.find((project) => project.id === selectedProjectId) ?? null,
-    [projects, selectedProjectId],
-  );
+    if (!selectedProjectId || !routeSessionId) return null;
+    const matched = visibleSessions.some(
+      (session) =>
+        session.project_id === selectedProjectId
+        && session.id === routeSessionId,
+    );
+    if (matched) return routeSessionId;
+    // Keep session id during initial loading so first click navigation is not dropped.
+    if (loadingSessions) return routeSessionId;
+    return null;
+  }, [loadingSessions, routeSessionId, selectedProjectId, visibleSessions]);
 
   const selectedSessionSummary = useMemo(
-    () => visibleSessions.find((session) => session.id === selectedSessionId)?.summary ?? null,
-    [selectedSessionId, visibleSessions],
+    () => visibleSessions.find(
+      (session) =>
+        session.project_id === selectedProjectId
+        && session.id === selectedSessionId,
+    )?.summary ?? null,
+    [selectedProjectId, selectedSessionId, visibleSessions],
   );
+
+  useEffect(() => {
+    const previousProjectId = previousProjectIdRef.current;
+    if (
+      previousProjectId
+      && selectedProjectId
+      && previousProjectId !== selectedProjectId
+    ) {
+      void queryClient.cancelQueries({
+        queryKey: ["sessions", previousProjectId],
+      });
+    }
+    previousProjectIdRef.current = selectedProjectId;
+  }, [queryClient, selectedProjectId]);
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -121,13 +150,13 @@ export function HistoryWorkbench() {
     return () => window.clearInterval(timer);
   }, [refetchSessions, selectedProjectId]);
 
-  const openProject = (projectId: string) => {
+  const openProject = useCallback((projectId: string) => {
     navigate(`/chat/${encodeURIComponent(projectId)}`);
-  };
+  }, [navigate]);
 
-  const openSession = (projectId: string, sessionId: string) => {
+  const openSession = useCallback((projectId: string, sessionId: string) => {
     navigate(`/chat/${encodeURIComponent(projectId)}/${encodeURIComponent(sessionId)}`);
-  };
+  }, [navigate]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
@@ -136,10 +165,7 @@ export function HistoryWorkbench() {
           projects={projects}
           loadingProjects={loadingProjects}
           selectedProjectId={selectedProjectId}
-          selectedProject={selectedProject}
           selectedSessionId={selectedSessionId}
-          visibleSessions={visibleSessions}
-          loadingSessions={loadingSessions}
           formatPath={formatPath}
           onOpenProject={openProject}
           onOpenSession={openSession}

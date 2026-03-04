@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.5
+
+- Unify project and conversation history navigation into a grouped `Project -> Threads` sidebar with lazy session pagination.
+- Replace split chat route files with catch-all route handling to keep project/session navigation stable.
+- Fix large-session message browsing: improve bottom jump reliability and dedupe repeated message rows in the detail pane.
+- Improve navigator usability with compact rows, clickable collapsed counter, and clearer role-based color distinction between user and assistant.
+- Prevent `settings.json` writes from generating timestamped backup files on every small update.
+
 ## 0.1.3
 
 - Refactor Chat History into split panes (`HistorySessionListPane` / `HistorySessionDetailPane`) to reduce cross-pane rerender jitter.

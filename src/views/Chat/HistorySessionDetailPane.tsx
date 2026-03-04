@@ -1,4 +1,13 @@
-import { memo, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +42,8 @@ import { useResizablePanel } from "./useResizablePanel";
 
 const MESSAGE_REFRESH_MS = 1800;
 const NAVIGATOR_COLLAPSE_BREAKPOINT = 1380;
+const EDGE_JUMP_RETRY_MS = 56;
+const EDGE_JUMP_RELEASE_MS = 180;
 
 interface HistorySessionDetailPaneProps {
   selectedProjectId: string | null;
@@ -139,6 +150,21 @@ function getMessageId(message: Message): string {
   return `${message.uuid}:${message.line_number}`;
 }
 
+function dedupeMessagesByLine(messages: Message[]): Message[] {
+  if (messages.length <= 1) return messages;
+
+  const seenLines = new Set<number>();
+  const deduped: Message[] = [];
+  for (const message of messages) {
+    if (seenLines.has(message.line_number)) {
+      continue;
+    }
+    seenLines.add(message.line_number);
+    deduped.push(message);
+  }
+  return deduped;
+}
+
 function canMergeAssistantMessage(message: Message): boolean {
   return message.role === "assistant";
 }
@@ -242,13 +268,21 @@ function clearTimer(timerRef: MutableRefObject<number | null>): void {
   }
 }
 
+function clearAnimationFrame(frameRef: MutableRefObject<number | null>): void {
+  if (frameRef.current !== null) {
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+  }
+}
+
 function FastScrollPlaceholder(props: ScrollSeekPlaceholderProps): ReactNode {
   const { height } = props;
+  const placeholderHeight = Number.isFinite(height) ? Math.max(72, height) : 72;
   return (
     <div className="px-4 pb-3">
       <div
         className="rounded-xl border border-border/70 bg-card-alt/70 animate-pulse"
-        style={{ height: Math.max(72, height) }}
+        style={{ height: placeholderHeight }}
       />
     </div>
   );
@@ -276,6 +310,10 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
   const messageCursorRef = useRef<{ line: number; offset: number }>({ line: 0, offset: 0 });
   const messageSyncingRef = useRef(false);
   const previousSessionKeyRef = useRef<string | null>(null);
+  const edgeJumpFrameRef = useRef<number | null>(null);
+  const edgeJumpRetryTimerRef = useRef<number | null>(null);
+  const edgeJumpReleaseTimerRef = useRef<number | null>(null);
+  const edgeJumpInProgressRef = useRef(false);
 
   const {
     width: navigatorWidth,
@@ -477,6 +515,49 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
 
   const loadingMessages = loadingMessageSnapshot && liveMessages.length === 0;
 
+  const clearEdgeJumpScheduling = useCallback(() => {
+    clearAnimationFrame(edgeJumpFrameRef);
+    clearTimer(edgeJumpRetryTimerRef);
+    clearTimer(edgeJumpReleaseTimerRef);
+    edgeJumpInProgressRef.current = false;
+  }, []);
+
+  const requestEdgeJump = useCallback((
+    target: {
+      index: number | "LAST";
+      align: "start" | "end";
+    },
+  ) => {
+    clearAnimationFrame(edgeJumpFrameRef);
+    clearTimer(edgeJumpRetryTimerRef);
+    clearTimer(edgeJumpReleaseTimerRef);
+    edgeJumpInProgressRef.current = true;
+
+    // Two staged instant jumps are more stable than a single long smooth jump on huge virtualized logs.
+    const performJump = () => {
+      messageListRef.current?.scrollToIndex({
+        index: target.index,
+        align: target.align,
+        behavior: "auto",
+      });
+    };
+
+    performJump();
+
+    edgeJumpFrameRef.current = window.requestAnimationFrame(() => {
+      performJump();
+      edgeJumpRetryTimerRef.current = window.setTimeout(() => {
+        performJump();
+        edgeJumpRetryTimerRef.current = null;
+      }, EDGE_JUMP_RETRY_MS);
+    });
+
+    edgeJumpReleaseTimerRef.current = window.setTimeout(() => {
+      edgeJumpInProgressRef.current = false;
+      edgeJumpReleaseTimerRef.current = null;
+    }, EDGE_JUMP_RELEASE_MS);
+  }, []);
+
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth < NAVIGATOR_COLLAPSE_BREAKPOINT) {
@@ -511,7 +592,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
     }
     if (!messageSnapshot) return;
 
-    setLiveMessages(messageSnapshot.messages);
+    setLiveMessages(dedupeMessagesByLine(messageSnapshot.messages));
     messageCursorRef.current = {
       line: messageSnapshot.last_line,
       offset: messageSnapshot.next_offset,
@@ -527,13 +608,15 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
     selectedScrollRequestedRef.current = false;
     messageCursorRef.current = { line: 0, offset: 0 };
     messageSyncingRef.current = false;
-  }, [currentSessionKey]);
+    clearEdgeJumpScheduling();
+  }, [clearEdgeJumpScheduling, currentSessionKey]);
 
   useEffect(
     () => () => {
       clearTimer(sessionIdCopiedTimerRef);
+      clearEdgeJumpScheduling();
     },
-    [],
+    [clearEdgeJumpScheduling],
   );
 
   useEffect(() => {
@@ -579,6 +662,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
       if (document.visibilityState !== "visible") return;
       if (navigatorResizing) return;
       if (messageSyncingRef.current) return;
+      if (edgeJumpInProgressRef.current) return;
       if (loadingMessageSnapshot && messageCursorRef.current.offset === 0) return;
 
       messageSyncingRef.current = true;
@@ -597,7 +681,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
             sessionId: selectedSessionId,
           });
           if (cancelled) return;
-          setLiveMessages(snapshot.messages);
+          setLiveMessages(dedupeMessagesByLine(snapshot.messages));
           messageCursorRef.current = {
             line: snapshot.last_line,
             offset: snapshot.next_offset,
@@ -615,7 +699,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
             const lastLine = current[current.length - 1]?.line_number ?? 0;
             const appended = chunk.messages.filter((message) => message.line_number > lastLine);
             if (appended.length === 0) return current;
-            return [...current, ...appended];
+            return dedupeMessagesByLine([...current, ...appended]);
           });
         }
       } catch {
@@ -717,10 +801,9 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
     const last = renderRows[renderRows.length - 1];
     setSelectedMessageId(last.id);
     selectedScrollRequestedRef.current = false;
-    messageListRef.current?.scrollToIndex({
+    requestEdgeJump({
       index: "LAST",
       align: "end",
-      behavior: "smooth",
     });
   };
 
