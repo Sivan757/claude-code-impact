@@ -1,10 +1,22 @@
 export const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
+const ANTHROPIC_MODEL_PROFILE_ENV_MAP = [
+  { envKey: "ANTHROPIC_DEFAULT_OPUS_MODEL", profileKey: "defaultOpusModel" },
+  { envKey: "ANTHROPIC_DEFAULT_SONNET_MODEL", profileKey: "defaultSonnetModel" },
+  { envKey: "ANTHROPIC_DEFAULT_HAIKU_MODEL", profileKey: "defaultHaikuModel" },
+  { envKey: "ANTHROPIC_MODEL", profileKey: "model" },
+  { envKey: "ANTHROPIC_SMALL_FAST_MODEL", profileKey: "smallFastModel" },
+] as const;
 
 export interface ProviderProfile {
   id: string;
   name: string;
   authToken: string;
   baseUrl: string;
+  defaultOpusModel?: string;
+  defaultSonnetModel?: string;
+  defaultHaikuModel?: string;
+  model?: string;
+  smallFastModel?: string;
   updatedAt: number;
 }
 
@@ -55,6 +67,10 @@ export function normalizeProviderToken(value?: string): string {
   return (value ?? "").trim();
 }
 
+function normalizeModelValue(value?: string): string {
+  return (value ?? "").trim();
+}
+
 export function normalizeProviderBaseUrl(value?: string): string {
   const trimmed = (value ?? "").trim();
   const resolved = trimmed || DEFAULT_ANTHROPIC_BASE_URL;
@@ -82,16 +98,25 @@ export function resolveProviderNameFromProfiles(
   const token = normalizeProviderToken(env.ANTHROPIC_AUTH_TOKEN);
   const baseUrl = normalizeProviderBaseUrl(env.ANTHROPIC_BASE_URL);
   const baseHost = normalizeProviderHost(env.ANTHROPIC_BASE_URL);
+  const currentModels = ANTHROPIC_MODEL_PROFILE_ENV_MAP.map(({ envKey }) =>
+    normalizeModelValue(env[envKey]),
+  );
 
   const normalizedProfiles = profiles.map((profile) => ({
     profile,
     token: normalizeProviderToken(profile.authToken),
     baseUrl: normalizeProviderBaseUrl(profile.baseUrl),
     host: normalizeProviderHost(profile.baseUrl),
+    models: ANTHROPIC_MODEL_PROFILE_ENV_MAP.map(({ profileKey }) =>
+      normalizeModelValue(profile[profileKey]),
+    ),
   }));
 
   const exactMatch = normalizedProfiles.find(
-    (item) => item.token === token && item.baseUrl === baseUrl,
+    (item) =>
+      item.token === token
+      && item.baseUrl === baseUrl
+      && item.models.every((value, index) => value === currentModels[index]),
   );
   if (exactMatch) return exactMatch.profile.name;
 

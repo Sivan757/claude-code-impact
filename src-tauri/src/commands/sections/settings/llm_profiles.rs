@@ -13,6 +13,11 @@ struct LlmProfile {
     name: String,
     auth_token: String,
     base_url: String,
+    default_opus_model: String,
+    default_sonnet_model: String,
+    default_haiku_model: String,
+    model: String,
+    small_fast_model: String,
     updated_at: i64,
 }
 
@@ -165,6 +170,37 @@ fn read_profile_from_settings_file(path: &Path) -> Option<LlmProfile> {
         .trim()
         .to_string();
 
+    let default_opus_model = env
+        .get("ANTHROPIC_DEFAULT_OPUS_MODEL")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let default_sonnet_model = env
+        .get("ANTHROPIC_DEFAULT_SONNET_MODEL")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let default_haiku_model = env
+        .get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let model = env
+        .get("ANTHROPIC_MODEL")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let small_fast_model = env
+        .get("ANTHROPIC_SMALL_FAST_MODEL")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+
     let token_valid = is_valid_token(&token);
     let base_valid = is_valid_base_url(&base_url);
     if !token_valid && !base_valid {
@@ -180,6 +216,11 @@ fn read_profile_from_settings_file(path: &Path) -> Option<LlmProfile> {
         name,
         auth_token: if token_valid { token } else { String::new() },
         base_url,
+        default_opus_model,
+        default_sonnet_model,
+        default_haiku_model,
+        model,
+        small_fast_model,
         updated_at,
     })
 }
@@ -289,6 +330,21 @@ fn merge_profiles(existing: &[LlmProfile], discovered: &[LlmProfile]) -> Vec<Llm
             }
             if current.base_url.trim().is_empty() {
                 current.base_url = profile.base_url.clone();
+            }
+            if current.default_opus_model.trim().is_empty() {
+                current.default_opus_model = profile.default_opus_model.clone();
+            }
+            if current.default_sonnet_model.trim().is_empty() {
+                current.default_sonnet_model = profile.default_sonnet_model.clone();
+            }
+            if current.default_haiku_model.trim().is_empty() {
+                current.default_haiku_model = profile.default_haiku_model.clone();
+            }
+            if current.model.trim().is_empty() {
+                current.model = profile.model.clone();
+            }
+            if current.small_fast_model.trim().is_empty() {
+                current.small_fast_model = profile.small_fast_model.clone();
             }
             if profile.updated_at > current.updated_at {
                 current.updated_at = profile.updated_at;

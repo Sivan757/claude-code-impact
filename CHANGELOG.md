@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.6
+
+- Add supplier model env form fields for `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `ANTHROPIC_MODEL`, and `ANTHROPIC_SMALL_FAST_MODEL`.
+- Ensure empty supplier env values are not written to `settings.json`; when applying a profile, empty values only trigger key deletion if the key already exists.
+- Add an `Import from config` action in LLM Provider view to import current Anthropic supplier config into profile presets with duplicate detection.
+- Group supplier model fields under default-collapsed Advanced Options and remove model placeholders for cleaner editing.
+- Improve provider editor dialog usability by constraining modal height and enabling internal form scrolling when advanced options are expanded.
+
 ## 0.1.5
 
 - Unify project and conversation history navigation into a grouped `Project -> Threads` sidebar with lazy session pagination.

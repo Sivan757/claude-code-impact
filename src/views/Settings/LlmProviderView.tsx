@@ -35,6 +35,8 @@ import {
   TrashIcon,
   ReloadIcon,
   PlayIcon,
+  DownloadIcon,
+  ChevronDownIcon,
 } from "@radix-ui/react-icons";
 import { Button } from "../../components/ui/button";
 import { type MergedConfigView } from "../../config/types";
@@ -46,6 +48,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "../../components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../components/ui/collapsible";
 import {
   LoadingState,
   ConfigPage,
@@ -70,6 +77,16 @@ import { getUiPreference, setUiPreference } from "@/lib/uiPreferences";
 
 type ProviderViewMode = "list" | "card";
 const LEGACY_PROFILE_KEYS = ["claudecodeimpact_llm_profiles", "lovcode_llm_providers"] as const;
+const ANTHROPIC_MODEL_ENV_FIELDS = [
+  { envKey: "ANTHROPIC_DEFAULT_OPUS_MODEL", profileKey: "defaultOpusModel" },
+  { envKey: "ANTHROPIC_DEFAULT_SONNET_MODEL", profileKey: "defaultSonnetModel" },
+  { envKey: "ANTHROPIC_DEFAULT_HAIKU_MODEL", profileKey: "defaultHaikuModel" },
+  { envKey: "ANTHROPIC_MODEL", profileKey: "model" },
+  { envKey: "ANTHROPIC_SMALL_FAST_MODEL", profileKey: "smallFastModel" },
+] as const;
+
+type AnthropicModelEnvField = (typeof ANTHROPIC_MODEL_ENV_FIELDS)[number];
+type AnthropicModelProfileKey = AnthropicModelEnvField["profileKey"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -78,6 +95,45 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function toSafeTimestamp(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
   return Date.now();
+}
+
+function getLegacyModelValue(raw: Record<string, unknown>, key: AnthropicModelProfileKey): string {
+  const value = raw[key];
+  return typeof value === "string" ? value : "";
+}
+
+function getModelValuesFromEnv(env: Record<string, unknown>): Record<AnthropicModelProfileKey, string> {
+  return {
+    defaultOpusModel:
+      typeof env.ANTHROPIC_DEFAULT_OPUS_MODEL === "string" ? env.ANTHROPIC_DEFAULT_OPUS_MODEL : "",
+    defaultSonnetModel:
+      typeof env.ANTHROPIC_DEFAULT_SONNET_MODEL === "string" ? env.ANTHROPIC_DEFAULT_SONNET_MODEL : "",
+    defaultHaikuModel:
+      typeof env.ANTHROPIC_DEFAULT_HAIKU_MODEL === "string" ? env.ANTHROPIC_DEFAULT_HAIKU_MODEL : "",
+    model:
+      typeof env.ANTHROPIC_MODEL === "string" ? env.ANTHROPIC_MODEL : "",
+    smallFastModel:
+      typeof env.ANTHROPIC_SMALL_FAST_MODEL === "string" ? env.ANTHROPIC_SMALL_FAST_MODEL : "",
+  };
+}
+
+function hasAnyModelValue(values: Record<AnthropicModelProfileKey, string>): boolean {
+  return ANTHROPIC_MODEL_ENV_FIELDS.some(({ profileKey }) => Boolean(values[profileKey].trim()));
+}
+
+function isSameAnthropicConfig(
+  profile: ProviderProfile,
+  token: string,
+  baseUrl: string,
+  modelValues: Record<AnthropicModelProfileKey, string>,
+): boolean {
+  if (profile.authToken.trim() !== token.trim()) return false;
+  if (normalizeProviderBaseUrl(profile.baseUrl) !== normalizeProviderBaseUrl(baseUrl)) return false;
+  return ANTHROPIC_MODEL_ENV_FIELDS.every(({ profileKey }) => {
+    const existingValue = (profile[profileKey] ?? "").trim();
+    const incomingValue = (modelValues[profileKey] ?? "").trim();
+    return existingValue === incomingValue;
+  });
 }
 
 function inferLegacyProviderName(baseUrl: string, fallback?: string): string {
@@ -97,12 +153,20 @@ function parseLegacyProfile(raw: unknown): ProviderProfile | null {
   if (!isRecord(raw)) return null;
   const token = typeof raw.authToken === "string" ? raw.authToken : "";
   const base = typeof raw.baseUrl === "string" ? raw.baseUrl : "";
-  if (!token.trim() && !base.trim()) return null;
+  const modelValues: Record<AnthropicModelProfileKey, string> = {
+    defaultOpusModel: getLegacyModelValue(raw, "defaultOpusModel"),
+    defaultSonnetModel: getLegacyModelValue(raw, "defaultSonnetModel"),
+    defaultHaikuModel: getLegacyModelValue(raw, "defaultHaikuModel"),
+    model: getLegacyModelValue(raw, "model"),
+    smallFastModel: getLegacyModelValue(raw, "smallFastModel"),
+  };
+  if (!token.trim() && !base.trim() && !hasAnyModelValue(modelValues)) return null;
   return {
     id: typeof raw.id === "string" && raw.id.trim() ? raw.id : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name: inferLegacyProviderName(base, typeof raw.name === "string" ? raw.name : undefined),
     authToken: token,
     baseUrl: base,
+    ...modelValues,
     updatedAt: toSafeTimestamp(raw.updatedAt),
   };
 }
@@ -114,7 +178,8 @@ function parseLovcodeProvider(raw: unknown): ProviderProfile | null {
   const baseValue = env.ANTHROPIC_BASE_URL;
   const token = typeof tokenValue === "string" ? tokenValue : "";
   const base = typeof baseValue === "string" ? baseValue : "";
-  if (!token.trim() && !base.trim()) return null;
+  const modelValues = getModelValuesFromEnv(env);
+  if (!token.trim() && !base.trim() && !hasAnyModelValue(modelValues)) return null;
 
   const rawName = typeof raw.name === "string" ? raw.name : "";
   return {
@@ -122,6 +187,7 @@ function parseLovcodeProvider(raw: unknown): ProviderProfile | null {
     name: inferLegacyProviderName(base, rawName),
     authToken: token,
     baseUrl: base,
+    ...modelValues,
     updatedAt: toSafeTimestamp(raw.updatedAt),
   };
 }
@@ -166,7 +232,12 @@ function mergeProviderProfiles(
   const mergedByFingerprint = new Map<string, ProviderProfile>();
 
   const fingerprint = (profile: ProviderProfile) =>
-    `${profile.authToken.trim()}@@${normalizeProviderBaseUrl(profile.baseUrl)}@@${profile.name.trim().toLowerCase()}`;
+    [
+      profile.authToken.trim(),
+      normalizeProviderBaseUrl(profile.baseUrl),
+      profile.name.trim().toLowerCase(),
+      ...ANTHROPIC_MODEL_ENV_FIELDS.map(({ profileKey }) => (profile[profileKey] ?? "").trim()),
+    ].join("@@");
 
   const insert = (profile: ProviderProfile, preferNewer: boolean) => {
     const key = fingerprint(profile);
@@ -264,6 +335,10 @@ export function LlmProviderView({
   const env = useMemo(() => getEnvFromMerged(mergedConfig), [mergedConfig]);
   const currentToken = (env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
   const currentBaseUrl = normalizeProviderBaseUrl(env.ANTHROPIC_BASE_URL);
+  const currentModelValues = useMemo<Record<AnthropicModelProfileKey, string>>(
+    () => getModelValuesFromEnv(env),
+    [env]
+  );
 
   const [search, setSearch] = useState("");
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
@@ -283,6 +358,12 @@ export function LlmProviderView({
   const [editorName, setEditorName] = useState("");
   const [editorToken, setEditorToken] = useState("");
   const [editorBaseUrl, setEditorBaseUrl] = useState("");
+  const [editorDefaultOpusModel, setEditorDefaultOpusModel] = useState("");
+  const [editorDefaultSonnetModel, setEditorDefaultSonnetModel] = useState("");
+  const [editorDefaultHaikuModel, setEditorDefaultHaikuModel] = useState("");
+  const [editorModel, setEditorModel] = useState("");
+  const [editorSmallFastModel, setEditorSmallFastModel] = useState("");
+  const [editorAdvancedOpen, setEditorAdvancedOpen] = useState(false);
   const [showToken, setShowToken] = useState(false);
 
   const persistProfilesState = useCallback(
@@ -351,7 +432,13 @@ export function LlmProviderView({
   }, [queryClient, viewMode]);
 
   const hasCurrentConfig = Boolean(
-    env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_BASE_URL
+    env.ANTHROPIC_AUTH_TOKEN ||
+    env.ANTHROPIC_BASE_URL ||
+    env.ANTHROPIC_DEFAULT_OPUS_MODEL ||
+    env.ANTHROPIC_DEFAULT_SONNET_MODEL ||
+    env.ANTHROPIC_DEFAULT_HAIKU_MODEL ||
+    env.ANTHROPIC_MODEL ||
+    env.ANTHROPIC_SMALL_FAST_MODEL
   );
 
   useEffect(() => {
@@ -365,6 +452,11 @@ export function LlmProviderView({
       name: t("llm.default_profile_name", "Anthropic API"),
       authToken: env.ANTHROPIC_AUTH_TOKEN ?? "",
       baseUrl: env.ANTHROPIC_BASE_URL ?? "",
+      defaultOpusModel: env.ANTHROPIC_DEFAULT_OPUS_MODEL ?? "",
+      defaultSonnetModel: env.ANTHROPIC_DEFAULT_SONNET_MODEL ?? "",
+      defaultHaikuModel: env.ANTHROPIC_DEFAULT_HAIKU_MODEL ?? "",
+      model: env.ANTHROPIC_MODEL ?? "",
+      smallFastModel: env.ANTHROPIC_SMALL_FAST_MODEL ?? "",
       updatedAt: Date.now(),
     };
 
@@ -374,6 +466,11 @@ export function LlmProviderView({
   }, [
     env.ANTHROPIC_AUTH_TOKEN,
     env.ANTHROPIC_BASE_URL,
+    env.ANTHROPIC_DEFAULT_OPUS_MODEL,
+    env.ANTHROPIC_DEFAULT_SONNET_MODEL,
+    env.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+    env.ANTHROPIC_MODEL,
+    env.ANTHROPIC_SMALL_FAST_MODEL,
     hasCurrentConfig,
     persistProfilesState,
     profiles.length,
@@ -386,7 +483,12 @@ export function LlmProviderView({
   const isProfileActive = (profile: ProviderProfile) => {
     return (
       profile.authToken.trim() === currentToken &&
-      normalizeProviderBaseUrl(profile.baseUrl) === currentBaseUrl
+      normalizeProviderBaseUrl(profile.baseUrl) === currentBaseUrl &&
+      ANTHROPIC_MODEL_ENV_FIELDS.every(({ profileKey }) => {
+        const profileValue = (profile[profileKey] ?? "").trim();
+        const currentValue = currentModelValues[profileKey].trim();
+        return profileValue === currentValue;
+      })
     );
   };
 
@@ -406,6 +508,53 @@ export function LlmProviderView({
     },
     [persistProfilesState, profiles]
   );
+
+  const handleImportFromConfig = useCallback(async () => {
+    const token = (env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
+    const baseUrl = (env.ANTHROPIC_BASE_URL ?? "").trim();
+    const rawModelValues = getModelValuesFromEnv(env);
+    const modelValues: Record<AnthropicModelProfileKey, string> = {
+      defaultOpusModel: rawModelValues.defaultOpusModel.trim(),
+      defaultSonnetModel: rawModelValues.defaultSonnetModel.trim(),
+      defaultHaikuModel: rawModelValues.defaultHaikuModel.trim(),
+      model: rawModelValues.model.trim(),
+      smallFastModel: rawModelValues.smallFastModel.trim(),
+    };
+
+    if (!token && !baseUrl && !hasAnyModelValue(modelValues)) {
+      alert(t("llm.import_no_config", "No supplier config found in the current configuration file."));
+      return;
+    }
+
+    const duplicate = profiles.some((profile) => isSameAnthropicConfig(profile, token, baseUrl, modelValues));
+    if (duplicate) {
+      alert(t("llm.import_exists", "This supplier configuration has already been imported."));
+      return;
+    }
+
+    let importedName = "";
+    const effective = mergedConfig?.effective;
+    if (isRecord(effective)) {
+      const cci = effective.claudecodeimpact;
+      if (isRecord(cci) && typeof cci.activeProvider === "string") {
+        importedName = cci.activeProvider.trim();
+      }
+    }
+    if (!importedName) {
+      importedName = inferLegacyProviderName(baseUrl, t("llm.default_profile_name", "Anthropic API"));
+    }
+
+    const importedProfile: ProviderProfile = {
+      id: Date.now().toString(),
+      name: importedName,
+      authToken: token,
+      baseUrl,
+      ...modelValues,
+      updatedAt: Date.now(),
+    };
+
+    await updateProfilesState([...profiles, importedProfile]);
+  }, [env, mergedConfig?.effective, profiles, t, updateProfilesState]);
 
   const filteredProfiles = useMemo(() => {
     if (!search.trim()) return profiles;
@@ -439,6 +588,12 @@ export function LlmProviderView({
     setEditorName("");
     setEditorToken("");
     setEditorBaseUrl("");
+    setEditorDefaultOpusModel("");
+    setEditorDefaultSonnetModel("");
+    setEditorDefaultHaikuModel("");
+    setEditorModel("");
+    setEditorSmallFastModel("");
+    setEditorAdvancedOpen(false);
     setShowToken(false);
     setIsEditorOpen(true);
   };
@@ -448,6 +603,12 @@ export function LlmProviderView({
     setEditorName(profile.name);
     setEditorToken(profile.authToken);
     setEditorBaseUrl(profile.baseUrl);
+    setEditorDefaultOpusModel(profile.defaultOpusModel ?? "");
+    setEditorDefaultSonnetModel(profile.defaultSonnetModel ?? "");
+    setEditorDefaultHaikuModel(profile.defaultHaikuModel ?? "");
+    setEditorModel(profile.model ?? "");
+    setEditorSmallFastModel(profile.smallFastModel ?? "");
+    setEditorAdvancedOpen(false);
     setShowToken(false);
     setIsEditorOpen(true);
   };
@@ -505,6 +666,19 @@ export function LlmProviderView({
     </Button>
   );
 
+  const importButton = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-7 rounded-lg px-2 text-xs"
+      onClick={handleImportFromConfig}
+      title={t("llm.import_from_config", "Import from config")}
+    >
+      <DownloadIcon className="w-3.5 h-3.5 mr-1" />
+      {t("common.import")}
+    </Button>
+  );
+
   const handleSaveProfile = async () => {
     if (!editorName.trim()) {
       alert(t("llm.name_required"));
@@ -516,6 +690,11 @@ export function LlmProviderView({
       name: editorName.trim(),
       authToken: editorToken,
       baseUrl: editorBaseUrl,
+      defaultOpusModel: editorDefaultOpusModel,
+      defaultSonnetModel: editorDefaultSonnetModel,
+      defaultHaikuModel: editorDefaultHaikuModel,
+      model: editorModel,
+      smallFastModel: editorSmallFastModel,
       updatedAt: Date.now(),
     };
 
@@ -546,39 +725,36 @@ export function LlmProviderView({
     try {
       const token = profile.authToken.trim();
       const baseUrl = profile.baseUrl.trim();
+      const syncEnvKey = async (key: string, value: string, currentValue?: string) => {
+        if (value) {
+          await writeMutation.mutateAsync({
+            kind: settingsKind,
+            scope: selectedScope,
+            projectPath: settingsPath,
+            key: `env.${key}`,
+            value,
+          });
+          return;
+        }
 
-      if (token) {
-        await writeMutation.mutateAsync({
-          kind: settingsKind,
-          scope: selectedScope,
-          projectPath: settingsPath,
-          key: "env.ANTHROPIC_AUTH_TOKEN",
-          value: token,
-        });
-      } else {
+        if (!(currentValue ?? "").trim()) {
+          return;
+        }
+
         await deleteMutation.mutateAsync({
           kind: settingsKind,
           scope: selectedScope,
           projectPath: settingsPath,
-          key: "env.ANTHROPIC_AUTH_TOKEN",
+          key: `env.${key}`,
         });
-      }
+      };
 
-      if (baseUrl) {
-        await writeMutation.mutateAsync({
-          kind: settingsKind,
-          scope: selectedScope,
-          projectPath: settingsPath,
-          key: "env.ANTHROPIC_BASE_URL",
-          value: baseUrl,
-        });
-      } else {
-        await deleteMutation.mutateAsync({
-          kind: settingsKind,
-          scope: selectedScope,
-          projectPath: settingsPath,
-          key: "env.ANTHROPIC_BASE_URL",
-        });
+      await syncEnvKey("ANTHROPIC_AUTH_TOKEN", token, env.ANTHROPIC_AUTH_TOKEN);
+      await syncEnvKey("ANTHROPIC_BASE_URL", baseUrl, env.ANTHROPIC_BASE_URL);
+
+      for (const { envKey, profileKey } of ANTHROPIC_MODEL_ENV_FIELDS) {
+        const value = (profile[profileKey] ?? "").trim();
+        await syncEnvKey(envKey, value, env[envKey]);
       }
 
       await writeMutation.mutateAsync({
@@ -608,6 +784,7 @@ export function LlmProviderView({
         onSearchChange={setSearch}
         primaryAction={
           <div className="flex items-center gap-1.5">
+            {importButton}
             {createButton}
             {viewModeToggle}
           </div>
@@ -753,13 +930,13 @@ export function LlmProviderView({
       </div>
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]">
           <DialogHeader>
             <DialogTitle className="font-serif">
               {editorId ? t("llm.edit_provider") : t("llm.new_provider")}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-3 py-3">
+          <div className="grid gap-3 py-3 overflow-y-auto pr-1 min-h-0">
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">{t("llm.provider_name")}</label>
               <input
@@ -802,8 +979,69 @@ export function LlmProviderView({
                 placeholder={t("llm.anthropic_base_url_hint")}
               />
             </div>
+
+            <Collapsible open={editorAdvancedOpen} onOpenChange={setEditorAdvancedOpen}>
+              <CollapsibleTrigger className="w-full rounded-xl border border-border/50 bg-secondary/25 hover:bg-secondary/40 px-3 py-2.5 flex items-center justify-between transition-colors">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {t("llm.advanced_options", "Advanced Options")}
+                </span>
+                <ChevronDownIcon className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+              </CollapsibleTrigger>
+
+              <CollapsibleContent className="mt-3 space-y-3 rounded-xl border border-border/40 bg-secondary/10 p-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_DEFAULT_OPUS_MODEL</label>
+                  <input
+                    type="text"
+                    className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
+                    value={editorDefaultOpusModel}
+                    onChange={(e) => setEditorDefaultOpusModel(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_DEFAULT_SONNET_MODEL</label>
+                  <input
+                    type="text"
+                    className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
+                    value={editorDefaultSonnetModel}
+                    onChange={(e) => setEditorDefaultSonnetModel(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_DEFAULT_HAIKU_MODEL</label>
+                  <input
+                    type="text"
+                    className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
+                    value={editorDefaultHaikuModel}
+                    onChange={(e) => setEditorDefaultHaikuModel(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_MODEL</label>
+                  <input
+                    type="text"
+                    className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
+                    value={editorModel}
+                    onChange={(e) => setEditorModel(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">ANTHROPIC_SMALL_FAST_MODEL</label>
+                  <input
+                    type="text"
+                    className="w-full bg-secondary/40 border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 rounded-xl px-3.5 py-2 text-sm outline-none transition-all font-mono placeholder:text-muted-foreground/40"
+                    value={editorSmallFastModel}
+                    onChange={(e) => setEditorSmallFastModel(e.target.value)}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
-          <DialogFooter className="sm:justify-end">
+          <DialogFooter className="sm:justify-end pt-1">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setIsEditorOpen(false)} className="rounded-xl">
                 {t("common.cancel")}
