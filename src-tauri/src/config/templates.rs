@@ -191,48 +191,7 @@ pub fn get_templates_dir() -> PathBuf {
 
 /// Get built-in templates
 pub fn get_builtin_templates() -> Vec<ConfigTemplate> {
-    let now = current_timestamp();
-
-    vec![
-        ConfigTemplate {
-            id: "builtin-example".to_string(),
-            name: "Example Template".to_string(),
-            description: "A single starter template covering current launcher capabilities (model, permissions, env, and plugin map).".to_string(),
-            author: "claudecodeimpact".to_string(),
-            tags: vec![
-                "example".to_string(),
-                "starter".to_string(),
-            ],
-            created_at: now,
-            updated_at: now,
-            is_builtin: true,
-            config: serde_json::json!({
-                "model": "sonnet",
-                "alwaysThinkingEnabled": false,
-                "showTurnDuration": true,
-                "autoUpdatesChannel": "stable",
-                "permissions": {
-                    "allow": ["Read", "Edit"],
-                    "deny": [],
-                    "ask": [],
-                    "defaultMode": "default"
-                },
-                "enabledPlugins": {}
-            }),
-            env: Some(HashMap::from([
-                (
-                    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS".to_string(),
-                    "0".to_string(),
-                ),
-                (
-                    "CLAUDE_CODE_PLAN_MODE_REQUIRED".to_string(),
-                    "0".to_string(),
-                ),
-            ])),
-            hooks: None,
-            mcp_servers: None,
-        },
-    ]
+    Vec::new()
 }
 
 /// List all templates (built-in + user-defined)
@@ -467,8 +426,7 @@ mod tests {
     #[test]
     fn test_builtin_templates_count() {
         let templates = get_builtin_templates();
-        assert_eq!(templates.len(), 1);
-        assert!(templates.iter().all(|t| t.is_builtin));
+        assert!(templates.is_empty());
     }
 
     #[test]

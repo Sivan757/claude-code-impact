@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useQuery } from "@tanstack/react-query";
-import { PanelLeft, PanelLeftClose } from "lucide-react";
+import { FolderPlus, Loader2, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Virtuoso } from "react-virtuoso";
 
@@ -74,6 +75,9 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
   const [searchTick, setSearchTick] = useState(0);
   const [buildingIndex, setBuildingIndex] = useState(false);
   const [showFullProjectPath, setShowFullProjectPath] = useState(false);
+  const [addingProject, setAddingProject] = useState(false);
+  const [hidingProjectPath, setHidingProjectPath] = useState<string | null>(null);
+  const [projectActionError, setProjectActionError] = useState<string | null>(null);
 
   const {
     width: sidebarWidth,
@@ -194,6 +198,66 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
     onOpenProject(projectId);
   }, [onOpenProject]);
 
+  const handleAddProject = useCallback(async () => {
+    if (addingProject) return;
+    try {
+      setAddingProject(true);
+      setProjectActionError(null);
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+      });
+
+      if (typeof selected !== "string" || selected.trim().length === 0) {
+        return;
+      }
+
+      const project = await invoke<Project>("add_project", { projectPath: selected });
+      queryClient.setQueryData<Project[]>(["projects"], (current = []) => {
+        const existingIndex = current.findIndex((item) => item.id === project.id);
+        if (existingIndex >= 0) {
+          const next = current.slice();
+          next[existingIndex] = project;
+          return next;
+        }
+        return [...current, project].sort((left, right) => right.last_active - left.last_active);
+      });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      handleOpenProject(project.id);
+    } catch (error) {
+      setProjectActionError(
+        t("common.failed_with", { error: String(error) }),
+      );
+    } finally {
+      setAddingProject(false);
+    }
+  }, [addingProject, handleOpenProject, queryClient, t]);
+
+  const handleHideProject = useCallback(async (project: Project) => {
+    if (hidingProjectPath) return;
+    try {
+      setProjectActionError(null);
+      setHidingProjectPath(project.path);
+      await invoke("hide_project", { projectPath: project.path });
+      setExpandedProjectIds((prev) => {
+        if (!prev.has(project.id)) return prev;
+        const next = new Set(prev);
+        next.delete(project.id);
+        return next;
+      });
+      queryClient.setQueryData<Project[]>(["projects"], (current = []) =>
+        current.filter((item) => item.id !== project.id),
+      );
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    } catch (error) {
+      setProjectActionError(
+        t("common.failed_with", { error: String(error) }),
+      );
+    } finally {
+      setHidingProjectPath(null);
+    }
+  }, [hidingProjectPath, queryClient, t]);
+
   const renderSearchResults = () => {
     if (searchIndexMissing) {
       return (
@@ -305,6 +369,18 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    void handleAddProject();
+                  }}
+                  disabled={addingProject}
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-ink disabled:cursor-wait disabled:opacity-60"
+                  title={t("sidebar.add_project_tip", "Add project")}
+                  aria-label={t("sidebar.add_project_tip", "Add project")}
+                >
+                  {addingProject ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderPlus className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setSidebarCollapsed(true)}
                   className="rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-ink"
                   aria-label={t("chat.collapse_sidebar")}
@@ -327,6 +403,11 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
                 className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-ink placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               />
             </div>
+            {projectActionError ? (
+              <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                {projectActionError}
+              </p>
+            ) : null}
           </header>
 
           <div className="min-h-0 flex-1 p-2">
@@ -352,8 +433,10 @@ export function HistorySessionListPane(props: HistorySessionListPaneProps): Reac
                       selectedProjectId={selectedProjectId}
                       selectedSessionId={selectedSessionId}
                       expanded={expandedProjectIds.has(project.id)}
+                      hideDisabled={hidingProjectPath === project.path}
                       onToggleExpanded={handleToggleProjectExpanded}
                       onOpenProject={handleOpenProject}
+                      onHideProject={handleHideProject}
                       onOpenSession={onOpenSession}
                     />
                   </div>

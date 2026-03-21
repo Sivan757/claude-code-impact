@@ -11,7 +11,7 @@ export const FEATURES: FeatureConfig[] = [
   {
     type: "settings",
     label: "Settings",
-    description: "settings.json templates",
+    description: "settings.json configuration",
     available: true,
     group: "basic",
   },

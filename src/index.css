@@ -288,6 +288,37 @@ article.prose [align="left"] {
   margin: 0 auto;
 }
 
+/* Chat message markdown overflow handling */
+.chat-markdown {
+  min-width: 0;
+}
+
+.chat-markdown :where(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-markdown :where(a, strong, em, span) {
+  overflow-wrap: anywhere;
+}
+
+.chat-markdown :where(:not(pre) > code, li code, p code, td code, th code) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.chat-markdown pre code {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 /* Thin scrollbar */
 .scrollbar-thin {
   scrollbar-width: thin;

@@ -186,6 +186,16 @@ fn get_session_summary(project_id: String, session_id: String) -> Result<Option<
 }
 
 #[tauri::command]
+fn delete_session(project_id: String, session_id: String) -> Result<(), String> {
+    let path = get_session_path(&project_id, &session_id);
+    if !path.exists() {
+        return Err("Session file not found".to_string());
+    }
+
+    fs::remove_file(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn copy_to_clipboard(text: String) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(text).map_err(|e| e.to_string())

@@ -57,6 +57,8 @@ pub fn build_invoke_handler(
 ) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         list_projects,
+        add_project,
+        hide_project,
         list_sessions,
         get_sessions_usage,
         list_all_sessions,
@@ -118,6 +120,7 @@ pub fn build_invoke_handler(
         open_path,
         get_session_file_path,
         get_session_summary,
+        delete_session,
         resolve_user_path,
         get_platform_kind,
         get_reveal_label,
@@ -248,13 +251,6 @@ pub fn build_invoke_handler(
         config_list_backups,
         config_restore_backup,
         config_init_watcher,
-        // Template commands
-        template_list,
-        template_get,
-        template_save,
-        template_delete,
-        template_apply,
-        template_save_from_project,
         config_read_multi_merged,
         config_export,
         config_import,

@@ -3,9 +3,9 @@ import { useAtom } from "jotai";
 import { motion } from "framer-motion";
 import {
   PersonIcon,
-  CounterClockwiseClockIcon, GearIcon,
-  RocketIcon,
+  GearIcon,
 } from "@radix-ui/react-icons";
+import { Rocket } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import {
   DropdownMenu,
@@ -42,7 +42,7 @@ export function GlobalHeader({
 
 
   // Main nav features - use primaryFeature for active state (not affected by profile menu clicks)
-  const mainNavFeatures = ["chat", "settings", "projects"] as const;
+  const mainNavFeatures = ["chat", "settings"] as const;
   const isMainNavFeature = (f: string | null) => f && (mainNavFeatures.includes(f as typeof mainNavFeatures[number]) || f.startsWith("kb-"));
 
   // Handle main nav click - updates primaryFeature
@@ -68,21 +68,15 @@ export function GlobalHeader({
             icon={<img src="/logo.png" alt="Claude Code Impact" className="w-4 h-4" />}
             label="Claude Code Impact"
           />
-        </div>
-        <NavButton
-          isActive={primaryFeature === "projects"}
-          onClick={() => handleMainNavClick("projects")}
-          icon={<RocketIcon className="w-4 h-4" />}
-          label={t('features.projects')}
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <NavButton
+          <NavButton
           isActive={primaryFeature === "chat"}
           onClick={() => handleMainNavClick("chat")}
-          icon={<CounterClockwiseClockIcon className="w-4 h-4" />}
-          label={t('features.history')}
+          icon={<Rocket className="w-4 h-4" />}
+          label={t("chat.launchpad", "启动台")}
         />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
         <NavButton
           isActive={primaryFeature === "settings"}
           onClick={() => handleMainNavClick("settings")}

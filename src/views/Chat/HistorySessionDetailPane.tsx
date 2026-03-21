@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
+import { ProjectQuickLaunchPanel } from "@/views/Projects/ProjectQuickLaunchPanel";
 
 import { ExportDialog } from "./ExportDialog";
 import { LoadingOverlayMask } from "./LoadingOverlayMask";
@@ -47,6 +48,7 @@ const EDGE_JUMP_RELEASE_MS = 180;
 
 interface HistorySessionDetailPaneProps {
   selectedProjectId: string | null;
+  selectedProjectPath: string | null;
   selectedSessionId: string | null;
   selectedSessionSummary: string | null;
 }
@@ -289,7 +291,12 @@ function FastScrollPlaceholder(props: ScrollSeekPlaceholderProps): ReactNode {
 }
 
 function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): ReactNode {
-  const { selectedProjectId, selectedSessionId, selectedSessionSummary } = props;
+  const {
+    selectedProjectId,
+    selectedProjectPath,
+    selectedSessionId,
+    selectedSessionSummary,
+  } = props;
   const { t } = useTranslation();
   const toReadable = useReadableText();
   const markdownPreview = true;
@@ -300,6 +307,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
   const [liveMessages, setLiveMessages] = useState<Message[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [sessionIdCopied, setSessionIdCopied] = useState(false);
+  const [mergeMessagesEnabled, setMergeMessagesEnabled] = useState(true);
   const [navigatorCollapsed, setNavigatorCollapsed] = useState(() =>
     getInitialWindowCollapse(NAVIGATOR_COLLAPSE_BREAKPOINT, true),
   );
@@ -396,7 +404,10 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
 
     const toMessageRawBlocks = (message: Message): unknown[] => {
       if (Array.isArray(message.raw_content)) {
-        return message.raw_content;
+        // Never reuse the original message array here. The merge pipeline appends blocks
+        // while building grouped rows, and sharing the same array would mutate source
+        // messages across re-renders, causing merged content to duplicate progressively.
+        return [...message.raw_content];
       }
       const text = toMessageText(message);
       if (!text.trim()) {
@@ -422,7 +433,10 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
         canMergeIntoAssistantToolChain &&
         previousHasToolUse;
 
-      if (shouldMergeAssistant || shouldMergeProtocolToolResult) {
+      if (
+        mergeMessagesEnabled &&
+        (shouldMergeAssistant || shouldMergeProtocolToolResult)
+      ) {
         previous.sourceMessages.push(message);
         const appendedText = toMessageText(message);
         if (appendedText.trim()) {
@@ -442,7 +456,10 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
           uuid: `merged:${first.uuid}:${last.uuid}`,
           line_number: first.line_number,
           content: mergedContent,
-          raw_content: previous.mergedRawBlocks.length > 0 ? previous.mergedRawBlocks : undefined,
+          raw_content:
+            previous.mergedRawBlocks.length > 0
+              ? [...previous.mergedRawBlocks]
+              : undefined,
           timestamp: last.timestamp,
           is_meta: false,
           is_tool: false,
@@ -465,7 +482,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
     }
 
     return groups;
-  }, [filteredMessages, toReadable]);
+  }, [filteredMessages, mergeMessagesEnabled, toReadable]);
 
   const renderRows = useMemo<RenderMessageRow[]>(
     () =>
@@ -605,6 +622,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
     setSelectedMessageId(null);
     setLiveMessages([]);
     setSessionIdCopied(false);
+    setMergeMessagesEnabled(true);
     selectedScrollRequestedRef.current = false;
     messageCursorRef.current = { line: 0, offset: 0 };
     messageSyncingRef.current = false;
@@ -811,8 +829,17 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
     <>
       <main className="relative flex min-w-0 flex-1 flex-col bg-card/20">
         {!selectedProjectId || !selectedSessionId ? (
-          <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
-            {t("chat.select_session_to_view")}
+          <div className="flex h-full min-h-0 flex-col">
+            {selectedProjectPath ? (
+              <ProjectQuickLaunchPanel
+                projectPath={selectedProjectPath}
+                className="flex-1"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                {t("chat.select_session_to_view")}
+              </div>
+            )}
           </div>
         ) : (
           <div
@@ -846,11 +873,13 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
                         <DotsHorizontalIcon />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="w-40 rounded-lg p-[3px] shadow-md">
                       <SessionDropdownMenuItems
                         projectId={selectedProjectId}
                         sessionId={selectedSessionId}
                         onExport={() => setExportDialogOpen(true)}
+                        mergeMessagesChecked={mergeMessagesEnabled}
+                        onMergeMessagesCheckedChange={setMergeMessagesEnabled}
                       />
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1052,6 +1081,7 @@ function areHistorySessionDetailPanePropsEqual(
   next: HistorySessionDetailPaneProps,
 ): boolean {
   return prev.selectedProjectId === next.selectedProjectId &&
+    prev.selectedProjectPath === next.selectedProjectPath &&
     prev.selectedSessionId === next.selectedSessionId &&
     prev.selectedSessionSummary === next.selectedSessionSummary;
 }

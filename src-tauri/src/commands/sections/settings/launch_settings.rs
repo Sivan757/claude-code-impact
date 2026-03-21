@@ -11,11 +11,9 @@ struct LaunchSettingsRequest {
     project_path: Option<String>,
     provider_name: Option<String>,
     model: Option<String>,
+    permission_mode: Option<String>,
     env_overrides: Option<HashMap<String, String>>,
-    enabled_plugins: Option<Vec<String>>,
-    template_id: Option<String>,
-    template_merge_mode: Option<MergeMode>,
-    template_payload: Option<serde_json::Value>,
+    enabled_plugins: Option<HashMap<String, bool>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,49 +86,6 @@ fn build_launch_settings_snapshot(request: &LaunchSettingsRequest) -> Result<ser
         settings = serde_json::json!({});
     }
 
-    // 1.5 Apply selected template or inline template payload into the launch snapshot.
-    // This is ephemeral and does not modify project/global settings files.
-    let merge_mode = request.template_merge_mode.unwrap_or(MergeMode::Merge);
-    let inline_template = request.template_payload.clone();
-    let template_to_merge = if let Some(payload) = inline_template {
-        Some(payload)
-    } else if let Some(template_id) = request.template_id.as_deref() {
-        let template = get_template(template_id)
-            .map_err(|e| format!("Failed to load template '{}': {}", template_id, e))?;
-
-        let mut template_config = template.config.clone();
-        if let Some(obj) = template_config.as_object_mut() {
-            if let Some(env) = &template.env {
-                obj.insert(
-                    "env".to_string(),
-                    serde_json::to_value(env).unwrap_or_default(),
-                );
-            }
-            if let Some(hooks) = &template.hooks {
-                obj.insert(
-                    "hooks".to_string(),
-                    serde_json::to_value(hooks).unwrap_or_default(),
-                );
-            }
-            if let Some(mcp_servers) = &template.mcp_servers {
-                obj.insert(
-                    "mcp_servers".to_string(),
-                    serde_json::to_value(mcp_servers).unwrap_or_default(),
-                );
-            }
-        }
-        Some(template_config)
-    } else {
-        None
-    };
-
-    if let Some(template_value) = template_to_merge {
-        settings = apply_merge_mode(settings, template_value, merge_mode);
-        if !settings.is_object() {
-            settings = serde_json::json!({});
-        }
-    }
-
     if let Some(obj) = settings.as_object_mut() {
         // Remove internal keys that should not leak into the launch settings file
         obj.remove("_claudecodeimpact_disabled_env");
@@ -157,7 +112,26 @@ fn build_launch_settings_snapshot(request: &LaunchSettingsRequest) -> Result<ser
             obj.insert("claudecodeimpact".to_string(), serde_json::Value::Object(cci_obj));
         }
 
-        // 4. Apply env overrides
+        // 4. Apply permissions override
+        if let Some(permission_mode) = &request.permission_mode {
+            let normalized_mode = normalize_launch_permission_mode(permission_mode)
+                .unwrap_or_else(|| "default".to_string());
+
+            let mut permissions_obj = obj
+                .get("permissions")
+                .and_then(|v| v.as_object())
+                .cloned()
+                .unwrap_or_default();
+
+            permissions_obj.insert(
+                "defaultMode".to_string(),
+                serde_json::Value::String(normalized_mode),
+            );
+            permissions_obj.remove("default_mode");
+            obj.insert("permissions".to_string(), serde_json::Value::Object(permissions_obj));
+        }
+
+        // 5. Apply env overrides
         if let Some(env_overrides) = &request.env_overrides {
             let mut env_obj = obj
                 .get("env")
@@ -172,13 +146,22 @@ fn build_launch_settings_snapshot(request: &LaunchSettingsRequest) -> Result<ser
             obj.insert("env".to_string(), serde_json::Value::Object(env_obj));
         }
 
-        // 5. Apply enabled plugins override
+        // 6. Apply enabled plugins override
         if let Some(enabled_plugins) = &request.enabled_plugins {
-            let mut plugins_obj = serde_json::Map::new();
-            for plugin_id in enabled_plugins {
-                plugins_obj.insert(plugin_id.clone(), serde_json::Value::Bool(true));
-            }
-            obj.insert("enabledPlugins".to_string(), serde_json::Value::Object(plugins_obj));
+            let plugins_obj = enabled_plugins
+                .iter()
+                .map(|(plugin_id, enabled)| {
+                    (
+                        plugin_id.clone(),
+                        serde_json::Value::Bool(*enabled),
+                    )
+                })
+                .collect::<serde_json::Map<String, serde_json::Value>>();
+
+            obj.insert(
+                "enabledPlugins".to_string(),
+                serde_json::Value::Object(plugins_obj),
+            );
         }
     }
 

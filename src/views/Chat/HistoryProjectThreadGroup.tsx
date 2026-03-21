@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, type MouseEvent, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ChevronRight, Folder, FolderOpen } from "lucide-react";
+import { ChevronRight, EyeOff, Folder, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useQueryClient } from "@/hooks";
@@ -21,8 +21,10 @@ interface HistoryProjectThreadGroupProps {
   selectedProjectId: string | null;
   selectedSessionId: string | null;
   expanded: boolean;
+  hideDisabled?: boolean;
   onToggleExpanded: (projectId: string) => void;
   onOpenProject: (projectId: string) => void;
+  onHideProject: (project: Project) => void;
   onOpenSession: (projectId: string, sessionId: string) => void;
 }
 
@@ -45,8 +47,10 @@ function HistoryProjectThreadGroupInner(props: HistoryProjectThreadGroupProps): 
     selectedProjectId,
     selectedSessionId,
     expanded,
+    hideDisabled = false,
     onToggleExpanded,
     onOpenProject,
+    onHideProject,
     onOpenSession,
   } = props;
   const { t } = useTranslation();
@@ -110,30 +114,50 @@ function HistoryProjectThreadGroupInner(props: HistoryProjectThreadGroupProps): 
     onToggleExpanded(project.id);
   }, [onToggleExpanded, project.id]);
 
+  const handleHideProject = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onHideProject(project);
+  }, [onHideProject, project]);
+
   return (
-    <div className="space-y-0.5">
-      <button
-        type="button"
-        onClick={handleOpenProject}
-        className={cn(
-          "flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors",
-          selected ? "bg-primary/10 text-primary" : "hover:bg-background/70 text-muted-foreground",
-        )}
-      >
-        <span
-          className="flex h-4 w-4 shrink-0 items-center justify-center rounded hover:bg-background"
-          onClick={handleToggleExpanded}
+    <div className="group space-y-0.5">
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={handleOpenProject}
+          className={cn(
+            "flex flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors",
+            selected ? "bg-primary/10 text-primary" : "hover:bg-background/70 text-muted-foreground",
+          )}
         >
-          <ChevronRight
-            className={cn(
-              "h-3 w-3 transition-transform",
-              expanded && "rotate-90",
-            )}
-          />
-        </span>
-        {expanded ? <FolderOpen className="h-3.5 w-3.5 shrink-0" /> : <Folder className="h-3.5 w-3.5 shrink-0" />}
-        <span className="truncate text-[13px] font-medium leading-tight" title={projectTitle}>{projectLabel}</span>
-      </button>
+          <span
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded hover:bg-background"
+            onClick={handleToggleExpanded}
+          >
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 transition-transform",
+                expanded && "rotate-90",
+              )}
+            />
+          </span>
+          {expanded ? <FolderOpen className="h-3.5 w-3.5 shrink-0" /> : <Folder className="h-3.5 w-3.5 shrink-0" />}
+          <span className="truncate text-[13px] font-medium leading-tight" title={projectTitle}>{projectLabel}</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleHideProject}
+          disabled={hideDisabled}
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-background hover:text-ink disabled:cursor-wait disabled:opacity-60",
+            selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+          )}
+          title={t("chat.hide_project", "Hide project")}
+          aria-label={t("chat.hide_project", "Hide project")}
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
       {expanded ? (
         <div className="space-y-0.5 pl-5">
@@ -192,8 +216,10 @@ function areHistoryProjectThreadGroupPropsEqual(
     && prev.selectedProjectId === next.selectedProjectId
     && prev.selectedSessionId === next.selectedSessionId
     && prev.expanded === next.expanded
+    && prev.hideDisabled === next.hideDisabled
     && prev.onToggleExpanded === next.onToggleExpanded
     && prev.onOpenProject === next.onOpenProject
+    && prev.onHideProject === next.onHideProject
     && prev.onOpenSession === next.onOpenSession;
 }
 

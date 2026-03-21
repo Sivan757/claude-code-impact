@@ -102,6 +102,10 @@ export function HistoryWorkbench() {
     )?.summary ?? null,
     [selectedProjectId, selectedSessionId, visibleSessions],
   );
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId],
+  );
 
   useEffect(() => {
     const previousProjectId = previousProjectIdRef.current;
@@ -160,7 +164,7 @@ export function HistoryWorkbench() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/50">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <HistorySessionListPane
           projects={projects}
           loadingProjects={loadingProjects}
@@ -173,6 +177,7 @@ export function HistoryWorkbench() {
 
         <HistorySessionDetailPane
           selectedProjectId={selectedProjectId}
+          selectedProjectPath={selectedProject?.path ?? null}
           selectedSessionId={selectedSessionId}
           selectedSessionSummary={selectedSessionSummary}
         />

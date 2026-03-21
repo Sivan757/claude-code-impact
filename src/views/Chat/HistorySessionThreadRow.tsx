@@ -59,7 +59,7 @@ function HistorySessionThreadRowInner(props: HistorySessionThreadRowProps): Reac
               <DotsHorizontalIcon className="h-3 w-3" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-40 rounded-lg p-[3px] shadow-md">
             <SessionDropdownMenuItems
               projectId={projectId}
               sessionId={sessionId}

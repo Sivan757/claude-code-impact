@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Cross2Icon } from "@radix-ui/react-icons";
 
@@ -47,9 +47,10 @@ export function DialogTrigger({ children, className = "" }: DialogTriggerProps) 
 interface DialogContentProps {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }
 
-export function DialogContent({ children, className = "" }: DialogContentProps) {
+export function DialogContent({ children, className = "", style }: DialogContentProps) {
   const context = useContext(DialogContext);
   if (!context) throw new Error("DialogContent must be used within Dialog");
 
@@ -71,6 +72,7 @@ export function DialogContent({ children, className = "" }: DialogContentProps) 
           animate-in fade-in-0 zoom-in-95 sm:rounded-lg
           ${className}
         `}
+        style={style}
       >
         {children}
         <button

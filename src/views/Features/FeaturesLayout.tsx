@@ -61,7 +61,6 @@ function getRefreshQueryKeys(pathname: string): Array<readonly unknown[]> {
     return [
       ["config"],
       ["settings"],
-      ["templates"],
       ["llmProfilesState"],
       ["pluginScan"],
       ["pluginRuntimeState"],
@@ -96,7 +95,6 @@ function getRefreshQueryKeys(pathname: string): Array<readonly unknown[]> {
   return [
     ["config"],
     ["settings"],
-    ["templates"],
     ["llmProfilesState"],
     ["pluginScan"],
     ["pluginRuntimeState"],

@@ -3,10 +3,12 @@
 use crate::domain::{ChatMessage, ChatsResponse, Message, Project, Session, SessionUsage};
 
 const PROJECT_LIST_CACHE_TTL: Duration = Duration::from_secs(8);
+const HIDDEN_PROJECTS_DATA_KEY: &str = "projects.hidden_paths";
 
 struct ProjectListCacheEntry {
     cached_at: SystemTime,
     projects_dir_signature: Option<SystemTime>,
+    hidden_project_paths: HashSet<String>,
     projects: Vec<Project>,
 }
 
@@ -29,7 +31,49 @@ fn get_projects_dir_signature(projects_dir: &Path) -> Option<SystemTime> {
     fs::metadata(projects_dir).ok().and_then(|meta| meta.modified().ok())
 }
 
-fn collect_projects(projects_dir: &Path) -> Result<Vec<Project>, String> {
+fn normalize_project_path_value(path: &str) -> String {
+    let resolved = crate::services::platform::resolve_user_path(path);
+    let canonical = fs::canonicalize(&resolved).unwrap_or(resolved);
+    let display = canonical.to_string_lossy().to_string();
+    let trimmed = display.trim_end_matches(|ch| ch == '/' || ch == '\\');
+    if trimmed.is_empty() {
+        display
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn load_hidden_project_paths() -> Result<HashSet<String>, String> {
+    let Some(Value::Array(items)) = read_data_key(HIDDEN_PROJECTS_DATA_KEY)? else {
+        return Ok(HashSet::new());
+    };
+
+    Ok(items
+        .iter()
+        .filter_map(|value| value.as_str())
+        .map(normalize_project_path_value)
+        .collect())
+}
+
+fn save_hidden_project_paths(hidden_project_paths: &HashSet<String>) -> Result<(), String> {
+    let mut values: Vec<String> = hidden_project_paths.iter().cloned().collect();
+    values.sort();
+    write_data_key(
+        HIDDEN_PROJECTS_DATA_KEY,
+        Value::Array(values.into_iter().map(Value::String).collect()),
+    )
+}
+
+fn invalidate_project_list_cache() {
+    if let Ok(mut cache) = PROJECT_LIST_CACHE.lock() {
+        *cache = None;
+    }
+}
+
+fn collect_projects(
+    projects_dir: &Path,
+    hidden_project_paths: &HashSet<String>,
+) -> Result<Vec<Project>, String> {
     if !projects_dir.exists() {
         return Ok(Vec::new());
     }
@@ -46,6 +90,11 @@ fn collect_projects(projects_dir: &Path) -> Result<Vec<Project>, String> {
 
         let id = path.file_name().unwrap().to_string_lossy().to_string();
         let display_path = decode_project_path(&id);
+        let normalized_path = normalize_project_path_value(&display_path);
+
+        if hidden_project_paths.contains(&normalized_path) {
+            continue;
+        }
 
         let mut session_count = 0;
         let mut last_active: u64 = 0;
@@ -81,6 +130,7 @@ fn collect_projects(projects_dir: &Path) -> Result<Vec<Project>, String> {
 fn list_projects_cached() -> Result<Vec<Project>, String> {
     let projects_dir = get_claude_dir().join("projects");
     let signature = get_projects_dir_signature(&projects_dir);
+    let hidden_project_paths = load_hidden_project_paths()?;
     let now = SystemTime::now();
 
     if let Ok(cache) = PROJECT_LIST_CACHE.lock() {
@@ -89,17 +139,21 @@ fn list_projects_cached() -> Result<Vec<Project>, String> {
                 .duration_since(entry.cached_at)
                 .map(|age| age <= PROJECT_LIST_CACHE_TTL)
                 .unwrap_or(false);
-            if fresh && entry.projects_dir_signature == signature {
+            if fresh
+                && entry.projects_dir_signature == signature
+                && entry.hidden_project_paths == hidden_project_paths
+            {
                 return Ok(clone_projects(&entry.projects));
             }
         }
     }
 
-    let projects = collect_projects(&projects_dir)?;
+    let projects = collect_projects(&projects_dir, &hidden_project_paths)?;
     if let Ok(mut cache) = PROJECT_LIST_CACHE.lock() {
         *cache = Some(ProjectListCacheEntry {
             cached_at: now,
             projects_dir_signature: signature,
+            hidden_project_paths: hidden_project_paths.clone(),
             projects: clone_projects(&projects),
         });
     }
@@ -149,6 +203,65 @@ async fn list_projects() -> Result<Vec<Project>, String> {
     tauri::async_runtime::spawn_blocking(list_projects_cached)
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn add_project_sync(project_path: String) -> Result<Project, String> {
+    let normalized_project_path = normalize_project_path_value(&project_path);
+    if normalized_project_path.is_empty() {
+        return Err("Project path is required".to_string());
+    }
+
+    let resolved_path = PathBuf::from(&normalized_project_path);
+    if !resolved_path.exists() {
+        return Err("Project directory does not exist".to_string());
+    }
+    if !resolved_path.is_dir() {
+        return Err("Project path must be a directory".to_string());
+    }
+
+    let project_id = encode_project_path(&normalized_project_path);
+    let projects_dir = get_claude_dir().join("projects");
+    fs::create_dir_all(&projects_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(projects_dir.join(&project_id)).map_err(|e| e.to_string())?;
+
+    let mut hidden_project_paths = load_hidden_project_paths()?;
+    if hidden_project_paths.remove(&normalized_project_path) {
+        save_hidden_project_paths(&hidden_project_paths)?;
+    }
+
+    invalidate_project_list_cache();
+
+    list_projects_cached()?
+        .into_iter()
+        .find(|project| project.id == project_id)
+        .ok_or_else(|| "Failed to register project".to_string())
+}
+
+#[tauri::command]
+async fn add_project(project_path: String) -> Result<Project, String> {
+    tauri::async_runtime::spawn_blocking(move || add_project_sync(project_path))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn hide_project_sync(project_path: String) -> Result<(), String> {
+    let normalized_project_path = normalize_project_path_value(&project_path);
+    if normalized_project_path.is_empty() {
+        return Err("Project path is required".to_string());
+    }
+
+    let mut hidden_project_paths = load_hidden_project_paths()?;
+    hidden_project_paths.insert(normalized_project_path);
+    save_hidden_project_paths(&hidden_project_paths)?;
+    invalidate_project_list_cache();
+    Ok(())
+}
+
+#[tauri::command]
+async fn hide_project(project_path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || hide_project_sync(project_path))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

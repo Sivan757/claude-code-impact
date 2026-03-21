@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.7
+
+- Move project launch into Chat as a new `Launchpad`, remove the standalone project hub/template route, and add a compact quick-launch panel with model, permission, provider, and plugin overrides.
+- Add project management actions in history: register local folders into the sidebar, hide projects from the list, and keep project-scoped settings reflected back into quick-launch selectors.
+- Replace the old template-based launch flow with launch-time settings snapshots, including provider env injection, permission override, and `enabledPlugins` overrides from a compact plugin picker.
+- Improve session review usability with safer delete confirmation, merge-view toggle, compact menus, and a new session delete action in both list and detail views.
+- Fix merged-message duplication caused by mutating source `raw_content` during assistant/tool-chain merging, and improve long-token overflow handling in chat content.
+- Lightly refine chat workspace chrome by removing the outer workbench card treatment and repositioning the header entry as `Launchpad`.
+
 ## 0.1.6
 
 - Add supplier model env form fields for `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `ANTHROPIC_MODEL`, and `ANTHROPIC_SMALL_FAST_MODEL`.

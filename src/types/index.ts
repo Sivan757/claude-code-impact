@@ -23,8 +23,7 @@ export type FeatureType =
   | "statusline"
   | "kb-distill"
   | "kb-reference"
-  | "projects"
-  | "templates";
+  | "projects";
 
 export interface FeatureConfig {
   type: FeatureType;
