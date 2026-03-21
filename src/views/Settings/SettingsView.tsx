@@ -41,6 +41,8 @@ import {
   SettingSection,
   SettingRow,
   SettingsEmptyState,
+  StatusBadge,
+  AddFormRow,
 } from "../../components/Settings";
 import { useConfigDeleteKey, useConfigMerged, useConfigPaths, useConfigWrite } from "../../config/hooks/useConfig";
 import { isKnownModelType, MODEL_OPTIONS } from "@/config/models";
@@ -55,6 +57,7 @@ type PermissionMode =
   | "plan";
 type AttributionMode = "none" | "footer" | "coauthor";
 type AutoUpdatesChannel = "latest" | "stable";
+type EffortLevelOption = "auto" | "low" | "medium" | "high";
 
 const VALID_PERMISSION_MODES = new Set<PermissionMode>([
   "acceptEdits",
@@ -76,6 +79,57 @@ const DEFAULT_ATTRIBUTION_FOOTER =
   "Generated with [Claude Code](https://claude.com/claude-code)";
 const DEFAULT_ATTRIBUTION_COAUTHOR = `${DEFAULT_ATTRIBUTION_FOOTER}\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`;
 
+const VALID_EFFORT_LEVELS = new Set<EffortLevelOption>(["low", "medium", "high"]);
+
+const normalizeEffortLevel = (value: unknown): EffortLevelOption => {
+  if (typeof value === "string" && VALID_EFFORT_LEVELS.has(value as EffortLevelOption)) {
+    return value as EffortLevelOption;
+  }
+  return "auto";
+};
+
+const normalizeStringList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const entries: string[] = [];
+
+  for (const item of value) {
+    if (typeof item !== "string") {
+      continue;
+    }
+    const normalized = item.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    entries.push(normalized);
+  }
+
+  return entries;
+};
+
+const normalizeStringRecord = (value: unknown): Record<string, string> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, entry]) => {
+    if (typeof entry !== "string") {
+      return acc;
+    }
+    const normalizedKey = key.trim();
+    const normalizedValue = entry.trim();
+    if (!normalizedKey || !normalizedValue) {
+      return acc;
+    }
+    acc[normalizedKey] = normalizedValue;
+    return acc;
+  }, {});
+};
+
 export function SettingsView(props: { embedded?: boolean; settingsPath?: string }) {
   const { embedded = false, settingsPath } = props;
   const { t } = useTranslation();
@@ -93,6 +147,9 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
 
   const [showRawJson, setShowRawJson] = useState(false);
   const [languageInput, setLanguageInput] = useState("");
+  const [availableModelInput, setAvailableModelInput] = useState("");
+  const [overrideAliasInput, setOverrideAliasInput] = useState("");
+  const [overrideValueInput, setOverrideValueInput] = useState("");
   const didNormalizeAttribution = useRef(false);
 
   const PERMISSION_MODES: { value: PermissionMode; label: string; desc: string }[] = useMemo(() => [
@@ -131,6 +188,7 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
 
   const labelIds = {
     defaultModel: "settings-default-model-label",
+    effortLevel: "settings-effort-level-label",
     alwaysThinking: "settings-always-thinking-label",
     showTurnDuration: "settings-show-turn-duration-label",
     responseLanguage: "settings-response-language-label",
@@ -150,6 +208,10 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   const model = rawModel
     ? (isKnownModelType(normalizedRawModel) ? normalizedRawModel : rawModel)
     : "default";
+  const availableModels = useMemo(() => normalizeStringList(raw.availableModels), [raw.availableModels]);
+  const modelOverrides = useMemo(() => normalizeStringRecord(raw.modelOverrides), [raw.modelOverrides]);
+  const modelOverrideEntries = useMemo(() => Object.entries(modelOverrides), [modelOverrides]);
+  const effortLevel = normalizeEffortLevel(raw.effortLevel);
   const modelOptions = useMemo(
     () =>
       rawModel && !isKnownModelType(normalizedRawModel)
@@ -211,6 +273,95 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
       key: field,
       value,
     });
+  };
+
+  const deleteKey = async (key: string) => {
+    await deleteMutation.mutateAsync({
+      kind: settingsKind,
+      scope: selectedScope,
+      projectPath: settingsPath,
+      key,
+    });
+  };
+
+  const saveAvailableModels = async (nextModels: string[]) => {
+    if (nextModels.length === 0) {
+      await deleteKey("availableModels");
+      return;
+    }
+
+    await updateField("availableModels", nextModels);
+  };
+
+  const addAvailableModel = async () => {
+    const nextModel = availableModelInput.trim();
+    if (!nextModel) {
+      return;
+    }
+
+    if (availableModels.includes(nextModel)) {
+      setAvailableModelInput("");
+      return;
+    }
+
+    await saveAvailableModels([...availableModels, nextModel]);
+    setAvailableModelInput("");
+  };
+
+  const removeAvailableModel = async (value: string) => {
+    const confirmed = await confirmDialog({
+      title: t("common.remove", "Remove"),
+      description: t("settings.confirm_remove_available_model", {
+        model: value,
+        defaultValue: `Remove available model "${value}"?`,
+      }),
+      variant: "destructive",
+      confirmText: t("common.remove", "Remove"),
+    });
+    if (!confirmed) return;
+
+    await saveAvailableModels(availableModels.filter((entry) => entry !== value));
+  };
+
+  const saveModelOverrides = async (nextOverrides: Record<string, string>) => {
+    if (Object.keys(nextOverrides).length === 0) {
+      await deleteKey("modelOverrides");
+      return;
+    }
+
+    await updateField("modelOverrides", nextOverrides);
+  };
+
+  const addModelOverride = async () => {
+    const alias = overrideAliasInput.trim();
+    const target = overrideValueInput.trim();
+    if (!alias || !target) {
+      return;
+    }
+
+    await saveModelOverrides({
+      ...modelOverrides,
+      [alias]: target,
+    });
+    setOverrideAliasInput("");
+    setOverrideValueInput("");
+  };
+
+  const removeModelOverride = async (alias: string) => {
+    const confirmed = await confirmDialog({
+      title: t("common.remove", "Remove"),
+      description: t("settings.confirm_remove_model_override", {
+        alias,
+        defaultValue: `Remove model override "${alias}"?`,
+      }),
+      variant: "destructive",
+      confirmText: t("common.remove", "Remove"),
+    });
+    if (!confirmed) return;
+
+    const nextOverrides = { ...modelOverrides };
+    delete nextOverrides[alias];
+    await saveModelOverrides(nextOverrides);
   };
 
   const getAttributionPr = () => {
@@ -366,20 +517,19 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
         />
       ) : (
         <>
-          {/* General Section */}
           <SettingSection
-            title={t('settings.general')}
+            title={t("settings.model_strategy")}
+            description={t("settings.model_strategy_desc")}
             density={denseLayout.sectionDensity}
           >
-            {/* Model */}
             <SettingRow
-              label={t('settings.default_model')}
-              description={t('settings.default_model_desc')}
+              label={t("settings.default_model")}
+              description={t("settings.default_model_desc")}
               labelId={labelIds.defaultModel}
               compact={denseLayout.rowCompact}
               className={denseLayout.rowClassName}
             >
-              <Select value={model} onValueChange={(v) => updateField("model", v)}>
+              <Select value={model} onValueChange={(value) => updateField("model", value)}>
                 <SelectTrigger
                   className="h-8 w-40 rounded-lg"
                   aria-labelledby={labelIds.defaultModel}
@@ -394,7 +544,38 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
               </Select>
             </SettingRow>
 
-            {/* Extended Thinking */}
+            <SettingRow
+              label={t("settings.effort_level")}
+              description={t("settings.effort_level_desc")}
+              labelId={labelIds.effortLevel}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Select
+                value={effortLevel}
+                onValueChange={(value) => {
+                  if (value === "auto") {
+                    void deleteKey("effortLevel");
+                    return;
+                  }
+                  void updateField("effortLevel", value);
+                }}
+              >
+                <SelectTrigger
+                  className="h-8 w-32 rounded-lg"
+                  aria-labelledby={labelIds.effortLevel}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">{t("settings.effort_level_auto")}</SelectItem>
+                  <SelectItem value="low">{t("settings.effort_level_low")}</SelectItem>
+                  <SelectItem value="medium">{t("settings.effort_level_medium")}</SelectItem>
+                  <SelectItem value="high">{t("settings.effort_level_high")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </SettingRow>
+
             <SettingRow
               label={t('settings.extended_thinking')}
               description={t('settings.extended_thinking_desc')}
@@ -409,6 +590,165 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
               />
             </SettingRow>
 
+            <div className={cn(denseLayout.blockPadding, "border-b border-border/30")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{t("settings.available_models")}</p>
+                    <StatusBadge variant="blue">{availableModels.length}</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                    {t("settings.available_models_desc")}
+                  </p>
+                </div>
+              </div>
+
+              {availableModels.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {availableModels.map((entry) => (
+                    <div
+                      key={entry}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2 transition-colors hover:bg-secondary/60"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs text-foreground">{entry}</span>
+                          {model === entry && (
+                            <StatusBadge variant="active">
+                              {t("settings.default_model")}
+                            </StatusBadge>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => void removeAvailableModel(entry)}
+                        aria-label={t("common.remove")}
+                        className="rounded p-1 text-muted-foreground transition-all hover:bg-red-500/10 hover:text-red-500"
+                        title={t("common.remove")}
+                      >
+                        <Cross2Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs italic text-muted-foreground/70">
+                  {t("settings.no_available_models")}
+                </p>
+              )}
+
+              <AddFormRow className="mt-3 items-stretch sm:items-center">
+                <input
+                  className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 font-mono text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  placeholder={t("settings.available_models_placeholder")}
+                  value={availableModelInput}
+                  onChange={(event) => setAvailableModelInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addAvailableModel();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => void addAvailableModel()}
+                  disabled={!availableModelInput.trim()}
+                  className="h-9 rounded-xl px-4"
+                >
+                  {t("common.add")}
+                </Button>
+              </AddFormRow>
+            </div>
+
+            <div className={cn(denseLayout.blockPadding, "last:border-0")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{t("settings.model_overrides")}</p>
+                    <StatusBadge variant="purple">{modelOverrideEntries.length}</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                    {t("settings.model_overrides_desc")}
+                  </p>
+                </div>
+              </div>
+
+              {modelOverrideEntries.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {modelOverrideEntries.map(([alias, target]) => (
+                    <div
+                      key={alias}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2 transition-colors hover:bg-secondary/60"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{alias}</span>
+                          <StatusBadge variant="muted">
+                            {t("settings.model_override_alias")}
+                          </StatusBadge>
+                        </div>
+                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                          {target}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => void removeModelOverride(alias)}
+                        aria-label={t("common.remove")}
+                        className="rounded p-1 text-muted-foreground transition-all hover:bg-red-500/10 hover:text-red-500"
+                        title={t("common.remove")}
+                      >
+                        <Cross2Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs italic text-muted-foreground/70">
+                  {t("settings.no_model_overrides")}
+                </p>
+              )}
+
+              <AddFormRow className="mt-3 items-stretch sm:items-center">
+                <input
+                  className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  placeholder={t("settings.model_override_alias_placeholder")}
+                  value={overrideAliasInput}
+                  onChange={(event) => setOverrideAliasInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addModelOverride();
+                    }
+                  }}
+                />
+                <input
+                  className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 font-mono text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  placeholder={t("settings.model_override_value_placeholder")}
+                  value={overrideValueInput}
+                  onChange={(event) => setOverrideValueInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addModelOverride();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => void addModelOverride()}
+                  disabled={!overrideAliasInput.trim() || !overrideValueInput.trim()}
+                  className="h-9 rounded-xl px-4"
+                >
+                  {t("common.add")}
+                </Button>
+              </AddFormRow>
+            </div>
+          </SettingSection>
+
+          {/* General Section */}
+          <SettingSection
+            title={t('settings.general')}
+            density={denseLayout.sectionDensity}
+          >
             {/* Turn Duration */}
             <SettingRow
               label={t('settings.show_turn_duration')}

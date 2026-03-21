@@ -319,10 +319,28 @@
         "no_settings": "未找到设置",
         "create_hint": "请创建 ~/.claude/settings.json",
         "general": "常规",
+        "model_strategy": "模型策略",
+        "model_strategy_desc": "集中管理默认模型、推理强度和自定义模型路由。",
         "default_model": "默认模型",
         "default_model_desc": "对话使用的 AI 模型",
+        "effort_level": "推理强度",
+        "effort_level_desc": "设置 Claude Code 默认的 effort level；“自动”表示沿用 Claude 默认策略。",
+        "effort_level_auto": "自动",
+        "effort_level_low": "低",
+        "effort_level_medium": "中",
+        "effort_level_high": "高",
         "extended_thinking": "深度思考",
         "extended_thinking_desc": "为所有消息启用深度思考",
+        "available_models": "可选模型",
+        "available_models_desc": "限制模型选择器中可见的候选项，同时保留一个明确的默认模型。",
+        "no_available_models": "尚未配置 availableModels",
+        "available_models_placeholder": "例如：sonnet",
+        "model_overrides": "模型覆盖",
+        "model_overrides_desc": "将选择器里的别名映射到具体 provider 模型 ID，用于自定义路由。",
+        "model_override_alias": "别名",
+        "no_model_overrides": "尚未配置 modelOverrides",
+        "model_override_alias_placeholder": "选择器中展示的别名",
+        "model_override_value_placeholder": "实际 provider 模型 ID",
         "show_turn_duration": "显示轮次耗时",
         "show_turn_duration_desc": "在响应后显示本轮耗时信息",
         "response_language": "响应语言",
@@ -387,6 +405,8 @@
         "additional_directories_desc": "Claude 允许访问的路径",
         "no_additional_directories": "暂无附加目录",
         "confirm_remove_directory": "确定移除目录「{{path}}」吗？",
+        "confirm_remove_available_model": "确定移除可选模型「{{model}}」吗？",
+        "confirm_remove_model_override": "确定移除模型覆盖「{{alias}}」吗？",
         "confirm_remove_marketplace": "确定移除市场「{{name}}」吗？",
         "plugins": "插件",
         "hooks": "钩子",
@@ -532,7 +552,7 @@
     },
     "env": {
         "title": "环境变量",
-        "subtitle": "管理 ~/.claude/settings.json 中的环境变量",
+        "subtitle": "按功能分组管理 Claude Code 环境变量，并提供快捷预设与推荐配置",
         "loading": "正在加载设置...",
         "search_placeholder": "搜索变量键名...",
         "key": "键名",
@@ -557,7 +577,85 @@
         "disable": "禁用",
         "delete": "删除",
         "confirm_delete": "确定删除环境变量「{{key}}」吗？",
-        "only_custom_delete": "仅自定义环境变量可以删除"
+        "only_custom_delete": "仅自定义环境变量可以删除",
+        "quick_add_title": "快速配置",
+        "quick_add_desc": "先选择推荐变量或输入自定义键名，再录入数值并保存，避免直接在长表里逐项查找。",
+        "group_summary": "已配置 {{configured}} / 已跟踪 {{total}}",
+        "configured_label": "已配置",
+        "suggested_label": "推荐项",
+        "featured_label": "常用",
+        "custom_label": "自定义",
+        "use_template": "带入",
+        "current_value": "当前值",
+        "placeholder_value": "默认值",
+        "placeholder_hint": "建议格式：{{value}}",
+        "fill_suggested": "填入默认值",
+        "not_configured": "尚未配置",
+        "new_variable": "新建变量",
+        "groups_panel_title": "分组",
+        "groups_panel_desc": "先选择能力域，再在该分组内配置具体变量。",
+        "variables_panel_title": "变量列表",
+        "variables_panel_desc": "这里是当前分组下的二级菜单，直接选择要配置的 key。",
+        "details_panel_title": "参数配置",
+        "workspace_title": "变量工作区",
+        "table_key": "Key",
+        "table_value": "Value",
+        "table_description": "说明",
+        "table_status": "状态",
+        "select_variable_title": "选择一个环境变量",
+        "select_variable_hint": "先在左侧选择分组，再从二级菜单中选择 key，并在右侧填写它的 value。",
+        "empty_group_title": "当前视图没有变量",
+        "empty_group_hint": "可以尝试更换关键词，或切换到其他分组。",
+        "create_custom_title": "新建或填充变量",
+        "create_custom_desc": "输入自定义键名，或选择推荐变量后，在右侧统一补齐参数并保存。",
+        "key_locked_hint": "这个 key 来自二级菜单选择，右侧只负责编辑它的 value。",
+        "show_all_groups": "查看全部",
+        "show_more_group_items": "展开此分组中另外 {{count}} 个变量",
+        "no_group_matches": "当前分类下没有匹配的环境变量",
+        "no_group_matches_hint": "可尝试更换关键词，或切回全部分组查看。",
+        "custom_item_desc": "该变量尚未纳入内置目录，按自定义环境变量管理",
+        "groups": {
+            "all": {
+                "title": "全部分组",
+                "desc": "按能力域浏览推荐环境变量，并聚焦到当前正在配置的功能区域。"
+            },
+            "auth": {
+                "title": "访问与提供商",
+                "desc": "认证、模型提供商切换、网关接入地址与云厂商凭证。"
+            },
+            "models": {
+                "title": "模型与推理",
+                "desc": "默认模型、思考强度、自定义模型选项与思考预算。"
+            },
+            "runtime": {
+                "title": "运行时行为",
+                "desc": "会话行为、任务系统、Shell 集成、自动记忆与交互流程。"
+            },
+            "network": {
+                "title": "网络与代理",
+                "desc": "代理转发、主机解析、自定义请求头与网络端点。"
+            },
+            "mcp": {
+                "title": "MCP 与工具",
+                "desc": "MCP 连接、工具搜索、OAuth 回调和输出上限。"
+            },
+            "plugins": {
+                "title": "插件",
+                "desc": "插件自动更新、种子目录、容器预置与插件运行方式。"
+            },
+            "privacy": {
+                "title": "隐私与遥测",
+                "desc": "账号可见性、遥测、演示模式与非必要流量控制。"
+            },
+            "advanced": {
+                "title": "高级",
+                "desc": "底层预算、ripgrep 行为和面向专家的高级覆盖项。"
+            },
+            "custom": {
+                "title": "自定义",
+                "desc": "尚未映射到内置分组目录中的环境变量。"
+            }
+        }
     },
     "chat": {
         "title": "",

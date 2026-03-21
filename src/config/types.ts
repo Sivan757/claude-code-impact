@@ -22,18 +22,34 @@ export enum ConfigFileKind {
 }
 
 // Settings structure
+export type SettingsEffortLevel = "low" | "medium" | "high";
+
 export interface SettingsJson {
   model?: string;
+  availableModels?: string[];
+  modelOverrides?: Record<string, string>;
+  effortLevel?: SettingsEffortLevel;
+  alwaysThinkingEnabled?: boolean;
   always_thinking_enabled?: boolean;
   permissions?: PermissionsConfig;
   env?: Record<string, string>;
   hooks?: Record<string, HookEntry[]>;
+  mcpServers?: Record<string, McpServerConfig>;
   mcp_servers?: Record<string, McpServerConfig>;
+  enabledPlugins?: Record<string, boolean>;
   enabled_plugins?: Record<string, boolean>;
   projects?: Record<string, unknown>;
   sandbox?: SandboxConfig;
   attribution?: AttributionConfig;
+  language?: string;
+  autoUpdatesChannel?: "latest" | "stable";
+  showTurnDuration?: boolean;
+  spinnerTipsEnabled?: boolean;
+  terminalProgressBarEnabled?: boolean;
+  prefersReducedMotion?: boolean;
+  cleanupPeriodDays?: number;
   cleanup_period_days?: number;
+  disableAllHooks?: boolean;
   disable_all_hooks?: boolean;
 }
 
@@ -72,6 +88,8 @@ export interface SandboxConfig {
 // Attribution configuration
 export interface AttributionConfig {
   enabled?: boolean;
+  commit?: string;
+  pr?: string;
 }
 
 // Provenance tracking

@@ -319,10 +319,28 @@
         "no_settings": "No settings found",
         "create_hint": "Create ~/.claude/settings.json",
         "general": "General",
+        "model_strategy": "Model Strategy",
+        "model_strategy_desc": "Control the default model, reasoning effort, and custom model routing.",
         "default_model": "Default Model",
         "default_model_desc": "Model used for conversations",
+        "effort_level": "Reasoning Effort",
+        "effort_level_desc": "Set the default effort level for Claude Code; Auto follows Claude's default policy.",
+        "effort_level_auto": "Auto",
+        "effort_level_low": "Low",
+        "effort_level_medium": "Medium",
+        "effort_level_high": "High",
         "extended_thinking": "Extended Thinking",
         "extended_thinking_desc": "Enable thinking for all messages",
+        "available_models": "Available Models",
+        "available_models_desc": "Limit the picker to approved model entries while still allowing a chosen default.",
+        "no_available_models": "No availableModels configured",
+        "available_models_placeholder": "e.g. sonnet",
+        "model_overrides": "Model Overrides",
+        "model_overrides_desc": "Map picker aliases to concrete provider model IDs for custom routing.",
+        "model_override_alias": "Alias",
+        "no_model_overrides": "No modelOverrides configured",
+        "model_override_alias_placeholder": "Alias shown in picker",
+        "model_override_value_placeholder": "Resolved provider model ID",
         "show_turn_duration": "Show Turn Duration",
         "show_turn_duration_desc": "Show per-turn duration after each response",
         "response_language": "Response Language",
@@ -387,6 +405,8 @@
         "additional_directories_desc": "Paths Claude can access",
         "no_additional_directories": "No additional directories",
         "confirm_remove_directory": "Remove directory \"{{path}}\"?",
+        "confirm_remove_available_model": "Remove available model \"{{model}}\"?",
+        "confirm_remove_model_override": "Remove model override \"{{alias}}\"?",
         "confirm_remove_marketplace": "Remove marketplace \"{{name}}\"?",
         "plugins": "Plugins",
         "hooks": "Hooks",
@@ -532,7 +552,7 @@
     },
     "env": {
         "title": "Environment",
-        "subtitle": "Manage env vars in ~/.claude/settings.json",
+        "subtitle": "Manage Claude Code environment variables with grouped guidance and quick presets",
         "loading": "Loading settings...",
         "search_placeholder": "Search env keys...",
         "key": "ENV_KEY",
@@ -557,7 +577,85 @@
         "disable": "Disable",
         "delete": "Delete",
         "confirm_delete": "Delete environment variable \"{{key}}\"?",
-        "only_custom_delete": "Only custom can be deleted"
+        "only_custom_delete": "Only custom can be deleted",
+        "quick_add_title": "Quick compose",
+        "quick_add_desc": "Choose a recommended variable or enter a custom key, then stage the value before saving.",
+        "group_summary": "{{configured}} configured / {{total}} tracked",
+        "configured_label": "Configured",
+        "suggested_label": "Suggested",
+        "featured_label": "Featured",
+        "custom_label": "Custom",
+        "use_template": "Use",
+        "current_value": "Current value",
+        "placeholder_value": "Default value",
+        "placeholder_hint": "Suggested format: {{value}}",
+        "fill_suggested": "Fill default",
+        "not_configured": "Not configured",
+        "new_variable": "New variable",
+        "groups_panel_title": "Groups",
+        "groups_panel_desc": "Choose a capability domain first, then configure variables within that slice.",
+        "variables_panel_title": "Variables",
+        "variables_panel_desc": "This second-level menu lists the keys in the current group.",
+        "details_panel_title": "Details",
+        "workspace_title": "Variable workspace",
+        "table_key": "Key",
+        "table_value": "Value",
+        "table_description": "Description",
+        "table_status": "Status",
+        "select_variable_title": "Select a variable",
+        "select_variable_hint": "Choose a group on the left, then pick a key from the secondary menu to configure its value.",
+        "empty_group_title": "No variables in this view",
+        "empty_group_hint": "Try another keyword or switch to a different group.",
+        "create_custom_title": "Create or fill a variable",
+        "create_custom_desc": "Enter a custom key, or choose a recommended variable and fill its parameters before saving.",
+        "key_locked_hint": "This key is selected from the secondary menu. Only its value is edited here.",
+        "show_all_groups": "Show all",
+        "show_more_group_items": "Show {{count}} more variables in this group",
+        "no_group_matches": "No environment variables match this category",
+        "no_group_matches_hint": "Try another keyword or switch back to all groups.",
+        "custom_item_desc": "Custom variable not in the built-in catalog",
+        "groups": {
+            "all": {
+                "title": "All groups",
+                "desc": "Browse recommended variables by capability and focus on the area you are configuring."
+            },
+            "auth": {
+                "title": "Access & Providers",
+                "desc": "Authentication, provider switching, gateway endpoints, and cloud credentials."
+            },
+            "models": {
+                "title": "Models & Reasoning",
+                "desc": "Default models, effort level, custom model options, and thinking budgets."
+            },
+            "runtime": {
+                "title": "Runtime Behavior",
+                "desc": "Session behavior, tasks, shell integration, memory, and interaction flow."
+            },
+            "network": {
+                "title": "Network & Proxy",
+                "desc": "Proxy routing, host resolution, custom headers, and network endpoints."
+            },
+            "mcp": {
+                "title": "MCP & Tools",
+                "desc": "MCP connectivity, tool search, OAuth callback settings, and output limits."
+            },
+            "plugins": {
+                "title": "Plugins",
+                "desc": "Plugin auto-updates, seed directories, and packaged plugin workflows."
+            },
+            "privacy": {
+                "title": "Privacy & Telemetry",
+                "desc": "Visibility controls, telemetry, demo mode, and nonessential traffic."
+            },
+            "advanced": {
+                "title": "Advanced",
+                "desc": "Low-level budgets, ripgrep behavior, and expert-only overrides."
+            },
+            "custom": {
+                "title": "Custom",
+                "desc": "Variables not yet mapped into the built-in grouped catalog."
+            }
+        }
     },
     "chat": {
         "title": "Conversation History",
