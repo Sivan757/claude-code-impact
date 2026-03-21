@@ -153,6 +153,7 @@ pub fn build_invoke_handler(
         set_ui_preference,
         remove_ui_preference,
         toggle_plugin,
+        replace_enabled_plugins,
         // Extensions management
         scan_plugins,
         list_plugin_runtime_state,

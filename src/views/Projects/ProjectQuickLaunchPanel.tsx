@@ -29,8 +29,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { useConfigMerged, useConfigWrite } from "@/config/hooks/useConfig";
-import { ConfigFileKind, ConfigScope } from "@/config/types";
+import { useConfigMerged } from "@/config/hooks/useConfig";
+import { ConfigScope } from "@/config/types";
 import { useInvokeQuery, useQueryClient, useTerminalLauncher } from "@/hooks";
 import { resolveLaunchDraftRetentionSeconds } from "@/lib/launchDraftRetention";
 import {
@@ -52,6 +52,7 @@ import type { MergedConfigView, ProvenanceEntry } from "@/config/types";
 import {
   buildClaudeLaunchCommand,
   getProjectDisplayName,
+  isKnownModelType,
   type LaunchDraftResponse,
   type LaunchSettingsRequest,
   type MaterializedLaunchDraftResponse,
@@ -59,8 +60,8 @@ import {
   type ModelType,
 } from "./launcherShared";
 
-type ModelChoice = ModelType | "_default";
-type PermissionMode = "acceptEdits" | "bypassPermissions" | "default" | "delegate" | "dontAsk" | "plan";
+type ModelChoice = "_default" | ModelType | string;
+type PermissionMode = "acceptEdits" | "bypassPermissions" | "default" | "plan";
 type PermissionChoice = PermissionMode | "_default";
 type PluginDialogViewMode = "card" | "list";
 
@@ -77,12 +78,20 @@ interface PluginRuntimeState {
   projectPath?: string | null;
 }
 
+function normalizeActionError(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return fallback;
+}
+
 const VALID_PERMISSION_MODES = new Set<PermissionMode>([
   "acceptEdits",
   "bypassPermissions",
   "default",
-  "delegate",
-  "dontAsk",
   "plan",
 ]);
 
@@ -251,12 +260,14 @@ function resolveInitialLauncherSelections(
   const effective = (mergedConfig.effective ?? {}) as Record<string, unknown>;
   const provenance = mergedConfig.provenance ?? {};
 
-  const modelValue =
-    typeof effective.model === "string" ? effective.model.trim().toLowerCase() : "";
+  const rawModelValue =
+    typeof effective.model === "string" ? effective.model.trim() : "";
+  const normalizedModelValue = rawModelValue.toLowerCase();
   const model = hasProjectScopedValue(provenance, ["model"])
-    && MODEL_OPTIONS.some((option) => option.value === modelValue)
-      ? (modelValue as ModelType)
-      : "_default";
+    ? rawModelValue
+      ? (isKnownModelType(normalizedModelValue) ? normalizedModelValue : rawModelValue)
+      : "_default"
+    : "_default";
 
   const permissions = effective.permissions;
   const currentPermissionMode =
@@ -618,7 +629,6 @@ export function ProjectQuickLaunchPanel({
     [profile],
   );
   const terminalLauncher = useTerminalLauncher();
-  const configWrite = useConfigWrite();
 
   const mergedConfigQuery = useConfigMerged(projectPath);
   const mergedConfig = mergedConfigQuery.data;
@@ -750,7 +760,11 @@ export function ProjectQuickLaunchPanel({
   );
   const defaultModelLabel = useMemo(() => {
     const raw = typeof currentSettings.model === "string" ? currentSettings.model.trim() : "";
-    return raw || t("common.default", "Default");
+    if (!raw) {
+      return t("common.default", "Default");
+    }
+    const normalized = raw.toLowerCase();
+    return isKnownModelType(normalized) ? normalized : raw;
   }, [currentSettings.model, t]);
   const defaultProviderLabel = useMemo(() => {
     return resolveProviderDisplayName(currentSettings, providerProfiles, t("common.default", "Default"))
@@ -772,8 +786,6 @@ export function ProjectQuickLaunchPanel({
       { value: "acceptEdits" as const, label: t("settings.allow_edits", "Allow Edits") },
       { value: "default" as const, label: t("settings.normal", "Normal") },
       { value: "plan" as const, label: t("settings.permission_mode_plan", "Plan") },
-      { value: "delegate" as const, label: t("settings.permission_mode_delegate", "Delegate") },
-      { value: "dontAsk" as const, label: t("settings.permission_mode_dont_ask", "Don't Ask") },
     ],
     [t],
   );
@@ -930,9 +942,10 @@ export function ProjectQuickLaunchPanel({
       setPluginDialogOpen(false);
     } catch (error) {
       setPluginDialogError(
-        error instanceof Error
-          ? error.message
-          : t("launcher.plugin_dialog_apply_failed", "Failed to apply plugin selection"),
+        normalizeActionError(
+          error,
+          t("launcher.plugin_dialog_apply_failed", "Failed to apply plugin selection"),
+        ),
       );
     } finally {
       setIsApplyingPlugins(false);
@@ -956,12 +969,9 @@ export function ProjectQuickLaunchPanel({
 
     try {
       const normalizedSelection = normalizePluginIds(pluginDialogSelection);
-      await configWrite.mutateAsync({
-        kind: ConfigFileKind.Settings,
-        scope: ConfigScope.Project,
-        projectPath,
-        key: "enabledPlugins",
-        value: buildEnabledPluginsValue(
+      await invoke<void>("replace_enabled_plugins", {
+        path: projectPath,
+        enabledPlugins: buildEnabledPluginsValue(
           selectablePlugins.map((plugin) => plugin.id),
           normalizedSelection,
         ),
@@ -976,14 +986,15 @@ export function ProjectQuickLaunchPanel({
       setPluginDialogNotice(t("launcher.plugin_dialog_saved", "Saved to project settings"));
     } catch (error) {
       setPluginDialogError(
-        error instanceof Error
-          ? error.message
-          : t("launcher.plugin_dialog_save_failed", "Failed to save plugin selection"),
+        normalizeActionError(
+          error,
+          t("launcher.plugin_dialog_save_failed", "Failed to save plugin selection"),
+        ),
       );
     } finally {
       setIsSavingPlugins(false);
     }
-  }, [configWrite, pluginDialogSelection, projectPath, queryClient, selectablePlugins, t]);
+  }, [pluginDialogSelection, projectPath, queryClient, selectablePlugins, t]);
 
   const projectOptions = useMemo(() => {
     const items = projects.map((project) => ({
@@ -1002,6 +1013,16 @@ export function ProjectQuickLaunchPanel({
     ];
   }, [currentProject, displayName, projects]);
 
+  const customModelOption = useMemo(() => {
+    if (!selectedModel || selectedModel === "_default") {
+      return [];
+    }
+    const normalized = selectedModel.trim().toLowerCase();
+    return isKnownModelType(normalized)
+      ? []
+      : [{ value: selectedModel, label: selectedModel }];
+  }, [selectedModel]);
+
   const modelOptions = useMemo(() => {
     const globalConfigLabel = t("launcher.current_config_short", "Global Config");
     return [
@@ -1010,12 +1031,13 @@ export function ProjectQuickLaunchPanel({
         label: globalConfigLabel,
         triggerLabel: defaultModelLabel,
       },
+      ...customModelOption,
       ...MODEL_OPTIONS.map((option) => ({
         value: option.value,
         label: option.label,
       })),
     ];
-  }, [defaultModelLabel, t]);
+  }, [customModelOption, defaultModelLabel, t]);
 
   const permissionOptions = useMemo(() => {
     const globalConfigLabel = t("launcher.current_config_short", "Global Config");
@@ -1222,7 +1244,7 @@ export function ProjectQuickLaunchPanel({
         onSaveToProject={() => void handleSavePluginsToProject()}
         onApply={() => void handleApplyPlugins()}
         isLoading={pluginRuntimeStateQuery.isLoading || pluginScanQuery.isLoading}
-        isSaving={isSavingPlugins || configWrite.isPending}
+        isSaving={isSavingPlugins}
         isApplying={isApplyingPlugins}
         error={pluginDialogError}
         notice={pluginDialogNotice}

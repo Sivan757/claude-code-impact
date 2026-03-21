@@ -1,10 +1,15 @@
-export type ModelType = "opus" | "sonnet" | "haiku";
+export {
+  isKnownModelType,
+  MODEL_OPTIONS,
+  normalizeModelType,
+  type ModelType,
+} from "@/config/models";
 
 export interface LaunchSettingsRequest {
   project_path?: string;
   provider_name?: string;
   model?: string;
-  permission_mode?: "acceptEdits" | "bypassPermissions" | "default" | "delegate" | "dontAsk" | "plan";
+  permission_mode?: "acceptEdits" | "bypassPermissions" | "default" | "plan";
   env_overrides?: Record<string, string>;
   enabled_plugins?: Record<string, boolean>;
 }
@@ -18,12 +23,6 @@ export interface MaterializedLaunchDraftResponse {
   project_path: string;
   settings_path: string;
 }
-
-export const MODEL_OPTIONS: ReadonlyArray<{ value: ModelType; label: string }> = [
-  { value: "opus", label: "Opus" },
-  { value: "sonnet", label: "Sonnet" },
-  { value: "haiku", label: "Haiku" },
-];
 
 export function getProjectDisplayName(projectPath: string, fallback?: string): string {
   return fallback || projectPath.split("/").filter(Boolean).pop() || projectPath;

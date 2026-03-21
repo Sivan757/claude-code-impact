@@ -39,9 +39,7 @@ fn normalize_launch_permission_mode(value: &str) -> Option<String> {
     match value {
         "normal" => Some("default".to_string()),
         "allowEdits" => Some("acceptEdits".to_string()),
-        "acceptEdits" | "bypassPermissions" | "default" | "delegate" | "dontAsk" | "plan" => {
-            Some(value.to_string())
-        }
+        "acceptEdits" | "bypassPermissions" | "default" | "plan" => Some(value.to_string()),
         _ => None,
     }
 }

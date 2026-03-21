@@ -409,10 +409,6 @@
         "normal_desc": "对所有操作逐项确认",
         "permission_mode_plan": "规划模式",
         "permission_mode_plan_desc": "仅分析与规划，不直接执行变更",
-        "permission_mode_delegate": "委托模式",
-        "permission_mode_delegate_desc": "将执行动作委托给子代理处理",
-        "permission_mode_dont_ask": "不再询问",
-        "permission_mode_dont_ask_desc": "执行时不再弹出确认提示",
         "co_author": "共同作者",
         "co_author_desc": "添加 Co-Authored-By 行",
         "footer": "页脚",
@@ -564,7 +560,7 @@
         "only_custom_delete": "仅自定义环境变量可以删除"
     },
     "chat": {
-        "title": "历史会话",
+        "title": "",
         "launchpad": "启动台",
         "loading": "正在加载 {{viewMode}}...",
         "loading_more": "正在加载更多...",

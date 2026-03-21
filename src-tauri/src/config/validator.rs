@@ -64,9 +64,12 @@ fn validate_settings_json(
 /// Validate model name (warning only)
 fn validate_model_name(model: &str, violations: &mut Vec<ValidationViolation>) {
     let known_models = [
+        "default",
         "opus",
         "sonnet",
         "haiku",
+        "sonnet[1m]",
+        "opusplan",
         "claude-opus-4",
         "claude-sonnet-4",
         "claude-haiku-4",
@@ -322,6 +325,29 @@ mod tests {
         assert!(violations
             .iter()
             .all(|v| v.severity == ViolationSeverity::Warning));
+    }
+
+    #[test]
+    fn test_validate_official_model_aliases() {
+        for model in [
+            "default",
+            "sonnet",
+            "opus",
+            "haiku",
+            "sonnet[1m]",
+            "opusplan",
+        ] {
+            let settings = json!({ "model": model });
+            let violations = validate_config(ConfigFileKind::Settings, &settings).unwrap();
+            assert!(
+                violations
+                    .iter()
+                    .all(|violation| violation.field != "model"),
+                "expected model alias '{}' to be accepted without model warnings, got {:?}",
+                model,
+                violations
+            );
+        }
     }
 
     #[test]

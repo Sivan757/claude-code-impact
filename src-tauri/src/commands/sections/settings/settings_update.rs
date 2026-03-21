@@ -34,12 +34,10 @@ fn normalize_permission_mode_value(value: Value) -> Result<Value, String> {
     let normalized = match mode {
         "normal" => "default",
         "allowEdits" => "acceptEdits",
-        "acceptEdits" | "bypassPermissions" | "default" | "delegate" | "dontAsk" | "plan" => {
-            mode
-        }
+        "acceptEdits" | "bypassPermissions" | "default" | "plan" => mode,
         _ => {
             return Err(format!(
-                "Invalid permissions.defaultMode '{}'. Expected one of: acceptEdits, bypassPermissions, default, delegate, dontAsk, plan",
+                "Invalid permissions.defaultMode '{}'. Expected one of: acceptEdits, bypassPermissions, default, plan",
                 mode
             ));
         }
@@ -209,6 +207,35 @@ fn toggle_plugin(plugin_id: String, enabled: bool, path: Option<String>) -> Resu
         settings["enabledPlugins"] = serde_json::json!({});
     }
     settings["enabledPlugins"][&plugin_id] = Value::Bool(enabled);
+
+    if let Some(obj) = settings.as_object_mut() {
+        obj.remove("_claudecodeimpact_disabled_env");
+    }
+
+    let output = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    ensure_parent_dir(&settings_path)?;
+    fs::write(&settings_path, output).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn replace_enabled_plugins(
+    enabled_plugins: std::collections::HashMap<String, bool>,
+    path: Option<String>,
+) -> Result<(), String> {
+    let settings_path = resolve_settings_path(path);
+    let mut settings: Value = if settings_path.exists() {
+        let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        serde_json::json!({})
+    };
+
+    let plugins_obj = enabled_plugins
+        .into_iter()
+        .map(|(plugin_id, enabled)| (plugin_id, Value::Bool(enabled)))
+        .collect();
+    settings["enabledPlugins"] = Value::Object(plugins_obj);
 
     if let Some(obj) = settings.as_object_mut() {
         obj.remove("_claudecodeimpact_disabled_env");
