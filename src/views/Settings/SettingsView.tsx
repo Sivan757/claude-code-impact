@@ -45,6 +45,7 @@ import {
   AddFormRow,
 } from "../../components/Settings";
 import { useConfigDeleteKey, useConfigMerged, useConfigPaths, useConfigWrite } from "../../config/hooks/useConfig";
+import { ConfigScope } from "../../config/types";
 import { isKnownModelType, MODEL_OPTIONS } from "@/config/models";
 import { cn } from "../../lib/utils";
 import { getConfigPathFor, getSettingsFileKindForScope } from "../../config/utils";
@@ -130,6 +131,18 @@ const normalizeStringRecord = (value: unknown): Record<string, string> => {
   }, {});
 };
 
+const normalizeSpinnerTipsOverride = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { tips: [] as string[], excludeDefault: false };
+  }
+
+  const entry = value as Record<string, unknown>;
+  return {
+    tips: normalizeStringList(entry.tips),
+    excludeDefault: entry.excludeDefault === true,
+  };
+};
+
 export function SettingsView(props: { embedded?: boolean; settingsPath?: string }) {
   const { embedded = false, settingsPath } = props;
   const { t } = useTranslation();
@@ -150,6 +163,11 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   const [availableModelInput, setAvailableModelInput] = useState("");
   const [overrideAliasInput, setOverrideAliasInput] = useState("");
   const [overrideValueInput, setOverrideValueInput] = useState("");
+  const [autoMemoryInput, setAutoMemoryInput] = useState("");
+  const [plansDirectoryInput, setPlansDirectoryInput] = useState("");
+  const [feedbackSurveyRateInput, setFeedbackSurveyRateInput] = useState("");
+  const [announcementInput, setAnnouncementInput] = useState("");
+  const [spinnerTipInput, setSpinnerTipInput] = useState("");
   const didNormalizeAttribution = useRef(false);
 
   const PERMISSION_MODES: { value: PermissionMode; label: string; desc: string }[] = useMemo(() => [
@@ -199,6 +217,12 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
     commitAttribution: "settings-commit-attribution-label",
     chatRetention: "settings-chat-retention-label",
     permissionMode: "settings-permission-mode-label",
+    autoMemoryDirectory: "settings-auto-memory-directory-label",
+    plansDirectory: "settings-plans-directory-label",
+    feedbackSurveyRate: "settings-feedback-survey-rate-label",
+    allowManagedPermissionRulesOnly: "settings-managed-permission-rules-label",
+    allowManagedMcpServersOnly: "settings-managed-mcp-servers-label",
+    channelsEnabled: "settings-channels-enabled-label",
   };
 
   // Extract settings from merged config
@@ -220,13 +244,30 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
     [normalizedRawModel, rawModel],
   );
   const alwaysThinkingEnabled = raw.alwaysThinkingEnabled === true; // default false
+  const autoMemoryDirectory = typeof raw.autoMemoryDirectory === "string" ? raw.autoMemoryDirectory : "";
+  const plansDirectory = typeof raw.plansDirectory === "string" ? raw.plansDirectory : "";
+  const companyAnnouncements = useMemo(
+    () => normalizeStringList(raw.companyAnnouncements),
+    [raw.companyAnnouncements],
+  );
+  const spinnerTipsOverride = useMemo(
+    () => normalizeSpinnerTipsOverride(raw.spinnerTipsOverride),
+    [raw.spinnerTipsOverride],
+  );
   const showTurnDuration = raw.showTurnDuration !== false; // default true
   const language = typeof raw.language === "string" ? raw.language : "";
   const autoUpdatesChannel: AutoUpdatesChannel = raw.autoUpdatesChannel === "stable" ? "stable" : "latest";
   const spinnerTipsEnabled = raw.spinnerTipsEnabled !== false; // default true
   const terminalProgressBarEnabled = raw.terminalProgressBarEnabled !== false; // default true
   const prefersReducedMotion = raw.prefersReducedMotion === true; // default false
+  const feedbackSurveyRate =
+    typeof raw.feedbackSurveyRate === "number" && Number.isFinite(raw.feedbackSurveyRate)
+      ? raw.feedbackSurveyRate
+      : null;
   const cleanupPeriodDays = (raw.cleanupPeriodDays as number) ?? 0;
+  const allowManagedPermissionRulesOnly = raw.allowManagedPermissionRulesOnly === true;
+  const allowManagedMcpServersOnly = raw.allowManagedMcpServersOnly === true;
+  const channelsEnabled = raw.channelsEnabled === true;
 
   const resolveAttributionMode = (value: unknown): AttributionMode => {
     if (typeof value === "string") {
@@ -255,6 +296,9 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
   const permissions = (raw.permissions as Record<string, unknown>) || {};
   const defaultMode = normalizePermissionMode(permissions.defaultMode ?? permissions.default_mode);
   const additionalDirectories = (permissions.additionalDirectories as string[]) || [];
+  const isManagedScope = selectedScope === ConfigScope.Managed;
+  const isProjectScope =
+    selectedScope === ConfigScope.Project || selectedScope === ConfigScope.ProjectLocal;
 
   // Get effective settings path from provenance
   const settingsKind = getSettingsFileKindForScope(selectedScope);
@@ -402,6 +446,18 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
     setLanguageInput(language);
   }, [language]);
 
+  useEffect(() => {
+    setAutoMemoryInput(autoMemoryDirectory);
+  }, [autoMemoryDirectory]);
+
+  useEffect(() => {
+    setPlansDirectoryInput(plansDirectory);
+  }, [plansDirectory]);
+
+  useEffect(() => {
+    setFeedbackSurveyRateInput(feedbackSurveyRate === null ? "" : String(feedbackSurveyRate));
+  }, [feedbackSurveyRate]);
+
   if (isLoading) return <LoadingState message={t('settings.loading')} />;
 
   const updatePermissionField = async (field: string, value: unknown) => {
@@ -475,6 +531,146 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
 
     await updateField("language", trimmedValue);
     setLanguageInput(trimmedValue);
+  };
+
+  const saveOptionalStringField = async (
+    field: string,
+    inputValue: string,
+    currentValue: string,
+    setValue: (value: string) => void,
+  ) => {
+    const trimmedValue = inputValue.trim();
+    const currentTrimmedValue = currentValue.trim();
+
+    if (trimmedValue === currentTrimmedValue) {
+      if (inputValue !== trimmedValue) {
+        setValue(trimmedValue);
+      }
+      return;
+    }
+
+    if (!trimmedValue) {
+      await deleteKey(field);
+      setValue("");
+      return;
+    }
+
+    await updateField(field, trimmedValue);
+    setValue(trimmedValue);
+  };
+
+  const saveFeedbackSurveyRate = async () => {
+    const trimmedValue = feedbackSurveyRateInput.trim();
+    const currentValue = feedbackSurveyRate === null ? "" : String(feedbackSurveyRate);
+
+    if (trimmedValue === currentValue) {
+      return;
+    }
+
+    if (!trimmedValue) {
+      await deleteKey("feedbackSurveyRate");
+      setFeedbackSurveyRateInput("");
+      return;
+    }
+
+    const parsed = Number(trimmedValue);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+      setFeedbackSurveyRateInput(currentValue);
+      return;
+    }
+
+    await updateField("feedbackSurveyRate", parsed);
+    setFeedbackSurveyRateInput(String(parsed));
+  };
+
+  const saveStringListField = async (field: string, nextValues: string[]) => {
+    if (nextValues.length === 0) {
+      await deleteKey(field);
+      return;
+    }
+
+    await updateField(field, nextValues);
+  };
+
+  const addCompanyAnnouncement = async () => {
+    const nextValue = announcementInput.trim();
+    if (!nextValue) {
+      return;
+    }
+
+    if (companyAnnouncements.includes(nextValue)) {
+      setAnnouncementInput("");
+      return;
+    }
+
+    await saveStringListField("companyAnnouncements", [...companyAnnouncements, nextValue]);
+    setAnnouncementInput("");
+  };
+
+  const removeCompanyAnnouncement = async (value: string) => {
+    const confirmed = await confirmDialog({
+      title: t("common.remove", "Remove"),
+      description: t("settings.confirm_remove_company_announcement", {
+        value,
+        defaultValue: `Remove announcement "${value}"?`,
+      }),
+      variant: "destructive",
+      confirmText: t("common.remove", "Remove"),
+    });
+    if (!confirmed) return;
+
+    await saveStringListField(
+      "companyAnnouncements",
+      companyAnnouncements.filter((entry) => entry !== value),
+    );
+  };
+
+  const saveSpinnerTipsOverride = async (nextTips: string[], nextExcludeDefault: boolean) => {
+    if (nextTips.length === 0 && !nextExcludeDefault) {
+      await deleteKey("spinnerTipsOverride");
+      return;
+    }
+
+    await updateField("spinnerTipsOverride", {
+      tips: nextTips,
+      excludeDefault: nextExcludeDefault,
+    });
+  };
+
+  const addSpinnerTip = async () => {
+    const nextValue = spinnerTipInput.trim();
+    if (!nextValue) {
+      return;
+    }
+
+    if (spinnerTipsOverride.tips.includes(nextValue)) {
+      setSpinnerTipInput("");
+      return;
+    }
+
+    await saveSpinnerTipsOverride(
+      [...spinnerTipsOverride.tips, nextValue],
+      spinnerTipsOverride.excludeDefault,
+    );
+    setSpinnerTipInput("");
+  };
+
+  const removeSpinnerTip = async (value: string) => {
+    const confirmed = await confirmDialog({
+      title: t("common.remove", "Remove"),
+      description: t("settings.confirm_remove_spinner_tip", {
+        value,
+        defaultValue: `Remove spinner tip "${value}"?`,
+      }),
+      variant: "destructive",
+      confirmText: t("common.remove", "Remove"),
+    });
+    if (!confirmed) return;
+
+    await saveSpinnerTipsOverride(
+      spinnerTipsOverride.tips.filter((entry) => entry !== value),
+      spinnerTipsOverride.excludeDefault,
+    );
   };
 
   const headerAction = (
@@ -744,6 +940,122 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
             </div>
           </SettingSection>
 
+          <SettingSection
+            title={t("settings.memory_plans")}
+            description={t("settings.memory_plans_desc")}
+            density={denseLayout.sectionDensity}
+          >
+            <SettingRow
+              label={t("settings.auto_memory_directory")}
+              description={
+                isProjectScope
+                  ? t("settings.auto_memory_directory_project_desc")
+                  : t("settings.auto_memory_directory_desc")
+              }
+              labelId={labelIds.autoMemoryDirectory}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <input
+                className="h-8 w-56 rounded-lg border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-labelledby={labelIds.autoMemoryDirectory}
+                placeholder={t("settings.auto_memory_directory_placeholder")}
+                value={autoMemoryInput}
+                disabled={isProjectScope}
+                onChange={(event) => setAutoMemoryInput(event.target.value)}
+                onBlur={() => {
+                  void saveOptionalStringField(
+                    "autoMemoryDirectory",
+                    autoMemoryInput,
+                    autoMemoryDirectory,
+                    setAutoMemoryInput,
+                  );
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void saveOptionalStringField(
+                      "autoMemoryDirectory",
+                      autoMemoryInput,
+                      autoMemoryDirectory,
+                      setAutoMemoryInput,
+                    );
+                    event.currentTarget.blur();
+                  }
+                  if (event.key === "Escape") {
+                    setAutoMemoryInput(autoMemoryDirectory);
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+            </SettingRow>
+
+            <SettingRow
+              label={t("settings.plans_directory")}
+              description={t("settings.plans_directory_desc")}
+              labelId={labelIds.plansDirectory}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <input
+                className="h-8 w-56 rounded-lg border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                aria-labelledby={labelIds.plansDirectory}
+                placeholder={t("settings.plans_directory_placeholder")}
+                value={plansDirectoryInput}
+                onChange={(event) => setPlansDirectoryInput(event.target.value)}
+                onBlur={() => {
+                  void saveOptionalStringField(
+                    "plansDirectory",
+                    plansDirectoryInput,
+                    plansDirectory,
+                    setPlansDirectoryInput,
+                  );
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void saveOptionalStringField(
+                      "plansDirectory",
+                      plansDirectoryInput,
+                      plansDirectory,
+                      setPlansDirectoryInput,
+                    );
+                    event.currentTarget.blur();
+                  }
+                  if (event.key === "Escape") {
+                    setPlansDirectoryInput(plansDirectory);
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+            </SettingRow>
+
+            <SettingRow
+              label={t('settings.chat_retention')}
+              description={t('settings.chat_retention_desc')}
+              labelId={labelIds.chatRetention}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Select
+                value={String(cleanupPeriodDays)}
+                onValueChange={(v) => updateField("cleanupPeriodDays", Number(v))}
+              >
+                <SelectTrigger
+                  className="w-28 h-8 rounded-lg"
+                  aria-labelledby={labelIds.chatRetention}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLEANUP_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+          </SettingSection>
+
           {/* General Section */}
           <SettingSection
             title={t('settings.general')}
@@ -889,31 +1201,178 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
               </Select>
             </SettingRow>
 
-            {/* Cleanup Period */}
+          </SettingSection>
+
+          <SettingSection
+            title={t("settings.experience")}
+            description={t("settings.experience_desc")}
+            density={denseLayout.sectionDensity}
+          >
             <SettingRow
-              label={t('settings.chat_retention')}
-              description={t('settings.chat_retention_desc')}
-              labelId={labelIds.chatRetention}
+              label={t("settings.feedback_survey_rate")}
+              description={t("settings.feedback_survey_rate_desc")}
+              labelId={labelIds.feedbackSurveyRate}
               compact={denseLayout.rowCompact}
               className={denseLayout.rowClassName}
             >
-              <Select
-                value={String(cleanupPeriodDays)}
-                onValueChange={(v) => updateField("cleanupPeriodDays", Number(v))}
-              >
-                <SelectTrigger
-                  className="w-28 h-8 rounded-lg"
-                  aria-labelledby={labelIds.chatRetention}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLEANUP_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <input
+                className="h-8 w-28 rounded-lg border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                aria-labelledby={labelIds.feedbackSurveyRate}
+                placeholder={t("settings.feedback_survey_rate_placeholder")}
+                value={feedbackSurveyRateInput}
+                onChange={(event) => setFeedbackSurveyRateInput(event.target.value)}
+                onBlur={() => { void saveFeedbackSurveyRate(); }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void saveFeedbackSurveyRate();
+                    event.currentTarget.blur();
+                  }
+                  if (event.key === "Escape") {
+                    setFeedbackSurveyRateInput(feedbackSurveyRate === null ? "" : String(feedbackSurveyRate));
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
             </SettingRow>
+
+            <div className={cn(denseLayout.blockPadding, "border-b border-border/30")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{t("settings.company_announcements")}</p>
+                    <StatusBadge variant="blue">{companyAnnouncements.length}</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                    {t("settings.company_announcements_desc")}
+                  </p>
+                </div>
+              </div>
+
+              {companyAnnouncements.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {companyAnnouncements.map((entry) => (
+                    <div
+                      key={entry}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2 transition-colors hover:bg-secondary/60"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-xs text-foreground">{entry}</span>
+                      <button
+                        onClick={() => void removeCompanyAnnouncement(entry)}
+                        aria-label={t("common.remove")}
+                        className="rounded p-1 text-muted-foreground transition-all hover:bg-red-500/10 hover:text-red-500"
+                        title={t("common.remove")}
+                      >
+                        <Cross2Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs italic text-muted-foreground/70">
+                  {t("settings.no_company_announcements")}
+                </p>
+              )}
+
+              <AddFormRow className="mt-3 items-stretch sm:items-center">
+                <input
+                  className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  placeholder={t("settings.company_announcements_placeholder")}
+                  value={announcementInput}
+                  onChange={(event) => setAnnouncementInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addCompanyAnnouncement();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => void addCompanyAnnouncement()}
+                  disabled={!announcementInput.trim()}
+                  className="h-9 rounded-xl px-4"
+                >
+                  {t("common.add")}
+                </Button>
+              </AddFormRow>
+            </div>
+
+            <div className={cn(denseLayout.blockPadding, "last:border-0")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{t("settings.spinner_tips_override")}</p>
+                    <StatusBadge variant="purple">{spinnerTipsOverride.tips.length}</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                    {t("settings.spinner_tips_override_desc")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-2">
+                <SettingRow
+                  label={t("settings.spinner_tips_exclude_default")}
+                  description={t("settings.spinner_tips_exclude_default_desc")}
+                  compact={denseLayout.rowCompact}
+                  className={cn(denseLayout.rowClassName, "py-0 border-b-0")}
+                >
+                  <Switch
+                    checked={spinnerTipsOverride.excludeDefault}
+                    onCheckedChange={(checked) => {
+                      void saveSpinnerTipsOverride(spinnerTipsOverride.tips, checked);
+                    }}
+                  />
+                </SettingRow>
+              </div>
+
+              {spinnerTipsOverride.tips.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {spinnerTipsOverride.tips.map((entry) => (
+                    <div
+                      key={entry}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2 transition-colors hover:bg-secondary/60"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-xs text-foreground">{entry}</span>
+                      <button
+                        onClick={() => void removeSpinnerTip(entry)}
+                        aria-label={t("common.remove")}
+                        className="rounded p-1 text-muted-foreground transition-all hover:bg-red-500/10 hover:text-red-500"
+                        title={t("common.remove")}
+                      >
+                        <Cross2Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs italic text-muted-foreground/70">
+                  {t("settings.no_spinner_tips_override")}
+                </p>
+              )}
+
+              <AddFormRow className="mt-3 items-stretch sm:items-center">
+                <input
+                  className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  placeholder={t("settings.spinner_tips_override_placeholder")}
+                  value={spinnerTipInput}
+                  onChange={(event) => setSpinnerTipInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void addSpinnerTip();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => void addSpinnerTip()}
+                  disabled={!spinnerTipInput.trim()}
+                  className="h-9 rounded-xl px-4"
+                >
+                  {t("common.add")}
+                </Button>
+              </AddFormRow>
+            </div>
           </SettingSection>
 
           {/* Permissions Section */}
@@ -987,6 +1446,69 @@ export function SettingsView(props: { embedded?: boolean; settingsPath?: string 
                 <p className="text-xs text-muted-foreground/70 italic mt-2">{t('settings.no_additional_directories')}</p>
               )}
             </div>
+          </SettingSection>
+
+          <SettingSection
+            title={t("settings.managed_controls")}
+            description={t("settings.managed_controls_desc")}
+            density={denseLayout.sectionDensity}
+          >
+            <SettingRow
+              label={t("settings.allow_managed_permission_rules_only")}
+              description={
+                isManagedScope
+                  ? t("settings.allow_managed_permission_rules_only_desc")
+                  : t("settings.managed_scope_only_desc")
+              }
+              labelId={labelIds.allowManagedPermissionRulesOnly}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Switch
+                checked={allowManagedPermissionRulesOnly}
+                disabled={!isManagedScope}
+                aria-labelledby={labelIds.allowManagedPermissionRulesOnly}
+                onCheckedChange={(checked) => updateField("allowManagedPermissionRulesOnly", checked)}
+              />
+            </SettingRow>
+
+            <SettingRow
+              label={t("settings.allow_managed_mcp_servers_only")}
+              description={
+                isManagedScope
+                  ? t("settings.allow_managed_mcp_servers_only_desc")
+                  : t("settings.managed_scope_only_desc")
+              }
+              labelId={labelIds.allowManagedMcpServersOnly}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Switch
+                checked={allowManagedMcpServersOnly}
+                disabled={!isManagedScope}
+                aria-labelledby={labelIds.allowManagedMcpServersOnly}
+                onCheckedChange={(checked) => updateField("allowManagedMcpServersOnly", checked)}
+              />
+            </SettingRow>
+
+            <SettingRow
+              label={t("settings.channels_enabled")}
+              description={
+                isManagedScope
+                  ? t("settings.channels_enabled_desc")
+                  : t("settings.managed_scope_only_desc")
+              }
+              labelId={labelIds.channelsEnabled}
+              compact={denseLayout.rowCompact}
+              className={denseLayout.rowClassName}
+            >
+              <Switch
+                checked={channelsEnabled}
+                disabled={!isManagedScope}
+                aria-labelledby={labelIds.channelsEnabled}
+                onCheckedChange={(checked) => updateField("channelsEnabled", checked)}
+              />
+            </SettingRow>
           </SettingSection>
         </>
       )}

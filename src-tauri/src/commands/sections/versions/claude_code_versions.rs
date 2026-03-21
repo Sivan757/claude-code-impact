@@ -14,6 +14,7 @@ enum ClaudeCodeInstallType {
 struct VersionWithDownloads {
     version: String,
     downloads: u64,
+    date: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -21,6 +22,57 @@ struct ClaudeCodeVersionInfo {
     install_type: ClaudeCodeInstallType,
     current_version: Option<String>,
     available_versions: Vec<VersionWithDownloads>,
+}
+
+#[derive(Debug, Serialize)]
+struct ClaudeCodeReleaseSummary {
+    version: String,
+    highlights: Vec<String>,
+}
+
+fn parse_changelog_summaries(markdown: &str, limit: usize) -> Vec<ClaudeCodeReleaseSummary> {
+    let mut releases = Vec::new();
+    let mut current_version: Option<String> = None;
+    let mut current_highlights: Vec<String> = Vec::new();
+
+    let mut flush_current = |version: &mut Option<String>, highlights: &mut Vec<String>| {
+        if let Some(version) = version.take() {
+            releases.push(ClaudeCodeReleaseSummary {
+                version,
+                highlights: std::mem::take(highlights),
+            });
+        }
+    };
+
+    for line in markdown.lines() {
+        let trimmed = line.trim();
+
+        if let Some(version) = trimmed.strip_prefix("## ") {
+            if version.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
+                flush_current(&mut current_version, &mut current_highlights);
+                current_version = Some(version.trim().to_string());
+                continue;
+            }
+        }
+
+        if current_version.is_none() {
+            continue;
+        }
+
+        if let Some(bullet) = trimmed
+            .strip_prefix("- ")
+            .or_else(|| trimmed.strip_prefix("* "))
+        {
+            let cleaned = bullet.trim();
+            if !cleaned.is_empty() && current_highlights.len() < 5 {
+                current_highlights.push(cleaned.to_string());
+            }
+        }
+    }
+
+    flush_current(&mut current_version, &mut current_highlights);
+    releases.truncate(limit);
+    releases
 }
 
 /// Run a command in user's interactive login shell (to get proper PATH with nvm, etc.)
@@ -186,9 +238,8 @@ async fn get_claude_code_available_versions() -> Result<Vec<VersionWithDownloads
                 .await
                 .ok()
                 .and_then(|json| {
-                    json.get("versions")?.as_object().map(|obj| {
+                    let version_keys = json.get("versions")?.as_object().map(|obj| {
                         let mut versions: Vec<String> = obj.keys().cloned().collect();
-                        // Sort by semver (simple string sort works for most cases)
                         versions.sort_by(|a, b| {
                             let parse = |s: &str| -> Vec<u32> {
                                 s.split('.').filter_map(|p| p.parse().ok()).collect()
@@ -196,10 +247,25 @@ async fn get_claude_code_available_versions() -> Result<Vec<VersionWithDownloads
                             parse(b).cmp(&parse(a))
                         });
                         versions.into_iter().take(20).collect::<Vec<String>>()
-                    })
+                    })?;
+
+                    let time_map = json
+                        .get("time")
+                        .and_then(|value| value.as_object())
+                        .map(|entries| {
+                            entries
+                                .iter()
+                                .filter_map(|(key, value)| {
+                                    Some((key.clone(), value.as_str()?.to_string()))
+                                })
+                                .collect::<std::collections::HashMap<String, String>>()
+                        })
+                        .unwrap_or_default();
+
+                    Some((version_keys, time_map))
                 })
-                .unwrap_or_default(),
-            Err(_) => vec![],
+                .unwrap_or_else(|| (vec![], std::collections::HashMap::new())),
+            Err(_) => (vec![], std::collections::HashMap::new()),
         }
     };
 
@@ -228,21 +294,42 @@ async fn get_claude_code_available_versions() -> Result<Vec<VersionWithDownloads
     };
 
     // Execute in parallel
-    let (versions, downloads_map) = tokio::join!(versions_task, downloads_task);
+    let ((versions, time_map), downloads_map) = tokio::join!(versions_task, downloads_task);
 
     // Combine data
     let available_versions: Vec<VersionWithDownloads> = versions
         .into_iter()
         .map(|v| {
             let downloads = downloads_map.get(&v).copied().unwrap_or(0);
+            let date = time_map.get(&v).cloned().unwrap_or_default();
             VersionWithDownloads {
                 version: v,
                 downloads,
+                date,
             }
         })
         .collect();
 
     Ok(available_versions)
+}
+
+#[tauri::command]
+async fn get_claude_code_release_summaries() -> Result<Vec<ClaudeCodeReleaseSummary>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let markdown = client
+        .get("https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .text()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(parse_changelog_summaries(&markdown, 20))
 }
 
 #[tauri::command]

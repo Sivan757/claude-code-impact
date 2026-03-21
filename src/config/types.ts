@@ -24,6 +24,11 @@ export enum ConfigFileKind {
 // Settings structure
 export type SettingsEffortLevel = "low" | "medium" | "high";
 
+export interface SpinnerTipsOverrideConfig {
+  excludeDefault?: boolean;
+  tips?: string[];
+}
+
 export interface SettingsJson {
   model?: string;
   availableModels?: string[];
@@ -31,11 +36,20 @@ export interface SettingsJson {
   effortLevel?: SettingsEffortLevel;
   alwaysThinkingEnabled?: boolean;
   always_thinking_enabled?: boolean;
+  autoMemoryDirectory?: string;
+  plansDirectory?: string;
+  companyAnnouncements?: string[];
   permissions?: PermissionsConfig;
   env?: Record<string, string>;
   hooks?: Record<string, HookEntry[]>;
+  allowManagedHooksOnly?: boolean;
+  allowedHttpHookUrls?: string[];
+  httpHookAllowedEnvVars?: string[];
+  allowManagedPermissionRulesOnly?: boolean;
+  allowManagedMcpServersOnly?: boolean;
   mcpServers?: Record<string, McpServerConfig>;
   mcp_servers?: Record<string, McpServerConfig>;
+  channelsEnabled?: boolean;
   enabledPlugins?: Record<string, boolean>;
   enabled_plugins?: Record<string, boolean>;
   projects?: Record<string, unknown>;
@@ -45,8 +59,10 @@ export interface SettingsJson {
   autoUpdatesChannel?: "latest" | "stable";
   showTurnDuration?: boolean;
   spinnerTipsEnabled?: boolean;
+  spinnerTipsOverride?: SpinnerTipsOverrideConfig;
   terminalProgressBarEnabled?: boolean;
   prefersReducedMotion?: boolean;
+  feedbackSurveyRate?: number;
   cleanupPeriodDays?: number;
   cleanup_period_days?: number;
   disableAllHooks?: boolean;

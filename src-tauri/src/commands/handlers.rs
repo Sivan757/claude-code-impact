@@ -183,6 +183,7 @@ pub fn build_invoke_handler(
         list_reference_docs,
         get_claude_code_version_info,
         get_claude_code_available_versions,
+        get_claude_code_release_summaries,
         install_claude_code_version,
         cancel_claude_code_install,
         // PTY commands

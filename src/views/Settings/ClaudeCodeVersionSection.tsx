@@ -11,12 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import type { ClaudeCodeVersionInfo, ClaudeCodeInstallType } from "../../types";
+import type {
+  ClaudeCodeVersionInfo,
+  ClaudeCodeInstallType,
+  ClaudeCodeReleaseSummary,
+  VersionWithDownloads,
+} from "../../types";
 
 function formatDownloads(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
+}
+
+function formatPublishedDate(value?: string): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
 }
 
 export function ClaudeCodeVersionSection() {
@@ -36,6 +48,7 @@ export function ClaudeCodeVersionSection() {
   const [success, setSuccess] = useState<string | null>(null);
   const [installLogs, setInstallLogs] = useState<string[]>([]);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [releaseSummaries, setReleaseSummaries] = useState<ClaudeCodeReleaseSummary[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const unlistenRef = useRef<UnlistenFn | null>(null);
   const installGenRef = useRef(0); // Track install generation to filter stale events
@@ -56,11 +69,21 @@ export function ClaudeCodeVersionSection() {
       setLoading(false);
 
       // Stage 2: Fetch available versions (async)
-      try {
-        const versions = await invoke<any[]>("get_claude_code_available_versions");
-        setVersionInfo(prev => prev ? { ...prev, available_versions: versions } : null);
-      } catch (e) {
-        console.warn("Failed to fetch remote versions:", e);
+      const [versionsResult, summariesResult] = await Promise.allSettled([
+        invoke<VersionWithDownloads[]>("get_claude_code_available_versions"),
+        invoke<ClaudeCodeReleaseSummary[]>("get_claude_code_release_summaries"),
+      ]);
+
+      if (versionsResult.status === "fulfilled") {
+        setVersionInfo(prev => prev ? { ...prev, available_versions: versionsResult.value } : null);
+      } else {
+        console.warn("Failed to fetch remote versions:", versionsResult.reason);
+      }
+
+      if (summariesResult.status === "fulfilled") {
+        setReleaseSummaries(summariesResult.value);
+      } else {
+        console.warn("Failed to fetch release summaries:", summariesResult.reason);
       }
 
     } catch (e) {
@@ -189,6 +212,18 @@ export function ClaudeCodeVersionSection() {
   const isLatest =
     selectedVersion === "latest" ||
     versionInfo?.available_versions[0]?.version === selectedVersion;
+  const latestAvailableVersion = versionInfo?.available_versions[0] ?? null;
+  const effectiveSelectedVersion =
+    selectedVersion === "latest"
+      ? latestAvailableVersion?.version ?? releaseSummaries[0]?.version ?? null
+      : selectedVersion;
+  const selectedReleaseSummary = effectiveSelectedVersion
+    ? releaseSummaries.find((entry) => entry.version === effectiveSelectedVersion) ?? null
+    : null;
+  const updateAvailable =
+    Boolean(versionInfo?.current_version) &&
+    Boolean(latestAvailableVersion?.version) &&
+    versionInfo?.current_version !== latestAvailableVersion?.version;
 
   // Determine button state
   const canInstall = !installing && (!isCurrentVersion || !isSameInstallType);
@@ -286,6 +321,56 @@ export function ClaudeCodeVersionSection() {
           )}
         </p>
       </div>
+
+      {(latestAvailableVersion || selectedReleaseSummary) && (
+        <div className="rounded-lg border border-border/60 bg-card/50 p-3 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-foreground">
+                {t("claude_code.latest_available")}
+              </p>
+              {latestAvailableVersion && (
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                  <span className="font-mono text-foreground">{latestAvailableVersion.version}</span>
+                  {formatPublishedDate(latestAvailableVersion.date) && (
+                    <span>{t("claude_code.published_on", { date: formatPublishedDate(latestAvailableVersion.date) })}</span>
+                  )}
+                  <span>↓{formatDownloads(latestAvailableVersion.downloads)}</span>
+                </div>
+              )}
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {t("claude_code.releases_tracked", { count: releaseSummaries.length || versionInfo?.available_versions.length || 0 })}
+              </p>
+            </div>
+
+            {updateAvailable && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                {t("claude_code.update_available")}
+              </span>
+            )}
+          </div>
+
+          {selectedReleaseSummary ? (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-medium text-foreground">
+                {t("claude_code.release_impact_for", { version: selectedReleaseSummary.version })}
+              </p>
+              <ul className="space-y-1 text-[11px] leading-5 text-muted-foreground">
+                {selectedReleaseSummary.highlights.slice(0, 3).map((entry) => (
+                  <li key={entry} className="flex gap-2">
+                    <span className="mt-[2px] text-primary">•</span>
+                    <span>{entry}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              {t("claude_code.release_impact_unavailable")}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Download progress bar */}
       {downloadProgress !== null && (

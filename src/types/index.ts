@@ -337,6 +337,11 @@ export interface ClaudeCodeVersionInfo {
   available_versions: VersionWithDownloads[];
 }
 
+export interface ClaudeCodeReleaseSummary {
+  version: string;
+  highlights: string[];
+}
+
 // ============================================================================
 // Extensions Types
 // ============================================================================
