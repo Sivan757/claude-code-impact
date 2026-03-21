@@ -10,7 +10,6 @@ export const FEATURE_ROUTES: Record<FeatureType, string> = {
   context: "/context",
   extensions: "/extensions",
   features: "/settings",
-  "kb-distill": "/knowledge/distill",
   "kb-reference": "/knowledge/reference",
   marketplace: "/marketplace",
   mcp: "/mcp",
@@ -49,7 +48,6 @@ export function featureFromPath(pathname: string): FeatureType | null {
   }
 
   if (segment === "knowledge") {
-    if (sub === "distill") return "kb-distill";
     if (sub === "reference") return "kb-reference";
   }
 

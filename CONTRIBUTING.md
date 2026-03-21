@@ -2,12 +2,9 @@
 
 Thanks for contributing to `Claude Code Impact`.
 
-This project is a derivative of `lovcode`, so contributions must preserve upstream license and attribution obligations while keeping the codebase maintainable for long-term independent development.
-
 ## Before You Start
 
 - Read the project overview in [README.md](./README.md)
-- Read attribution notes in [UPSTREAM_ATTRIBUTION.md](./UPSTREAM_ATTRIBUTION.md)
 - Check the release notes in [CHANGELOG.md](./CHANGELOG.md)
 
 ## Development Setup

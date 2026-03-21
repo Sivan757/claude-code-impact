@@ -1,19 +1,5 @@
 // ============================================================================
 
-// Note: infra helpers are imported in handlers.rs (module scope for include!).
-use crate::state::DISTILL_WATCH_ENABLED;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DistillDocument {
-    pub date: String,
-    pub file: String,
-    pub title: String,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    #[serde(default)]
-    pub session: Option<String>,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReferenceSource {
     pub name: String,
@@ -28,7 +14,6 @@ pub struct ReferenceDoc {
     pub group: Option<String>,
 }
 
-/// Scan a directory for reference sources (subdirectories with markdown files)
 fn scan_reference_dir(dir: &Path) -> Vec<ReferenceSource> {
     if !dir.exists() {
         return vec![];
@@ -38,7 +23,6 @@ fn scan_reference_dir(dir: &Path) -> Vec<ReferenceSource> {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            // Follow symlinks and check if it's a directory
             if let Ok(metadata) = fs::metadata(&path) {
                 if metadata.is_dir() {
                     let name = entry.file_name().to_string_lossy().to_string();
@@ -69,10 +53,10 @@ fn scan_reference_dir(dir: &Path) -> Vec<ReferenceSource> {
             }
         }
     }
+
     sources
 }
 
-/// Get bundled reference docs directories from app resources
 fn get_bundled_reference_dirs(app_handle: &tauri::AppHandle) -> Vec<(String, PathBuf)> {
     let bundled_docs = [
         ("claude-code", "third-parties/claude-code-docs/docs"),
@@ -81,7 +65,6 @@ fn get_bundled_reference_dirs(app_handle: &tauri::AppHandle) -> Vec<(String, Pat
 
     let mut result = Vec::new();
 
-    // Try resource directory (production)
     if let Ok(resource_path) = app_handle.path().resource_dir() {
         for (name, rel_path) in &bundled_docs {
             let path = resource_path.join(rel_path);
@@ -91,7 +74,6 @@ fn get_bundled_reference_dirs(app_handle: &tauri::AppHandle) -> Vec<(String, Pat
         }
     }
 
-    // If not found in resources, try development paths
     if result.is_empty() {
         let candidates = [
             std::env::current_dir().ok(),
@@ -118,14 +100,12 @@ fn list_reference_sources(app_handle: tauri::AppHandle) -> Result<Vec<ReferenceS
     let mut sources = Vec::new();
     let mut seen_names = std::collections::HashSet::new();
 
-    // 1. Scan user's custom reference directory first (higher priority)
     let ref_dir = get_docs_reference_dir();
     for source in scan_reference_dir(&ref_dir) {
         seen_names.insert(source.name.clone());
         sources.push(source);
     }
 
-    // 2. Add bundled reference docs (if not overridden by user)
     for (name, path) in get_bundled_reference_dirs(&app_handle) {
         if !seen_names.contains(&name) {
             let doc_count = fs::read_dir(&path)
@@ -155,15 +135,12 @@ fn list_reference_sources(app_handle: tauri::AppHandle) -> Result<Vec<ReferenceS
     Ok(sources)
 }
 
-/// Find reference source directory by name (checks user dir first, then bundled)
 fn find_reference_source_dir(app_handle: &tauri::AppHandle, source: &str) -> Option<PathBuf> {
-    // 1. Check user's custom reference directory first
     let user_dir = get_docs_reference_dir().join(source);
     if user_dir.exists() {
         return Some(user_dir);
     }
 
-    // 2. Check bundled reference docs
     for (name, path) in get_bundled_reference_dirs(app_handle) {
         if name == source {
             return Some(path);
@@ -183,9 +160,8 @@ fn list_reference_docs(
         None => return Ok(vec![]),
     };
 
-    // Read _order.txt if exists, parse groups from comments
     let order_file = source_dir.join("_order.txt");
-    let mut order_map: HashMap<String, (usize, Option<String>)> = HashMap::new(); // name -> (order, group)
+    let mut order_map: HashMap<String, (usize, Option<String>)> = HashMap::new();
 
     if order_file.exists() {
         if let Ok(content) = fs::read_to_string(&order_file) {
@@ -198,13 +174,11 @@ fn list_reference_docs(
                     continue;
                 }
                 if trimmed.starts_with('#') {
-                    // Comment line = group name (strip # and trim)
                     let group_name = trimmed.trim_start_matches('#').trim();
                     if !group_name.is_empty() {
                         current_group = Some(group_name.to_string());
                     }
                 } else {
-                    // Doc name
                     order_map.insert(trimmed.to_string(), (order_idx, current_group.clone()));
                     order_idx += 1;
                 }
@@ -233,7 +207,6 @@ fn list_reference_docs(
         }
     }
 
-    // Sort by _order.txt if available, otherwise alphabetically
     if !order_map.is_empty() {
         docs.sort_by(|a, b| {
             let a_idx = order_map
@@ -251,95 +224,4 @@ fn list_reference_docs(
     }
 
     Ok(docs)
-}
-
-#[tauri::command]
-fn list_distill_documents() -> Result<Vec<DistillDocument>, String> {
-    let distill_dir = get_docs_distill_dir();
-    let index_path = distill_dir.join("index.jsonl");
-
-    if !index_path.exists() {
-        return Ok(vec![]);
-    }
-
-    let content = fs::read_to_string(&index_path).map_err(|e| e.to_string())?;
-    let mut docs: Vec<DistillDocument> = content
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .filter_map(|line| {
-            let mut doc: DistillDocument = serde_json::from_str(line).ok()?;
-            // Use actual file modification time instead of index.jsonl date
-            let file_path = distill_dir.join(&doc.file);
-            if let Ok(metadata) = fs::metadata(&file_path) {
-                if let Ok(modified) = metadata.modified() {
-                    let datetime: chrono::DateTime<chrono::Local> = modified.into();
-                    doc.date = datetime.format("%Y-%m-%dT%H:%M:%S").to_string();
-                }
-            }
-            Some(doc)
-        })
-        .collect();
-
-    // Sort by date descending (newest first)
-    docs.sort_by(|a, b| b.date.cmp(&a.date));
-    Ok(docs)
-}
-
-#[tauri::command]
-fn find_session_project(session_id: String) -> Result<Option<crate::domain::Session>, String> {
-    let projects_dir = get_claude_dir().join("projects");
-    if !projects_dir.exists() {
-        return Ok(None);
-    }
-
-    for project_entry in fs::read_dir(&projects_dir).map_err(|e| e.to_string())? {
-        let project_entry = project_entry.map_err(|e| e.to_string())?;
-        let project_path = project_entry.path();
-
-        if !project_path.is_dir() {
-            continue;
-        }
-
-        let session_file = project_path.join(format!("{}.jsonl", session_id));
-        if session_file.exists() {
-            let project_id = project_path
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string();
-            let display_path = decode_project_path(&project_id);
-            let content = fs::read_to_string(&session_file).unwrap_or_default();
-
-            let mut summary = None;
-            for line in content.lines() {
-                if let Ok(parsed) = serde_json::from_str::<RawLine>(line) {
-                    if parsed.line_type.as_deref() == Some("summary") {
-                        summary = parsed.summary;
-                        break;
-                    }
-                }
-            }
-
-            return Ok(Some(crate::domain::Session {
-                id: session_id,
-                project_id,
-                project_path: Some(display_path),
-                summary,
-                message_count: 0,
-                last_modified: 0,
-                usage: None,
-            }));
-        }
-    }
-    Ok(None)
-}
-
-#[tauri::command]
-fn get_distill_watch_enabled() -> bool {
-    DISTILL_WATCH_ENABLED.load(std::sync::atomic::Ordering::Relaxed)
-}
-
-#[tauri::command]
-fn set_distill_watch_enabled(enabled: bool) {
-    DISTILL_WATCH_ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
 }

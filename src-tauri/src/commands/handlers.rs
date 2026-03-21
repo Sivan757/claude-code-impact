@@ -7,11 +7,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
 use crate::infra::{
-    ensure_parent_dir, get_claude_dir, get_claudecodeimpact_dir, get_docs_distill_dir,
-    get_docs_reference_dir, get_statusbar_dir, get_statusline_dir, load_custom_keys,
-    load_disabled_env, load_disabled_hooks, read_data_key, read_data_keys, remove_data_key,
-    resolve_claude_dir, resolve_mcp_config_path, resolve_settings_path, save_custom_keys,
-    save_disabled_env, save_disabled_hooks, write_data_key,
+    ensure_parent_dir, get_claude_dir, get_claudecodeimpact_dir, get_docs_reference_dir,
+    get_statusbar_dir, get_statusline_dir, load_custom_keys, load_disabled_env,
+    load_disabled_hooks, read_data_key, read_data_keys, remove_data_key, resolve_claude_dir,
+    resolve_mcp_config_path, resolve_settings_path, save_custom_keys, save_disabled_env,
+    save_disabled_hooks, write_data_key,
 };
 use crate::services::claude_format::{HistoryEntry, RawLine};
 use crate::services::message_content::extract_content_with_meta;
@@ -23,7 +23,7 @@ include!("sections/search/search_index.rs");
 include!("sections/commands/local_commands.rs");
 include!("sections/agents/local_agents.rs");
 include!("sections/plugins/marketplace/metadata.rs");
-include!("sections/distill/distill.rs");
+include!("sections/reference/reference.rs");
 include!("sections/plugins/marketplace/catalog.rs");
 include!("sections/plugins/marketplace/install.rs");
 include!("sections/plugins/marketplace/statusline.rs");
@@ -125,10 +125,7 @@ pub fn build_invoke_handler(
         get_platform_kind,
         get_reveal_label,
         get_path_separator,
-        get_distill_command_path,
-        get_docs_distill_dir_path,
         get_docs_reference_dir_path,
-        get_docs_distill_file_path,
         copy_to_clipboard,
         get_settings_path,
         get_mcp_config_path,
@@ -181,10 +178,6 @@ pub fn build_invoke_handler(
         test_openai_connection,
         test_claude_cli,
         translate_plugin_texts,
-        list_distill_documents,
-        find_session_project,
-        get_distill_watch_enabled,
-        set_distill_watch_enabled,
         list_reference_sources,
         list_reference_docs,
         get_claude_code_version_info,

@@ -171,7 +171,7 @@ function parseLegacyProfile(raw: unknown): ProviderProfile | null {
   };
 }
 
-function parseLovcodeProvider(raw: unknown): ProviderProfile | null {
+function parseLegacyStoredProvider(raw: unknown): ProviderProfile | null {
   if (!isRecord(raw)) return null;
   const env = isRecord(raw.env) ? raw.env : {};
   const tokenValue = env.ANTHROPIC_AUTH_TOKEN ?? env.ANTHROPIC_API_KEY;
@@ -213,7 +213,7 @@ function readLegacyProfilesFromLocalStorage(): { profiles: ProviderProfile[]; co
     if (!Array.isArray(parsed)) continue;
 
     const converted = key === "lovcode_llm_providers"
-      ? parsed.map(parseLovcodeProvider).filter((item): item is ProviderProfile => Boolean(item))
+      ? parsed.map(parseLegacyStoredProvider).filter((item): item is ProviderProfile => Boolean(item))
       : parsed.map(parseLegacyProfile).filter((item): item is ProviderProfile => Boolean(item));
 
     if (converted.length > 0) {

@@ -21,7 +21,6 @@ export type FeatureType =
   | "extensions"
   | "output-styles"
   | "statusline"
-  | "kb-distill"
   | "kb-reference"
   | "projects";
 
@@ -147,14 +146,6 @@ export interface LocalSkill {
   marketplace?: MarketplaceMeta | null;
 }
 
-export interface DistillDocument {
-  date: string;
-  file: string;
-  title: string;
-  tags: string[];
-  session: string | null;
-}
-
 export interface McpServer {
   name: string;
   description: string | null;
@@ -240,8 +231,6 @@ export type View =
   | { type: "hooks" }
   | { type: "sub-agents" }
   | { type: "sub-agent-detail"; agent: LocalAgent }
-  | { type: "kb-distill" }
-  | { type: "kb-distill-detail"; document: DistillDocument }
   | { type: "kb-reference" }
   | { type: "kb-reference-doc"; source: string; docIndex: number }
   | { type: "marketplace"; category?: TemplateCategory }

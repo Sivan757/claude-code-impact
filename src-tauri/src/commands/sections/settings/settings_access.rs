@@ -376,30 +376,8 @@ fn get_path_separator() -> String {
 }
 
 #[tauri::command]
-fn get_distill_command_path() -> String {
-    resolve_claude_dir(None)
-        .join("commands")
-        .join("distill.md")
-        .to_string_lossy()
-        .to_string()
-}
-
-#[tauri::command]
-fn get_docs_distill_dir_path() -> String {
-    get_docs_distill_dir().to_string_lossy().to_string()
-}
-
-#[tauri::command]
 fn get_docs_reference_dir_path() -> String {
     get_docs_reference_dir().to_string_lossy().to_string()
-}
-
-#[tauri::command]
-fn get_docs_distill_file_path(file: String) -> String {
-    get_docs_distill_dir()
-        .join(file)
-        .to_string_lossy()
-        .to_string()
 }
 
 #[tauri::command]

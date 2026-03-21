@@ -8,5 +8,5 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #456 | 5:58 PM | 🔵 | Local Project Configuration for Machine-Specific Overrides | ~504 |
-| #455 | " | 🔵 | Lovcode Project-Specific Configuration Override | ~461 |
+| #455 | " | 🔵 | Project-Specific Configuration Override | ~461 |
 </claude-mem-context>

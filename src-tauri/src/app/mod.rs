@@ -1,15 +1,9 @@
 // ============================================================================
 
-use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use std::fs;
-use std::sync::mpsc::channel;
-use std::time::Duration;
 use tauri::{Emitter, Manager};
 
 use crate::commands;
-use crate::infra::get_docs_distill_dir;
 use crate::pty_manager;
-use crate::state::DISTILL_WATCH_ENABLED;
 
 #[cfg(target_os = "macos")]
 use objc::runtime::YES;
@@ -71,52 +65,6 @@ pub fn run() {
 
             // Initialize PTY manager with app handle for event emission
             pty_manager::init(app.handle().clone());
-
-            // Start watching distill directory for changes
-            let app_handle = app.handle().clone();
-            std::thread::spawn(move || {
-                let distill_dir = get_docs_distill_dir();
-                if !distill_dir.exists() {
-                    // Create directory if it doesn't exist so we can watch it
-                    let _ = fs::create_dir_all(&distill_dir);
-                }
-
-                let (tx, rx) = channel();
-                let mut watcher: RecommendedWatcher =
-                    match notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
-                        if let Ok(event) = res {
-                            // Only trigger on create/modify/remove events
-                            if event.kind.is_create()
-                                || event.kind.is_modify()
-                                || event.kind.is_remove()
-                            {
-                                let _ = tx.send(());
-                            }
-                        }
-                    }) {
-                        Ok(w) => w,
-                        Err(_) => return,
-                    };
-
-                if watcher
-                    .watch(&distill_dir, RecursiveMode::NonRecursive)
-                    .is_err()
-                {
-                    return;
-                }
-
-                // Debounce: wait for events to settle before emitting
-                loop {
-                    if rx.recv().is_ok() {
-                        // Drain any additional events that came in quickly
-                        while rx.recv_timeout(Duration::from_millis(200)).is_ok() {}
-                        // Only emit if watch is enabled
-                        if DISTILL_WATCH_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
-                            let _ = app_handle.emit("distill-changed", ());
-                        }
-                    }
-                }
-            });
 
             let settings = MenuItemBuilder::with_id("settings", "Settings...")
                 .accelerator("CmdOrCtrl+,")

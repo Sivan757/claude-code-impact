@@ -1,10 +1,9 @@
-import { BookmarkIcon, LightningBoltIcon } from "@radix-ui/react-icons";
+import { BookmarkIcon } from "@radix-ui/react-icons";
 import { useTranslation } from "react-i18next";
 import type { FeatureType } from "@/types";
 
 const KNOWLEDGE_FEATURES = [
   { type: "kb-reference" as const, key: "reference", icon: BookmarkIcon },
-  { type: "kb-distill" as const, key: "distill", icon: LightningBoltIcon },
 ];
 
 interface KnowledgeSidebarProps {

@@ -31,7 +31,7 @@
 <claude-mem-context>
 ## Claude-Mem Context
 
-# [lovcode] recent context, 2026-02-25 3:04pm GMT+8
+# [claude-code-impact] recent context, 2026-03-09 10:07am GMT+8
 
 **Legend:** session-request | 🔴 bugfix | 🟣 feature | 🔄 refactor | ✅ change | 🔵 discovery | ⚖️ decision
 
@@ -47,241 +47,252 @@ When you need implementation details, rationale, or debugging context:
 - Trust this index over re-reading code for past decisions and learnings
 
 **Context Economics**:
-- Loading: 50 observations (21,054 tokens to read)
-- Work investment: 212,651 tokens spent on research, building, and decisions
-- Your savings: 191,597 tokens (90% reduction from reuse)
+- Loading: 30 observations (8,061 tokens to read)
+- Work investment: 13,882 tokens spent on research, building, and decisions
+- Your savings: 5,821 tokens (42% reduction from reuse)
 
-### Feb 23, 2026
+### Mar 4, 2026
 
-**#S178** Audit LLM profile deletion and compatibility migration branches — distinguish localStorage migration from file-recovery compat (Feb 23 at 9:56 AM)
+**#S537** Improve message navigator UI and prepare for project page integration - responsive grid layout with enhanced card styling (Mar 4 at 3:21 PM)
 
-**#S179** Performance regression investigation: user reports long loading when clicking any UI section — determine root cause (SQLite vs filesystem vs frontend patterns) (Feb 23 at 10:20 AM)
+**#S538** Refine message navigator layout approach - revert grid tile layout and optimize for compact single-column presentation (Mar 4 at 3:22 PM)
 
-**#S180** Performance regression root cause analysis: "点任何界面都慢" — full investigation completed, fix plan proposed to user for approval (Feb 23 at 11:58 PM)
+**#S539** Fix message navigator layout gaps - prevent abnormal message formatting from expanding row heights with compact text handling (Mar 4 at 3:24 PM)
 
-**#S185** Launch dialog plugin override architecture — fix plugin enable/disable alias resolution and migrate draft state from file-backed to in-memory (Feb 23 at 11:58 PM)
+**#S540** Prevent continuous backup file generation when modifying settings.json (Mar 4 at 3:29 PM)
 
-### Feb 24, 2026
+**#S545** Release version v0.1.4 to GitHub; user's original request was to stop continuously generating backup files when modifying settings.json (Mar 4 at 3:34 PM)
 
-**#S186** 将"覆盖模板"从模板编辑弹窗移出，改为主弹窗 ... 菜单中的独立"更新模板"一键操作 (Feb 24 at 2:41 PM)
+**#S546** Integrate project page with conversation history page - fix duplicate messages appearing in session detail view (Mar 4 at 4:33 PM)
 
-**src/views/Projects/SessionLauncherDialog.tsx**
+**#S554** Integrate project page with conversation history page and release v0.1.5 (Mar 4 at 4:39 PM)
+
+**#S555** Integrate project page with conversation history page and document releases in Feishu wiki (Mar 4 at 6:35 PM)
+
+**#S591** Ship and publish v0.1.6 release for LLM provider/profile improvements, including version bump, validation, scoped commit, tagging, and remote push. (Mar 4 at 6:44 PM)
+
+### Mar 5, 2026
+
+**../../Users/sivan/.codex/bin/claude-mem-notify-codex**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1849 | 2:45 PM | 🔄 | handleOverwrite Replaced with handleUpdateTemplate — Pure Content Sync Without Metadata Edit | ~446 | 🛠️ 1,721 |
-| #1850 | " | 🟣 | Update Template Added as Dedicated Dropdown Menu Item | ~316 | 🛠️ 1,516 |
-| #1851 | " | 🔄 | Template Editor Dialog Simplified to Save-as-New Only | ~321 | 🛠️ 1,166 |
-
-**#S188** Plugin page performance diagnosis — root cause analysis and prioritized optimization plan for slow Extensions view (Feb 24 at 2:45 PM)
-
-**AGENTS.md**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1852 | 2:51 PM | 🔵 | lovcode Session Initialized with claude-mem Context Block Auto-Injected into AGENTS.md | ~530 | 🔍 7,196 |
-
-**src/main.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1853 | " | 🔵 | React Query Configuration: Global + Per-Hook Aggressive Caching for Tauri Invoke Calls | ~378 | 🔍 1,783 |
+| #4821 | 5:47 PM | 🔴 | Notify script stopped polluting claude-mem with synthetic prompts | ~243 | - |
 
 **src-tauri/src/commands/sections/plugins/repository_scan.rs**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1854 | " | 🔵 | Plugin Scan Caching Architecture: Read-Through Cache with Pervasive Manual Invalidation | ~503 | 🔍 1,382 |
-
-**src/views/Extensions/ExtensionsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1855 | 2:52 PM | 🔵 | Extensions View Component Architecture: Five-Component Composition with usePluginLibrary as State Hub | ~446 | 🔍 1,991 |
-
-**src-tauri/src/commands/sections/plugins/repository_scan.rs**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1857 | " | 🔵 | Plugin Runtime State Fetched by Shelling Out to Claude CLI | ~388 | 🔍 1,402 |
-| #1860 | " | 🔵 | Plugin last_updated Resolution: Three-Tier Fallback Chain with In-Process Git Timestamp Cache | ~591 | 🔍 2,220 |
-| #1864 | 2:53 PM | 🔵 | Plugin Component Scanning: Dual-Strategy Filesystem-Walk vs Spec-Based Scanners per Component Type | ~547 | 🔍 2,251 |
-
-**#S194** Fix LLM provider profile drag-and-drop reordering not persisting across page reloads (Feb 24 at 2:53 PM)
-
-### Feb 25, 2026
-
-**~/.codex/bin/claude-mem-notify-codex**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1897 | 9:59 AM | 🔵 | claude-mem-notify-codex Script Architecture Inspected | ~402 | 🔍 13,753 |
-
-**src/views/Projects/ProjectHubView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1898 | 10:00 AM | 🔵 | SessionLauncherDialog and LLM Provider Edit Entry Points Located | ~303 | 🔍 1,746 |
-
-**src/lib/llmProfiles.ts**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1899 | " | 🔵 | Dual-Layer Provider Resolution: Frontend Profile Matching + Rust Config Injection | ~500 | 🔍 2,620 |
-
-**src/views/Settings/EnvSettingsView.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1900 | " | 🔵 | Environment Variable Display Architecture Across Views | ~466 | 🔍 1,426 |
-
-**src/views/Projects/SessionLauncherDialog.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1901 | " | 🟣 | SessionLauncherDialog Expands to Four Settings Tabs with Env Mutation Helpers | ~382 | 🛠️ 1,606 |
-| #1902 | 10:01 AM | 🟣 | SessionLauncherDialog Adds Env Form State and Provider/Env Derived Memos | ~407 | 🛠️ 1,393 |
-| #1903 | " | 🟣 | SessionLauncherDialog Provider and Env Tab Event Handlers Implemented | ~494 | 🛠️ 1,896 |
-| #1904 | " | 🟣 | SessionLauncherDialog Three New Tab Panels: General, Provider, Env | ~553 | 🛠️ 4,363 |
-| #1905 | 10:02 AM | 🟣 | Provider and Env "Edit" Buttons in Launcher Summary Enabled | ~349 | 🛠️ 1,562 |
-
-**General**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1906 | " | ✅ | TypeScript Compilation Passes Clean After SessionLauncherDialog Tab Expansion | ~198 | 🛠️ 804 |
-
-**AGENTS.md**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1948 | 10:56 AM | 🔵 | AGENTS.md Session Context Loaded — lovcode Project State as of Feb 22, 2026 | ~725 | 🔍 13,753 |
-
-**src/views/Projects/SessionLauncherDialog.tsx**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1949 | " | 🔄 | SessionLauncherDialog Env Editing Replaced with Dedicated Settings Views | ~496 | 🛠️ 3,185 |
-| #1950 | " | 🟣 | SessionLauncherDialog: Lazy Draft Materialization via materialize_launch_draft Tauri Command | ~629 | 🛠️ 2,538 |
-| #1951 | 10:57 AM | 🔄 | SessionLauncherDialog Quick-Action Handlers Migrated to Dual-Path: Disk or Snapshot | ~592 | 🛠️ 3,181 |
-| #1952 | " | 🔵 | renderSettingsPanel JSX Still References Deleted Handlers — Provider and Env Tabs Need Update | ~489 | 🔍 6,692 |
-| #1953 | " | 🟣 | SessionLauncherDialog Settings Panel Fully Replaced with Embedded View Components | ~624 | 🛠️ 5,298 |
-| #1954 | 10:58 AM | 🔵 | Direct setSettingsTab("plugins") at Line 1293 Bypasses ensureDraftWorkspace | ~366 | 🔍 36,085 |
-| #1955 | " | 🔴 | Direct setSettingsTab("plugins") Replaced with openAdvancedTab() to Fix Missing Draft Materialization | ~298 | 🛠️ 1,029 |
-
-**AGENTS.md**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
-| #1962 | 11:13 AM | 🔵 | lovcode Session Initialized with AGENTS.md Memory Context | ~439 | 🔍 13,751 |
+| #4822 | " | ⚖️ | Plugin last_updated source moved from install records to repository metadata | ~260 | - |
 
 **src/views/Settings/LlmProviderView.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1964 | " | 🔵 | LlmProviderView Already Has Full Drag-and-Drop Profile Reordering | ~349 | 🔍 8,836 |
-| #1966 | " | 🔴 | mergeProviderProfiles No Longer Clobbers Drag-and-Drop Order with updatedAt Sort | ~447 | 🛠️ 2,623 |
+| #4826 | 5:48 PM | 🔴 | Legacy provider parsing now preserves model-only Anthropic profiles | ~293 | - |
+| #4828 | 5:49 PM | 🔴 | LlmProviderView now treats Anthropic model env vars as active provider config | ~300 | - |
 
-**#S201** Audit the global refresh button's callchain and fix its coverage gaps for settings/plugin/config pages (Feb 25 at 11:14 AM)
+**../../Users/sivan/.codex/bin/claude-mem-notify-codex**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #4831 | 5:53 PM | 🔴 | Notify script stopped polluting memory with synthetic prompts | ~200 | - |
+
+**src-tauri/src/commands/sections/plugins/repository_scan.rs**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+| #4833 | " | ⚖️ | Plugin last_updated source moved to repository metadata and git history | ~220 | - |
 
 **AGENTS.md**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1987 | 11:41 AM | 🔵 | lovcode Session Initialized with claude-mem Context as of Feb 22, 2026 | ~408 | 🔍 7,188 |
+| #4841 | 6:46 PM | ⚖️ | AGENTS.md established mandatory claude-mem workflow for this project | ~305 | - |
 
-**src/views/Statusline/StatuslineView.tsx**
+**~/.codex/bin/claude-mem-notify-codex**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1988 | " | 🔵 | Refresh and Invalidation Patterns Mapped Across lovcode Frontend | ~503 | 🔍 4,881 |
+| #4842 | 6:50 PM | 🔵 | claude-mem notify script uses incremental JSONL ingestion with AGENTS.md context refresh | ~321 | - |
 
-**src/hooks/useInvokeQuery.ts**
+**AGENTS.md**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1989 | 11:42 AM | 🔵 | Complete React Query Key Registry for lovcode Application | ~549 | 🔍 23,429 |
+| #4848 | 6:51 PM | 🔵 | Working tree shows substantial LLM provider settings implementation in progress | ~328 | 🔍 13,882 |
 
-**src/views/Features/FeaturesLayout.tsx**
+**src-tauri/src/app/mod.rs**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1990 | " | 🔵 | FeaturesLayout Is the Universal Page Shell for All Feature Views | ~370 | 🔍 1,411 |
-| #1991 | 11:43 AM | 🔵 | FeaturesLayout Global Refresh Misses "pluginScan" and "config" Query Keys | ~473 | 🔍 2,389 |
+| #4855 | " | 🔵 | Rust build validation passed with pre-existing macOS objc/cocoa warning set | ~305 | - |
 
-**#S202** Fix global refresh button to actually refresh the current page's data — route-aware precision invalidation (Feb 25 at 11:43 AM)
-
-**src/views/Features/FeaturesLayout.tsx**
+**CHANGELOG.md**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #1994 | 11:45 AM | 🔄 | FeaturesLayout Global Refresh Refactored to Route-Aware Precision Invalidation | ~500 | 🛠️ 1,394 |
+| #4857 | " | 🔵 | Working tree now includes release-version and changelog artifacts alongside LLM provider changes | ~296 | - |
+| #4865 | 6:52 PM | 🔵 | Release commit scope verified as nine-file v0.1.6 payload | ~300 | - |
 
-**#S203** Session context restore / compression checkpoint — confirming completed work state before next task (Feb 25 at 11:51 AM)
-
-**src/components/config/index.tsx**
+**AGENTS.md**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #2036 | 12:19 PM | 🔄 | formatRelativeTime() Internationalized with i18n Translation Keys | ~319 | 🛠️ 789 |
-| #2037 | " | 🔄 | DetailHeader Component Hardcoded Strings Replaced with i18n Keys | ~318 | 🛠️ 1,453 |
-| #2038 | " | 🔄 | ItemCard, ContentCard, and MarketplaceSection Components Fully Internationalized | ~406 | 🛠️ 1,669 |
+| #4869 | " | 🔵 | Post-release repository state is clean except local-only metadata files | ~224 | - |
 
-**src/views/Chat/utils.ts**
+**#S636** Integrate project-page launch functionality into the conversation history page by showing a quick project launch UI when no conversation is selected. (Mar 5 at 6:53 PM)
+
+### Mar 6, 2026
+
+**../../Users/sivan/.claude/plugins/marketplaces/thedotmack/src/services/server/Server.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #2039 | " | 🔄 | Chat utils.ts formatRelativeTime() Internationalized via i18n Singleton | ~389 | 🛠️ 1,322 |
+| #5426 | 3:56 PM | 🔵 | Claude-mem worker is healthy and initialized on port 37777 | ~264 | - |
 
-**src/locales/en.json**
+**../../Users/sivan/.claude/plugins/marketplaces/thedotmack/src/cli/handlers/session-init.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #2040 | " | ✅ | en.json Updated with 8 New common.* Translation Keys | ~346 | 🛠️ 1,036 |
+| #5427 | " | 🔵 | Claude-mem exposes session, search, and observation APIs across worker and MCP layers | ~280 | - |
 
-**src/locales/zh.json**
+**../../Users/sivan/.claude/plugins/marketplaces/thedotmack/src/services/sqlite/SessionStore.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #2041 | 12:20 PM | ✅ | zh.json Updated with 8 New common.* Chinese Translation Keys | ~345 | 🛠️ 1,045 |
+| #5428 | " | 🔵 | Claude-mem stores user-created observations in project-scoped manual sessions | ~254 | - |
+| #5429 | 3:57 PM | 🔵 | Manual observation sessions are created through SessionStore.getOrCreateManualSession | ~210 | - |
+| #5431 | " | 🔵 | Manual-session creation logs project-scoped memory session provisioning | ~237 | - |
 
-**src/locales/en.json**
+**../../Users/sivan/.claude/plugins/marketplaces/thedotmack/src/services/worker/agents/ResponseProcessor.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #2042 | " | 🔵 | i18n Audit: 681 Static Keys Scanned, One Missing zh.json Key Found | ~322 | 🔍 1,600 |
+| #5433 | " | 🔵 | Observation storage is processed atomically with session summaries | ~274 | - |
 
-**src/locales/zh.json**
+**../../Users/sivan/.claude/plugins/marketplaces/thedotmack/src/services/worker/SearchManager.ts**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
-| #2043 | " | ✅ | zh.json i18n Gap Closed: llm.no_providers_hint Added | ~225 | 🛠️ 960 |
+| #5434 | " | 🔵 | Observation retrieval uses metadata search with SQLite and optional Chroma ranking | ~251 | - |
 
-**src/locales/en.json**
-| ID | Time | T | Title | Read | Work |
-|----|------|---|-------|------|------|
+**#S641** Integrate project-page launch functionality into the conversation list empty state and refine the new quick-launch UI to avoid option overlap. (Mar 6 at 3:58 PM)
 
-**#2044** " ✅ **i18n Audit Confirms Full Locale Parity: Zero Missing Keys in Either Direction**
-
-A second run of the i18n audit script after adding llm.no_providers_hint to zh.json confirms complete locale parity. All 681 statically-referenced translation keys exist in both en.json and zh.json, with no orphan keys in either file. The i18n sweep that began with formatRelativeTime() and DetailHeader is fully closed with zero remaining gaps.
-
-Read: ~196, Work: 🛠️ 1,242
-
-**src/constants/env-vars.ts**
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#2045** " 🔵 **Remaining Hardcoded Chinese Strings: env-vars.ts Descriptions and StatusBar Language Label**
+**#5580** 4:53 PM ⚖️ **Quick launch now derives startup command from first prompt sentence**
 
-After the i18n sweep, a ripgrep scan across all .ts/.tsx files for Unicode CJK characters (\\u4e00-\\u9fff) reveals that remaining Chinese content falls into three categories: (1) ~70 Chinese desc strings in env-vars.ts that are structured data describing environment variables — likely intentionally bilingual content rather than untranslated UI copy; (2) the "中文" label hardcoded in StatusBar.tsx for the language toggle button, which is a real i18n gap; (3) Chinese code comments throughout various files, which are developer annotations and don't need translation. The sweep is effectively complete for render-path UI strings.
+The chosen architecture makes project launching feel like an extension of the conversation history page instead of a separate destination. Rather than listing all projects again in the empty state, the interface focuses on the currently clicked project and offers a compact launch path there. The launcher behavior was also standardized so quick launch and advanced launch both build the same Claude CLI startup command, using the first sentence of the typed prompt as the injected command-line prompt. This reduces UI duplication, keeps attention on the selected workspace, and preserves consistency between lightweight and full launch flows.
 
-Read: ~408, Work: 🔍 5,304
+Read: ~310, Work: -
 
-**General**
+**src/pages/projects/index.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#2046** 12:21 PM ✅ **TypeScript Compilation Passes Clean After i18n Refactor**
+**#5583** 4:54 PM 🔴 **Legacy projects URL now redirects to chat**
 
-After the full i18n sweep — formatRelativeTime() signatures, DetailHeader, ItemCard, ContentCard, MarketplaceSection, and Chat utils.ts — a clean TypeScript compilation confirms no type regressions were introduced. The refactor is complete and type-safe.
+After deleting the dedicated projects page, the codebase restored the `/projects` entry file as a lightweight redirect to `/chat`. This fixes a compatibility gap that could have broken existing bookmarks, internal links, or route assumptions after the history-first launcher migration. The redirect keeps the old URL functional while enforcing the new navigation model centered on the chat page.
 
-Read: ~192, Work: 🛠️ 193
+Read: ~202, Work: -
 
-**General**
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#2047** " 🔵 **Complete i18n Changeset: 5 Source Files Modified Plus AGENTS.md**
+**#5595** 5:00 PM ⚖️ **Dropdowns chosen to prevent quick launcher option overlap**
 
-The git status after the i18n sweep shows six modified files. Five have been observed and documented in prior patches. FeaturesLayout.tsx is an additional file in the changeset whose specific changes were not captured in the observed patch sequence — it likely received similar hardcoded-string-to-t() treatment as the other components. The full sweep touches the component layer (config/index.tsx, FeaturesLayout.tsx), the utility layer (Chat/utils.ts), and both locale files.
+The UI direction for the quick launcher changed in response to layout crowding and overlap caused by wrapped pill-button option groups. Full-width dropdown selects were chosen because they handle long template and provider lists more predictably, reduce wrapping pressure in narrower windows, and better match the goal of a compact, selected-project launcher embedded inside the conversation page. Adjusting the launch button area to remain in normal document flow further stabilizes the panel layout and avoids control collisions.
 
-Read: ~276, Work: 🔍 638
+Read: ~272, Work: -
 
-**src/locales/en.json**
+**#S642** Integrate project-page launching into the conversation list empty state by redesigning the quick launcher as a focused project start canvas. (Mar 6 at 5:01 PM)
+
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
 | ID | Time | T | Title | Read | Work |
 |----|------|---|-------|------|------|
 
-**#2048** " 🔵 **Full en.json Diff Reveals Broader i18n Sweep Beyond config/index.tsx Patches**
+**#5608** 5:11 PM 🔴 **Quick launch project selector now preserves current project**
 
-The full git diff of en.json reveals the i18n sweep is substantially larger than the config/index.tsx patches suggested. Beyond the component-level strings, many feature areas received new "hint" text (empty state hints), new UI action labels, new permission mode descriptors, and a complete template import/export feedback string set. The common.relative_time sub-object formalizes the relative time key namespace. The settings section received new permission modes (Plan, Delegate, Don't Ask) with descriptions — indicating new permission model UI was added. Template management gained a full suite of update/export/import feedback strings covering success, failure, and validation states.
+The quick launch panel was adjusted to handle a mismatch between the active project path and the project list returned by the backend. When the current project is not found in `projects`, the selector now injects a fallback `_current` entry so the UI still shows the active target instead of appearing empty or inconsistent. The toolbar was also tightened by hiding the verbose selected-template/model/provider summary on smaller screens, improving layout stability while preserving the controls themselves.
 
-Read: ~535, Work: 🔍 3,940
+Read: ~273, Work: -
+
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+
+**#5610** " 🔵 **TypeScript build flagged unused default label variables in quick launch panel**
+
+A validation run on the rebuilt quick launch panel surfaced two unused computed values in the component: `defaultModelLabel` and `defaultProviderLabel`. The errors indicate that the new UI no longer consumes those fallback labels even though the memoized computations remain in the file. This is a cleanup issue rather than a behavioral defect, but it blocks TypeScript validation until the dead code is removed or wired into the interface.
+
+Read: ~237, Work: -
+
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+
+**#5611** " 🔵 **Validation still fails because unused launcher variables remain in source**
+
+Another validation attempt produced the same TypeScript errors, confirming that the quick launcher changes are still blocked by unresolved dead code. The package-level script terminated with `ELIFECYCLE` because the compiler treats the unused declarations as errors. This establishes that the panel rewrite is close to compiling cleanly, but the cleanup step for the unused default label memos is still required before the change passes validation.
+
+Read: ~264, Work: -
+
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+
+**#5612** 5:12 PM 🔴 **Quick launcher now surfaces effective default model and provider labels**
+
+The TypeScript failures in the rebuilt quick launcher were resolved by making the previously unused default label computations part of the visible interface. Instead of showing a generic "Default" state, the panel now displays the effective model and provider names derived from the merged project configuration whenever the default option is selected. This both fixes the compiler errors and gives users more precise feedback about what settings will actually be used during launch.
+
+Read: ~290, Work: -
+
+**#S643** Refine the conversation-list quick launcher so it integrates project launching while matching the app’s existing warm visual language. (Mar 6 at 5:13 PM)
+
+**src/index.css**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+
+**#5619** 5:13 PM 🔵 **Global styling is currently centralized in a single CSS entrypoint**
+
+The current frontend styling setup appears to be consolidated into a single source stylesheet, `src/index.css`, rather than spread across multiple theme or style files. This is useful context for the ongoing launcher redesign work because any shared visual refinements, theme tokens, or global polish will likely need to be applied through that central CSS entrypoint. The search result also suggests the codebase may rely primarily on utility classes plus one global stylesheet instead of a larger theming file structure.
+
+Read: ~248, Work: -
+
+**src/views/Projects/ProjectQuickLaunchPanel.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+
+**#5620** 5:14 PM 🔵 **Quick launcher styling now diverges from the app’s default card theme**
+
+A broad style-pattern search established that most of the app follows a consistent card-based visual language built from shared semantic tokens and common rounded sizes. The redesigned quick launcher intentionally breaks from that baseline by using a darker, more immersive launch-canvas treatment with custom colors, shadows, and oversized radii. This confirms the current work is in a visual refinement phase and that the launcher is being positioned as a standout empty-state experience rather than another standard settings card.
+
+Read: ~326, Work: -
+
+**#S644** Integrate project launching into the conversation-list empty state and refine the launcher UI to remove extra framing and marked hero elements. (Mar 6 at 5:15 PM)
+
+**#S645** Integrate project-page launch functionality into the conversation-list empty state and keep refining the launcher to feel lighter and more native to the app. (Mar 6 at 5:18 PM)
+
+**#S646** Integrate project launching into the conversation-list empty state and keep refining the launcher’s visual layering so it feels native but still intentional. (Mar 6 at 5:28 PM)
+
+**#S650** Integrate project-page quick launch behavior into the conversation list empty state and remove the extra top blank space from the launcher panel. (Mar 6 at 5:30 PM)
+
+**#S653** Integrate conversation list page with project page functionality - refine ProjectQuickLaunchPanel styling for quick project launch UI (Mar 6 at 5:48 PM)
+
+**#S654** Integrate conversation list page with project page functionality - eliminate outer white border around quick project launch panel (Mar 6 at 6:19 PM)
+
+### Mar 8, 2026
+
+**src/views/Projects/SessionLauncherDialog.tsx**
+| ID | Time | T | Title | Read | Work |
+|----|------|---|-------|------|------|
+
+**#5843** 11:26 AM 🔵 **Session launcher dialog already supports initial prompt preview**
+
+The project session launcher already includes reusable mechanics for a quick-start experience. The dialog can receive a prefilled `initialPrompt`, keeps that value in `launchPrompt` state, resets it when the dialog reopens, and builds a one-line preview through `extractFirstLaunchSentence`. This discovery suggests the conversation list empty state can likely reuse the existing launcher flow and prompt-preview behavior instead of reimplementing project launch logic from scratch.
+
+Read: ~274, Work: -
+
+**#S667** Integrate project-launch capability into the conversation list page by moving quick-launch UI into the no-conversation-selected state and simplifying the existing project launcher dialog. (Mar 8 at 11:26 AM)
+
+**Investigated**: `src/views/Projects/SessionLauncherDialog.tsx` was examined for `launchPrompt`, `initialPrompt`, `extractFirstLaunchSentence`, and preview-related UI to understand which existing launcher behaviors could be reused or removed.
+
+**Learned**: The session launcher dialog already supports externally supplied `initialPrompt` values, stores them in `launchPrompt` state, and uses that value when building the Claude launch command. The visible prompt editor and preview were only one UI layer on top of that underlying launch behavior.
+
+**Completed**: The left-side “Launch Prompt” section was removed from `src/views/Projects/SessionLauncherDialog.tsx`, including the textarea, prompt hint, prompt preview card, `extractFirstLaunchSentence` import, and derived preview memo. TypeScript validation passed with `pnpm exec tsc --noEmit`, confirming the dialog still compiles after the cleanup.
+
+**Next Steps**: The current trajectory is to continue shifting quick project launch UX toward the conversation list empty state while keeping the launcher dialog focused on project metadata and template selection, reusing the existing external prompt-passing flow instead of editing the prompt inside the dialog.
 
 
-Access 213k tokens of past research & decisions for just 21,054t. Use the claude-mem skill to access memories by ID.
+Access 14k tokens of past research & decisions for just 8,061t. Use the claude-mem skill to access memories by ID.
 
 _Auto-generated from claude-mem worker. Do not edit inside tags._
 </claude-mem-context>

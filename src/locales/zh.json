@@ -182,7 +182,6 @@
     },
     "features": {
         "kb-reference": "开发文档",
-        "kb-distill": "经验总结 (CC)",
         "basic-env": "环境变量",
         "basic-llm": "供应商",
         "basic-version": "CC 版本",
@@ -206,12 +205,10 @@
     },
     "knowledge_sidebar": {
         "title": "知识",
-        "reference": "文档参考",
-        "distill": "经验总结"
+        "reference": "文档参考"
     },
     "features_desc": {
         "kb-reference": "平台文档",
-        "kb-distill": "经验总结",
         "basic-env": "环境变量",
         "basic-llm": "LLM 代理配置",
         "basic-version": "Claude Code 版本管理",
@@ -760,33 +757,6 @@
         "no_sources": "暂无参考资料",
         "no_sources_hint": "在 ~/.claudecodeimpact/docs/reference/ 中添加文档符号链接",
         "group_count": "({{count}})"
-    },
-    "distill": {
-        "help": "帮助",
-        "open_folder": "打开文件夹",
-        "refresh": "刷新",
-        "auto_refresh": "自动刷新",
-        "how_to_use": "如何使用 Distill",
-        "description": "Distill 能够从你的 Claude Code 会话中提取精华并将其转化为可复用的知识空间。",
-        "run_command": "在 Claude Code 中运行：",
-        "stored_in": "这将分析你的对话并提取关键学习内容到结构化文档中，并存储在：",
-        "open_directory": "打开 distill 目录",
-        "command_file": "命令文件 (distill.md)",
-        "copy_to_clipboard": "复制到剪贴板",
-        "download_file": "下载文件",
-        "not_found": "未找到命令文件。请将 distill.md 放置在 ~/.claude/commands/ 目录中。",
-        "title": "经验总结 (CC)",
-        "summaries_count": "{{count}} 条总结",
-        "loading": "正在加载经验总结...",
-        "search_placeholder": "按标题或标签搜索...",
-        "no_documents": "暂无经验总结",
-        "hint": "在 Claude Code 中使用 /distill 捕捉智慧",
-        "no_match": "没有匹配 \"{{search}}\" 的文档",
-        "loading_doc": "正在加载文档...",
-        "metadata": "元数据",
-        "date": "日期",
-        "session": "会话",
-        "not_available": "无"
     },
     "claude_code": {
         "title": "Claude Code 版本",

@@ -603,18 +603,9 @@ pub(crate) fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-// ~/.claudecodeimpact/docs/distill/
-pub(crate) fn get_distill_dir() -> PathBuf {
-    get_claudecodeimpact_dir().join("docs").join("distill")
-}
-
 // ~/.claudecodeimpact/docs/reference/
 pub(crate) fn get_reference_dir() -> PathBuf {
     get_claudecodeimpact_dir().join("docs").join("reference")
-}
-
-pub(crate) fn get_docs_distill_dir() -> PathBuf {
-    get_distill_dir()
 }
 
 pub(crate) fn get_docs_reference_dir() -> PathBuf {

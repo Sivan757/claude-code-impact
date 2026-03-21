@@ -182,7 +182,6 @@
     },
     "features": {
         "kb-reference": "Reference",
-        "kb-distill": "Distill (CC)",
         "basic-env": "Environment",
         "basic-llm": "LLM Provider",
         "basic-version": "CC Version",
@@ -206,12 +205,10 @@
     },
     "knowledge_sidebar": {
         "title": "Knowledge",
-        "reference": "Reference",
-        "distill": "Distill"
+        "reference": "Reference"
     },
     "features_desc": {
         "kb-reference": "Platform docs",
-        "kb-distill": "Experience summaries",
         "basic-env": "Environment variables",
         "basic-llm": "LLM proxy configuration",
         "basic-version": "Claude Code version management",
@@ -760,33 +757,6 @@
         "no_sources": "No reference sources",
         "no_sources_hint": "Add documentation symlinks to ~/.claudecodeimpact/docs/reference/",
         "group_count": "({{count}})"
-    },
-    "distill": {
-        "help": "Help",
-        "open_folder": "Open Folder",
-        "refresh": "Refresh",
-        "auto_refresh": "Auto Refresh",
-        "how_to_use": "How to use Distill",
-        "description": "Distill captures wisdom from your Claude Code sessions into reusable knowledge.",
-        "run_command": "In Claude Code, run:",
-        "stored_in": "This analyzes your conversation and extracts key learnings into structured documents stored in:",
-        "open_directory": "Open distill directory",
-        "command_file": "Command File (distill.md)",
-        "copy_to_clipboard": "Copy to clipboard",
-        "download_file": "Download file",
-        "not_found": "Command file not found. Place distill.md in ~/.claude/commands/",
-        "title": "Distill (CC)",
-        "summaries_count": "{{count}} summaries",
-        "loading": "Loading distill documents...",
-        "search_placeholder": "Search by title or tags...",
-        "no_documents": "No distill documents yet",
-        "hint": "Use /distill in Claude Code to capture wisdom",
-        "no_match": "No documents match \"{{search}}\"",
-        "loading_doc": "Loading document...",
-        "metadata": "Metadata",
-        "date": "Date",
-        "session": "Session",
-        "not_available": "N/A"
     },
     "claude_code": {
         "title": "Claude Code Version",
