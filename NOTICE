@@ -1,9 +1,12 @@
 Claude Code Impact
 Copyright 2024-2026 Sivan
 
-This product is based on lovcode by MarkShawn2020
+This distribution contains derivative work based on lovcode by MarkShawn2020.
 Original source: https://github.com/markshawn2020/lovcode
-Licensed under the Apache License 2.0
+Original license: Apache License 2.0
+
+This repository is independently maintained and is not an official upstream release.
+See UPSTREAM_ATTRIBUTION.md for repository-specific attribution notes.
 
 ================================================================================
 
@@ -18,5 +21,7 @@ This product includes software developed by third parties:
 
 MODIFICATIONS FROM ORIGINAL:
 
-This is a modified version of the original lovcode project.
-See CHANGELOG.md for detailed changes.
+This is a heavily modified version of the original lovcode project.
+Major product direction, UI flows, launch experience, configuration behavior,
+and release automation have been changed.
+See CHANGELOG.md for versioned changes.
