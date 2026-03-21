@@ -23,8 +23,7 @@
     "vite-plugin-pages",
     "@tailwindcss/vite",
     "@tailwindcss/typography",
-    "tw-animate-css",
-    "lovinsp"
+    "tw-animate-css"
   ],
   "compilers": {
     "tsx": "tsx"
