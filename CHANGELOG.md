@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.8
+
+- Revamp Claude Code settings coverage and streamline the settings UX by removing obsolete Agent Teams and plugin marketplace forms from General Settings.
+- Align permission and model selectors with current Claude Code behavior: remove unsupported permission modes and update model aliases to the documented official set.
+- Refine launcher and plugin override flows, including a dedicated project-level `enabledPlugins` save path that fixes failures when saving plugin selections from the quick-launch dialog.
+- Remove legacy `distill` code paths and remaining historical product traces, and drop the unused `lovinsp` integration from the build.
+
 ## 0.1.7
 
 - Move project launch into Chat as a new `Launchpad`, remove the standalone project hub/template route, and add a compact quick-launch panel with model, permission, provider, and plugin overrides.
