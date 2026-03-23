@@ -1031,7 +1031,6 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
                           <MessageContentRenderer
                             message={message}
                             markdown={markdownPreview}
-                            toReadable={toReadable}
                           />
                         </article>
                       </div>
