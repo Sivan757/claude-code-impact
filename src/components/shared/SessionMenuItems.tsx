@@ -24,6 +24,8 @@ export interface SessionMenuConfig {
   onExport?: () => void;
   onResume?: () => void;
   onCopySessionId?: () => void;
+  readableSlashCommandChecked?: boolean;
+  onReadableSlashCommandCheckedChange?: (checked: boolean) => void;
   mergeMessagesChecked?: boolean;
   onMergeMessagesCheckedChange?: (checked: boolean) => void;
 }
@@ -47,6 +49,8 @@ export function SessionDropdownMenuItems({
   sessionId,
   onExport,
   onResume,
+  readableSlashCommandChecked,
+  onReadableSlashCommandCheckedChange,
   mergeMessagesChecked,
   onMergeMessagesCheckedChange,
 }: SessionMenuConfig) {
@@ -114,6 +118,18 @@ export function SessionDropdownMenuItems({
             <ChatBubbleIcon className="h-3 w-3" />
             {t("session_menu.resume_session")}
           </DropdownMenuItem>
+          <DropdownMenuSeparator className="-mx-[3px] my-[3px]" />
+        </>
+      )}
+      {typeof readableSlashCommandChecked === "boolean" && onReadableSlashCommandCheckedChange && (
+        <>
+          <DropdownMenuCheckboxItem
+            checked={readableSlashCommandChecked}
+            onCheckedChange={(checked) => onReadableSlashCommandCheckedChange(checked === true)}
+            className={compactCheckboxClassName}
+          >
+            {t("session_menu.readable_slash_command", "Readable Slash Command")}
+          </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator className="-mx-[3px] my-[3px]" />
         </>
       )}

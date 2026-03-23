@@ -307,6 +307,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
   const [liveMessages, setLiveMessages] = useState<Message[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [sessionIdCopied, setSessionIdCopied] = useState(false);
+  const [readableSlashCommandEnabled, setReadableSlashCommandEnabled] = useState(false);
   const [mergeMessagesEnabled, setMergeMessagesEnabled] = useState(true);
   const [navigatorCollapsed, setNavigatorCollapsed] = useState(() =>
     getInitialWindowCollapse(NAVIGATOR_COLLAPSE_BREAKPOINT, true),
@@ -780,6 +781,12 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
   const selectedSessionTitle =
     stripTeammateMessageTags(toReadable(selectedSessionSummary)) || t("chat.untitled_session");
 
+  const detailMessageTextTransform = useCallback(
+    (text: string | null | undefined) =>
+      readableSlashCommandEnabled ? toReadable(text) : text ?? "",
+    [readableSlashCommandEnabled, toReadable],
+  );
+
   const renderedMessageCountLabel = t("chat.message_count", {
     count: renderRows.length,
   });
@@ -878,6 +885,8 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
                         projectId={selectedProjectId}
                         sessionId={selectedSessionId}
                         onExport={() => setExportDialogOpen(true)}
+                        readableSlashCommandChecked={readableSlashCommandEnabled}
+                        onReadableSlashCommandCheckedChange={setReadableSlashCommandEnabled}
                         mergeMessagesChecked={mergeMessagesEnabled}
                         onMergeMessagesCheckedChange={setMergeMessagesEnabled}
                       />
@@ -1031,6 +1040,7 @@ function HistorySessionDetailPaneInner(props: HistorySessionDetailPaneProps): Re
                           <MessageContentRenderer
                             message={message}
                             markdown={markdownPreview}
+                            toReadable={detailMessageTextTransform}
                           />
                         </article>
                       </div>

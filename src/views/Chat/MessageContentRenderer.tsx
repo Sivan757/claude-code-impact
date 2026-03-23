@@ -23,6 +23,7 @@ import { parseTeammateMessage } from "./utils";
 interface MessageContentRendererProps {
   message: Message;
   markdown: boolean;
+  toReadable?: (text: string | null | undefined) => string;
 }
 
 type ContentRecord = Record<string, unknown>;
@@ -1439,16 +1440,19 @@ function renderContentItem({
   key,
   markdown,
   preferMarkdown,
+  toReadable,
 }: {
   item: ContentRecord;
   key: string;
   markdown: boolean;
   preferMarkdown: boolean;
+  toReadable?: (text: string | null | undefined) => string;
 }) {
   const itemType = asString(item.type) ?? "unknown";
 
   if (itemType === "text") {
-    const text = asString(item.text);
+    const rawText = asString(item.text);
+    const text = toReadable ? toReadable(rawText) : rawText;
     if (!text) return null;
     const preferMarkdownForText = markdown || preferMarkdown;
     return (
@@ -1646,6 +1650,7 @@ function renderContentItem({
 function MessageContentRendererInner({
   message,
   markdown,
+  toReadable,
 }: MessageContentRendererProps) {
   const raw = message.raw_content;
 
@@ -1681,13 +1686,14 @@ function MessageContentRendererInner({
             key,
             markdown,
             preferMarkdown: message.role === "assistant",
+            toReadable,
           });
         })}
       </div>
     );
   }
 
-  const content = message.content;
+  const content = toReadable ? toReadable(message.content) : message.content;
   if (!content) return null;
   return renderStructuredResultContent(content, {
     preferMarkdown: markdown || message.role === "assistant",
@@ -1699,7 +1705,8 @@ function areMessageContentRendererPropsEqual(
   next: MessageContentRendererProps,
 ): boolean {
   return prev.message === next.message &&
-    prev.markdown === next.markdown;
+    prev.markdown === next.markdown &&
+    prev.toReadable === next.toReadable;
 }
 
 export const MessageContentRenderer = memo(
