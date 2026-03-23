@@ -755,30 +755,34 @@ fn scan_skill_components(dir: &Path) -> Vec<PluginComponent> {
 }
 
 fn scan_claude_md_components(base_dir: &Path) -> Vec<PluginComponent> {
-    let mut components = Vec::new();
-    let candidates = [
-        "CLAUDE.md",
-        "claude.md",
-        ".claude/CLAUDE.md",
-        ".claude/claude.md",
-    ];
+    fn push_first_existing_candidate(
+        base_dir: &Path,
+        candidates: &[&str],
+        components: &mut Vec<PluginComponent>,
+    ) {
+        for relative in candidates {
+            let path = base_dir.join(relative);
+            if !path.is_file() {
+                continue;
+            }
 
-    for relative in candidates {
-        let path = base_dir.join(relative);
-        if !path.is_file() {
-            continue;
+            components.push(PluginComponent {
+                name: "CLAUDE.md".to_string(),
+                description: None,
+                path: Some(path.to_string_lossy().to_string()),
+            });
+            return;
         }
-
-        components.push(PluginComponent {
-            name: "CLAUDE.md".to_string(),
-            description: None,
-            path: Some(path.to_string_lossy().to_string()),
-        });
     }
 
-    let mut deduped = Vec::new();
-    merge_component_list(&mut deduped, components);
-    deduped
+    let mut components = Vec::new();
+    push_first_existing_candidate(base_dir, &["CLAUDE.md", "claude.md"], &mut components);
+    push_first_existing_candidate(
+        base_dir,
+        &[".claude/CLAUDE.md", ".claude/claude.md"],
+        &mut components,
+    );
+    components
 }
 
 fn scan_hook_components(dir: &Path) -> Vec<PluginComponent> {
@@ -3213,5 +3217,43 @@ mod tests {
         let components = parse_hook_components_from_value(&hooks, None);
         assert_eq!(components.len(), 1);
         assert!(components[0].name.contains("validate.sh"));
+    }
+
+    #[test]
+    fn scan_claude_md_components_uses_one_entry_per_logical_location() {
+        let root = unique_temp_dir("claude-md-scan");
+        let root_claude_md = root.join("CLAUDE.md");
+
+        fs::write(&root_claude_md, "# root").unwrap();
+
+        let components = scan_claude_md_components(&root);
+        assert_eq!(components.len(), 1);
+        assert_eq!(components[0].path.as_deref(), Some(root_claude_md.to_string_lossy().as_ref()));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn scan_claude_md_components_keeps_root_and_dot_claude_entries() {
+        let root = unique_temp_dir("claude-md-multi-location");
+        let root_claude_md = root.join("CLAUDE.md");
+        let dot_claude_md = root.join(".claude").join("claude.md");
+
+        fs::write(&root_claude_md, "# root").unwrap();
+        fs::create_dir_all(dot_claude_md.parent().unwrap()).unwrap();
+        fs::write(&dot_claude_md, "# scoped").unwrap();
+
+        let components = scan_claude_md_components(&root);
+        let paths: Vec<String> = components
+            .iter()
+            .filter_map(|component| component.path.as_deref())
+            .map(|path| path.to_lowercase())
+            .collect();
+
+        assert_eq!(components.len(), 2);
+        assert!(paths.contains(&root_claude_md.to_string_lossy().to_lowercase()));
+        assert!(paths.contains(&dot_claude_md.to_string_lossy().to_lowercase()));
+
+        let _ = fs::remove_dir_all(root);
     }
 }
