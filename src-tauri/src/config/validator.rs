@@ -149,14 +149,31 @@ fn validate_hooks(
     })?;
 
     let known_events = [
-        "PreToolUse",
-        "PostToolUse",
-        "Stop",
-        "UserPromptSubmit",
         "SessionStart",
+        "InstructionsLoaded",
+        "UserPromptSubmit",
+        "PreToolUse",
+        "PermissionRequest",
+        "PostToolUse",
+        "PostToolUseFailure",
+        "Notification",
+        "SubagentStart",
+        "SubagentStop",
+        "Stop",
+        "StopFailure",
+        "TeammateIdle",
+        "TaskCompleted",
+        "ConfigChange",
+        "WorktreeCreate",
+        "WorktreeRemove",
+        "PreCompact",
+        "PostCompact",
+        "Elicitation",
+        "ElicitationResult",
+        "SessionEnd",
     ];
 
-    for (event_name, event_hooks) in obj {
+    for (event_name, matcher_groups) in obj {
         // Warn about unknown event names
         if !known_events.contains(&event_name.as_str()) {
             violations.push(ValidationViolation {
@@ -166,10 +183,13 @@ fn validate_hooks(
             });
         }
 
-        // Validate hooks array
-        if let Some(hooks_arr) = event_hooks.as_array() {
-            for (i, hook) in hooks_arr.iter().enumerate() {
-                validate_hook_entry(hook, &format!("hooks.{}[{}]", event_name, i), violations)?;
+        if let Some(groups_arr) = matcher_groups.as_array() {
+            for (i, matcher_group) in groups_arr.iter().enumerate() {
+                validate_hook_matcher_group(
+                    matcher_group,
+                    &format!("hooks.{}[{}]", event_name, i),
+                    violations,
+                )?;
             }
         } else {
             violations.push(ValidationViolation {
@@ -178,6 +198,43 @@ fn validate_hooks(
                 message: "Must be an array".to_string(),
             });
         }
+    }
+
+    Ok(())
+}
+
+fn validate_hook_matcher_group(
+    matcher_group: &serde_json::Value,
+    field_path: &str,
+    violations: &mut Vec<ValidationViolation>,
+) -> Result<(), ConfigError> {
+    let obj = matcher_group
+        .as_object()
+        .ok_or_else(|| ConfigError::Other {
+            message: format!("{} must be an object", field_path),
+        })?;
+
+    if let Some(matcher) = obj.get("matcher") {
+        if !matcher.is_string() {
+            violations.push(ValidationViolation {
+                severity: ViolationSeverity::Error,
+                field: format!("{}.matcher", field_path),
+                message: "Matcher must be a string".to_string(),
+            });
+        }
+    }
+
+    let Some(hooks_arr) = obj.get("hooks").and_then(|value| value.as_array()) else {
+        violations.push(ValidationViolation {
+            severity: ViolationSeverity::Error,
+            field: format!("{}.hooks", field_path),
+            message: "Must be an array".to_string(),
+        });
+        return Ok(());
+    };
+
+    for (i, hook) in hooks_arr.iter().enumerate() {
+        validate_hook_entry(hook, &format!("{}.hooks[{}]", field_path, i), violations)?;
     }
 
     Ok(())
@@ -196,13 +253,13 @@ fn validate_hook_entry(
     // Validate type field
     if let Some(hook_type) = obj.get("type") {
         if let Some(type_str) = hook_type.as_str() {
-            let valid_types = ["command", "prompt", "agent"];
+            let valid_types = ["command", "http", "prompt", "agent"];
             if !valid_types.contains(&type_str) {
                 violations.push(ValidationViolation {
                     severity: ViolationSeverity::Error,
                     field: format!("{}.type", field_path),
                     message: format!(
-                        "Invalid hook type '{}'. Must be one of: command, prompt, agent",
+                        "Invalid hook type '{}'. Must be one of: command, http, prompt, agent",
                         type_str
                     ),
                 });
@@ -370,7 +427,12 @@ mod tests {
             "hooks": {
                 "PreToolUse": [
                     {
-                        "type": "invalid_type"
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "type": "invalid_type"
+                            }
+                        ]
                     }
                 ]
             }
@@ -378,6 +440,52 @@ mod tests {
 
         let violations = validate_config(ConfigFileKind::Settings, &settings).unwrap();
         assert!(violations.iter().any(|v| v.field.contains("type")));
+    }
+
+    #[test]
+    fn test_validate_accepts_matcher_group_shape_for_current_hook_events() {
+        let settings = json!({
+            "hooks": {
+                "PostToolUse": [
+                    {
+                        "matcher": "Edit|Write",
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": "https://hooks.example.com/post-tool"
+                            }
+                        ]
+                    }
+                ],
+                "WorktreeCreate": [
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "echo /tmp/worktree"
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        let violations = validate_config(ConfigFileKind::Settings, &settings).unwrap();
+        assert!(
+            !violations
+                .iter()
+                .any(|violation| violation.severity == ViolationSeverity::Error),
+            "expected matcher-group hook schema to validate cleanly, got {:?}",
+            violations
+        );
+        assert!(
+            !violations
+                .iter()
+                .any(|violation| violation.field.starts_with("hooks.PostToolUse")
+                    || violation.field.starts_with("hooks.WorktreeCreate")),
+            "expected official hook events to avoid warnings, got {:?}",
+            violations
+        );
     }
 
     #[test]

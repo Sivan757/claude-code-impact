@@ -24,20 +24,8 @@ import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import { useConfigMerged, useConfigWrite, useConfigDeleteKey } from "../../config/hooks/useConfig";
 import { getSettingsFileKindForScope } from "../../config/utils";
-import { ConfigScope } from "../../config/types";
+import { ConfigScope, type HookEntry, type HookMatcher } from "../../config/types";
 import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
-
-interface HookItem {
-    type: string;
-    command?: string;
-    timeout?: number;
-    disabled?: boolean;
-}
-
-interface HookMatcher {
-    matcher: string;
-    hooks: HookItem[];
-}
 
 export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: string }) {
     const { embedded = false, settingsPath } = props;
@@ -83,6 +71,22 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
         }
 
         return next;
+    };
+
+    const getHookLabel = (hook: HookEntry) => {
+        return hook.command || hook.url || hook.prompt || hook.type;
+    };
+
+    const getHookSearchText = (hook: HookEntry) => {
+        return [
+            hook.type,
+            hook.command,
+            hook.url,
+            hook.prompt,
+        ]
+            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+            .join(" ")
+            .toLowerCase();
     };
 
     // Extract hooks from merged config
@@ -262,8 +266,8 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
         const matchers = hooks[eventType] || [];
 
         const hasMatchingActive = matchers.some(m =>
-            m.matcher.toLowerCase().includes(search.toLowerCase()) ||
-            m.hooks.some(h => (h.command || h.type).toLowerCase().includes(search.toLowerCase()))
+            (m.matcher || "").toLowerCase().includes(search.toLowerCase()) ||
+            m.hooks.some(h => getHookSearchText(h).includes(search.toLowerCase()))
         );
 
         return hasMatchingActive;
@@ -524,7 +528,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                                                     <ListItemCard
                                                                         key={hookIndex}
                                                                         avatar={<Link2Icon className="w-4 h-4" />}
-                                                                        title={hook.command || hook.type}
+                                                                        title={getHookLabel(hook)}
                                                                         subtitle={hook.timeout ? `${t('settings.timeout', 'Timeout')}: ${hook.timeout}s` : undefined}
                                                                         actions={
                                                                             <Button

@@ -41,7 +41,7 @@ export interface SettingsJson {
   companyAnnouncements?: string[];
   permissions?: PermissionsConfig;
   env?: Record<string, string>;
-  hooks?: Record<string, HookEntry[]>;
+  hooks?: Record<string, HookMatcher[]>;
   allowManagedHooksOnly?: boolean;
   allowedHttpHookUrls?: string[];
   httpHookAllowedEnvVars?: string[];
@@ -82,8 +82,14 @@ export interface HookEntry {
   type: string;
   command?: string;
   prompt?: string;
-  matcher?: string;
+  url?: string;
+  async?: boolean;
   timeout?: number;
+}
+
+export interface HookMatcher {
+  matcher?: string;
+  hooks: HookEntry[];
 }
 
 // MCP server configuration

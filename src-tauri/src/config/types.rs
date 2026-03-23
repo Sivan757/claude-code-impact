@@ -94,7 +94,7 @@ pub struct SettingsJson {
     pub env: Option<HashMap<String, String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hooks: Option<HashMap<String, Vec<HookEntry>>>,
+    pub hooks: Option<HashMap<String, Vec<HookMatcher>>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
@@ -134,6 +134,16 @@ pub struct PermissionsConfig {
     pub default_mode: Option<String>,
 }
 
+/// Hook matcher group
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HookMatcher {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matcher: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hooks: Vec<HookEntry>,
+}
+
 /// Hook entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookEntry {
@@ -146,7 +156,10 @@ pub struct HookEntry {
     pub prompt: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub matcher: Option<String>,
+    pub url: Option<String>,
+
+    #[serde(rename = "async", skip_serializing_if = "Option::is_none")]
+    pub r#async: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<u32>,
