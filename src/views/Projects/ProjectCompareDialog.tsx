@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
+import { getPathBaseName } from "@/lib/pathDisplay";
 import type { MergedConfigView } from "../../config/types";
 
 interface ProjectCompareDialogProps {
@@ -21,7 +22,7 @@ export function ProjectCompareDialog({
 }: ProjectCompareDialogProps) {
   if (!projectA || !projectB) return null;
 
-  const shortName = (path: string) => path.split("/").pop() ?? path;
+  const shortName = (path: string) => getPathBaseName(path);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

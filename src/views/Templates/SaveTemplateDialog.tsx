@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
+import { getPathBaseName } from "@/lib/pathDisplay";
 import { useTemplateSaveFromProject } from "../../config/templates/hooks";
 
 interface SaveTemplateDialogProps {
@@ -100,7 +101,7 @@ export function SaveTemplateDialog({
           {/* Source indicator */}
           <p className="text-xs text-muted-foreground">
             {projectPath
-              ? t("templates.save_source_project", { name: projectPath.split("/").pop() ?? projectPath })
+              ? t("templates.save_source_project", { name: getPathBaseName(projectPath) })
               : t("templates.save_source_global")}
           </p>
 

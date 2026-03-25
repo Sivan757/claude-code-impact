@@ -44,8 +44,14 @@ Claude Code Impact is a Vibe Coding assistant desktop app built with Tauri 2 + R
 # Frontend development (hot reload)
 pnpm dev
 
+# Fast frontend type validation
+pnpm exec tsc --noEmit
+
 # Type check + production build
 pnpm build
+
+# Unused code checks across frontend and Rust
+pnpm run check:unused
 
 # Run Tauri desktop app (auto-starts pnpm dev)
 pnpm tauri dev
@@ -59,6 +65,7 @@ pnpm tauri build
 **Dual-layer architecture:**
 - `src/` - React frontend (Vite, port 1420)
 - `src-tauri/` - Rust backend (Tauri 2)
+- `src/pages/projects/index.tsx` redirects `/projects` to `/chat`; active project launch UX now lives in chat/quick-launch surfaces
 
 **Frontend-backend communication:**
 - Use `invoke()` from `@tauri-apps/api/core` to call Rust commands

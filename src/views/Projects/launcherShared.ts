@@ -4,6 +4,7 @@ export {
   normalizeModelType,
   type ModelType,
 } from "@/config/models";
+import { getPathBaseName } from "@/lib/pathDisplay";
 
 export interface LaunchSettingsRequest {
   project_path?: string;
@@ -25,7 +26,7 @@ export interface MaterializedLaunchDraftResponse {
 }
 
 export function getProjectDisplayName(projectPath: string, fallback?: string): string {
-  return fallback || projectPath.split("/").filter(Boolean).pop() || projectPath;
+  return fallback || getPathBaseName(projectPath) || projectPath;
 }
 
 function normalizeLaunchPrompt(value: string): string {

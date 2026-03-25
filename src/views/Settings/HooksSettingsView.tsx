@@ -6,6 +6,13 @@ import {
     ChevronDownIcon,
     ChevronRightIcon,
 } from "@radix-ui/react-icons";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "../../components/ui/dialog";
 import { Switch } from "../../components/ui/switch";
 import {
     LoadingState,
@@ -45,6 +52,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
     const [allowedUrlInput, setAllowedUrlInput] = useState("");
     const [allowedEnvVarInput, setAllowedEnvVarInput] = useState("");
     const [sessionEndTimeoutInput, setSessionEndTimeoutInput] = useState("");
+    const [advancedOpen, setAdvancedOpen] = useState(false);
     const { mode, setMode } = useViewMode("hooks");
     const [expandedHookEvents, setExpandedHookEvents] = useState<Set<string>>(new Set());
     const settingsKind = getSettingsFileKindForScope(selectedScope);
@@ -74,12 +82,24 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
     };
 
     const getHookLabel = (hook: HookEntry) => {
-        return hook.command || hook.url || hook.prompt || hook.type;
+        return hook.command
+            || hook.url
+            || hook.prompt
+            || t(`settings.hook_types.${hook.type}`, { defaultValue: hook.type });
+    };
+
+    const getHookTypeLabel = (type: string) => {
+        return t(`settings.hook_types.${type}`, { defaultValue: type });
+    };
+
+    const getHookEventLabel = (eventType: string) => {
+        return t(`settings.hook_events.${eventType}`, { defaultValue: eventType });
     };
 
     const getHookSearchText = (hook: HookEntry) => {
         return [
             hook.type,
+            getHookTypeLabel(hook.type),
             hook.command,
             hook.url,
             hook.prompt,
@@ -104,7 +124,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
         setSessionEndTimeoutInput(sessionEndTimeout);
     }, [sessionEndTimeout]);
 
-    if (isLoading) return <LoadingState message={t('settings.loading')} />;
+    if (isLoading) return <LoadingState message={t("settings.loading")} />;
 
     const writeSettingValue = async (key: string, value: unknown) => {
         await writeMutation.mutateAsync({
@@ -193,10 +213,10 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
 
     const deleteHookItem = async (eventType: string, matcherIndex: number, hookIndex: number) => {
         const confirmed = await confirmDialog({
-            title: t("common.delete", "Delete"),
-            description: t('settings.delete_hook_confirm'),
+            title: t("common.delete"),
+            description: t("settings.delete_hook_confirm"),
             variant: "destructive",
-            confirmText: t("common.delete", "Delete"),
+            confirmText: t("common.delete"),
         });
         if (!confirmed) return;
 
@@ -260,65 +280,67 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
     const filteredEvents = eventTypes.filter(eventType => {
         if (!search) return true;
         // Basic filter: check if event type matches
-        if (eventType.toLowerCase().includes(search.toLowerCase())) return true;
+        const normalizedSearch = search.toLowerCase();
+        if (
+            eventType.toLowerCase().includes(normalizedSearch)
+            || getHookEventLabel(eventType).toLowerCase().includes(normalizedSearch)
+        ) {
+            return true;
+        }
 
         // Advanced: check if any hook command matches
         const matchers = hooks[eventType] || [];
 
         const hasMatchingActive = matchers.some(m =>
-            (m.matcher || "").toLowerCase().includes(search.toLowerCase()) ||
-            m.hooks.some(h => getHookSearchText(h).includes(search.toLowerCase()))
+            (m.matcher || "").toLowerCase().includes(normalizedSearch) ||
+            m.hooks.some(h => getHookSearchText(h).includes(normalizedSearch))
         );
 
         return hasMatchingActive;
     });
 
-    const mainContent = (
-        <div className="flex-1 flex flex-col min-h-0 space-y-3">
-            <ActionToolbar
-                searchPlaceholder={t('settings.hooks_search_placeholder', 'Search hooks...')}
-                searchValue={search}
-                onSearchChange={setSearch}
-                primaryAction={
-                    <ViewModeToggle mode={mode} onChange={setMode} />
-                }
-                secondaryAction={
-                    <>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border/60 rounded-xl">
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">{t('settings.disable_all')}</span>
-                            <Switch
-                                checked={disableAllHooks}
-                                onCheckedChange={toggleGlobalHooks}
-                                className="scale-75"
-                            />
+    const advancedControls = (
+        <section className="rounded-xl border border-border/50 bg-card/30 p-3 space-y-2">
+            <div className="grid gap-2 xl:grid-cols-2">
+                <div className="rounded-lg border border-border/40 bg-background/70 p-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">
+                                {t("settings.disable_all")}
+                            </p>
+                            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                                {t("settings.disable_all_hooks_desc")}
+                            </p>
                         </div>
-                    </>
-                }
-            />
-
-            <section className="rounded-xl border border-border/50 bg-card/40 p-3 space-y-3">
-                <div className="grid gap-3 xl:grid-cols-2">
-                    <div className="rounded-lg border border-border/40 bg-background/70 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium text-foreground">
-                                    {t("settings.allow_managed_hooks_only")}
-                                </p>
-                                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                                    {isManagedScope
-                                        ? t("settings.allow_managed_hooks_only_desc")
-                                        : t("settings.managed_scope_only_desc")}
-                                </p>
-                            </div>
-                            <Switch
-                                checked={allowManagedHooksOnly}
-                                disabled={!isManagedScope}
-                                onCheckedChange={(checked) => { void writeSettingValue("allowManagedHooksOnly", checked); }}
-                            />
-                        </div>
+                        <Switch
+                            checked={disableAllHooks}
+                            onCheckedChange={toggleGlobalHooks}
+                        />
                     </div>
+                </div>
 
-                    <div className="rounded-lg border border-border/40 bg-background/70 p-3">
+                <div className="rounded-lg border border-border/40 bg-background/70 p-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">
+                                {t("settings.allow_managed_hooks_only")}
+                            </p>
+                            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                                {isManagedScope
+                                    ? t("settings.allow_managed_hooks_only_desc")
+                                    : t("settings.managed_scope_only_desc")}
+                            </p>
+                        </div>
+                        <Switch
+                            checked={allowManagedHooksOnly}
+                            disabled={!isManagedScope}
+                            onCheckedChange={(checked) => { void writeSettingValue("allowManagedHooksOnly", checked); }}
+                        />
+                    </div>
+                </div>
+
+                <div className="rounded-lg border border-border/40 bg-background/70 p-2.5 xl:col-span-1">
+                    <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">
                                 {t("settings.session_end_timeout")}
@@ -328,7 +350,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                             </p>
                         </div>
                         <input
-                            className="mt-3 h-8 w-32 rounded-lg border border-input bg-background px-2.5 font-mono text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                            className="h-8 w-28 rounded-lg border border-input bg-background px-2.5 font-mono text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                             placeholder="1500"
                             value={sessionEndTimeoutInput}
                             onChange={(event) => setSessionEndTimeoutInput(event.target.value)}
@@ -347,138 +369,149 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                         />
                     </div>
                 </div>
+            </div>
 
-                <div className="grid gap-3 xl:grid-cols-2">
-                    <div className="rounded-lg border border-border/40 bg-background/70 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <p className="text-sm font-medium text-foreground">
-                                        {t("settings.allowed_http_hook_urls")}
-                                    </p>
-                                    <StatusBadge variant="blue">{allowedHttpHookUrls.length}</StatusBadge>
-                                </div>
-                                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                                    {t("settings.allowed_http_hook_urls_desc")}
-                                </p>
-                            </div>
-                        </div>
-
-                        {allowedHttpHookUrls.length > 0 ? (
-                            <div className="mt-2 space-y-1.5">
-                                {allowedHttpHookUrls.map((value) => (
-                                    <div key={value} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2">
-                                        <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{value}</span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
-                                            onClick={() => { void removeAllowedHttpHookUrl(value); }}
-                                            title={t("common.remove")}
-                                        >
-                                            <TrashIcon className="w-3.5 h-3.5" />
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="mt-2 text-xs italic text-muted-foreground/70">
-                                {t("settings.no_allowed_http_hook_urls")}
-                            </p>
-                        )}
-
-                        <AddFormRow className="mt-3 items-stretch sm:items-center">
-                            <input
-                                className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                                placeholder={t("settings.allowed_http_hook_urls_placeholder")}
-                                value={allowedUrlInput}
-                                onChange={(event) => setAllowedUrlInput(event.target.value)}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                        event.preventDefault();
-                                        void addAllowedHttpHookUrl();
-                                    }
-                                }}
-                            />
-                            <Button
-                                onClick={() => { void addAllowedHttpHookUrl(); }}
-                                disabled={!allowedUrlInput.trim()}
-                                className="h-9 rounded-xl px-4"
-                            >
-                                {t("common.add")}
-                            </Button>
-                        </AddFormRow>
+            <div className="grid gap-2 xl:grid-cols-2">
+                <div className="rounded-lg border border-border/40 bg-background/70 p-2.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">
+                            {t("settings.allowed_http_hook_urls")}
+                        </p>
+                        <StatusBadge variant="blue">{allowedHttpHookUrls.length}</StatusBadge>
                     </div>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                        {t("settings.allowed_http_hook_urls_desc")}
+                    </p>
 
-                    <div className="rounded-lg border border-border/40 bg-background/70 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <p className="text-sm font-medium text-foreground">
-                                        {t("settings.http_hook_allowed_env_vars")}
-                                    </p>
-                                    <StatusBadge variant="purple">{httpHookAllowedEnvVars.length}</StatusBadge>
+                    {allowedHttpHookUrls.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {allowedHttpHookUrls.map((value) => (
+                                <div
+                                    key={value}
+                                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/40 bg-secondary/40 pl-2.5 pr-1.5 py-1"
+                                >
+                                    <span className="truncate font-mono text-[11px] text-foreground">{value}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 rounded-full hover:text-red-500 hover:bg-red-500/10"
+                                        onClick={() => { void removeAllowedHttpHookUrl(value); }}
+                                        title={t("common.remove")}
+                                    >
+                                        <TrashIcon className="w-3 h-3" />
+                                    </Button>
                                 </div>
-                                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                                    {t("settings.http_hook_allowed_env_vars_desc")}
-                                </p>
-                            </div>
+                            ))}
                         </div>
+                    ) : (
+                        <p className="text-[11px] italic text-muted-foreground/70">
+                            {t("settings.no_allowed_http_hook_urls")}
+                        </p>
+                    )}
 
-                        {httpHookAllowedEnvVars.length > 0 ? (
-                            <div className="mt-2 space-y-1.5">
-                                {httpHookAllowedEnvVars.map((value) => (
-                                    <div key={value} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2">
-                                        <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{value}</span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
-                                            onClick={() => { void removeHttpHookAllowedEnvVar(value); }}
-                                            title={t("common.remove")}
-                                        >
-                                            <TrashIcon className="w-3.5 h-3.5" />
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="mt-2 text-xs italic text-muted-foreground/70">
-                                {t("settings.no_http_hook_allowed_env_vars")}
-                            </p>
-                        )}
-
-                        <AddFormRow className="mt-3 items-stretch sm:items-center">
-                            <input
-                                className="flex-1 rounded-xl border border-border/50 bg-secondary/40 px-3.5 py-2 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                                placeholder={t("settings.http_hook_allowed_env_vars_placeholder")}
-                                value={allowedEnvVarInput}
-                                onChange={(event) => setAllowedEnvVarInput(event.target.value)}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                        event.preventDefault();
-                                        void addHttpHookAllowedEnvVar();
-                                    }
-                                }}
-                            />
-                            <Button
-                                onClick={() => { void addHttpHookAllowedEnvVar(); }}
-                                disabled={!allowedEnvVarInput.trim()}
-                                className="h-9 rounded-xl px-4"
-                            >
-                                {t("common.add")}
-                            </Button>
-                        </AddFormRow>
-                    </div>
+                    <AddFormRow className="gap-2 items-stretch sm:items-center">
+                        <input
+                            className="flex-1 rounded-lg border border-border/50 bg-secondary/40 px-3 py-1.5 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                            placeholder={t("settings.allowed_http_hook_urls_placeholder")}
+                            value={allowedUrlInput}
+                            onChange={(event) => setAllowedUrlInput(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    void addAllowedHttpHookUrl();
+                                }
+                            }}
+                        />
+                        <Button
+                            onClick={() => { void addAllowedHttpHookUrl(); }}
+                            disabled={!allowedUrlInput.trim()}
+                            className="h-8 rounded-lg px-3.5"
+                        >
+                            {t("common.add")}
+                        </Button>
+                    </AddFormRow>
                 </div>
-            </section>
+
+                <div className="rounded-lg border border-border/40 bg-background/70 p-2.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">
+                            {t("settings.http_hook_allowed_env_vars")}
+                        </p>
+                        <StatusBadge variant="purple">{httpHookAllowedEnvVars.length}</StatusBadge>
+                    </div>
+                    <p className="text-xs leading-snug text-muted-foreground">
+                        {t("settings.http_hook_allowed_env_vars_desc")}
+                    </p>
+
+                    {httpHookAllowedEnvVars.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {httpHookAllowedEnvVars.map((value) => (
+                                <div
+                                    key={value}
+                                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/40 bg-secondary/40 pl-2.5 pr-1.5 py-1"
+                                >
+                                    <span className="truncate font-mono text-[11px] text-foreground">{value}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 rounded-full hover:text-red-500 hover:bg-red-500/10"
+                                        onClick={() => { void removeHttpHookAllowedEnvVar(value); }}
+                                        title={t("common.remove")}
+                                    >
+                                        <TrashIcon className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-[11px] italic text-muted-foreground/70">
+                            {t("settings.no_http_hook_allowed_env_vars")}
+                        </p>
+                    )}
+
+                    <AddFormRow className="gap-2 items-stretch sm:items-center">
+                        <input
+                            className="flex-1 rounded-lg border border-border/50 bg-secondary/40 px-3 py-1.5 text-sm text-foreground outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                            placeholder={t("settings.http_hook_allowed_env_vars_placeholder")}
+                            value={allowedEnvVarInput}
+                            onChange={(event) => setAllowedEnvVarInput(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    void addHttpHookAllowedEnvVar();
+                                }
+                            }}
+                        />
+                        <Button
+                            onClick={() => { void addHttpHookAllowedEnvVar(); }}
+                            disabled={!allowedEnvVarInput.trim()}
+                            className="h-8 rounded-lg px-3.5"
+                        >
+                            {t("common.add")}
+                        </Button>
+                    </AddFormRow>
+                </div>
+            </div>
+        </section>
+    );
+
+    const mainContent = (
+        <div className="flex-1 flex flex-col min-h-0 space-y-3">
+            <ActionToolbar
+                searchPlaceholder={t("settings.hooks_search_placeholder")}
+                searchValue={search}
+                onSearchChange={setSearch}
+                primaryAction={
+                    <ViewModeToggle mode={mode} onChange={setMode} />
+                }
+            />
 
             <div className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-3 pr-3 [scrollbar-gutter:stable] ${disableAllHooks ? "opacity-50 pointer-events-none" : ""}`}>
                 {eventTypes.length === 0 ? (
                     <SettingsEmptyState
                         icon={Link2Icon}
-                        title={t('settings.no_hooks', "No hooks defined")}
-                        description={t('settings.no_hooks_hint', "Hooks allow you to run commands in response to events")}
+                        title={t("settings.no_hooks")}
+                        description={t("settings.no_hooks_hint")}
                     />
                 ) : (
                     <>
@@ -488,6 +521,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                     const isExpanded = expandedHookEvents.has(eventType) || search.length > 0;
                                     const matchers = hooks[eventType] || [];
                                     const totalCount = matchers.reduce((acc, m) => acc + m.hooks.length, 0);
+                                    const eventLabel = getHookEventLabel(eventType);
 
                                     return (
                                         <div key={eventType} className="rounded-xl border border-border/50 bg-card/40 overflow-hidden transition-all duration-200">
@@ -501,7 +535,14 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                                     ) : (
                                                         <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
                                                     )}
-                                                    <span className="text-sm font-medium text-foreground">{eventType}</span>
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <span className="truncate text-sm font-medium text-foreground">{eventLabel}</span>
+                                                        {eventLabel !== eventType && (
+                                                            <code className="shrink-0 rounded bg-secondary/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                                                {eventType}
+                                                            </code>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <StatusBadge variant="muted">
                                                     {totalCount}
@@ -515,7 +556,7 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                                         <div key={matcherIndex} className="space-y-2">
                                                             {matcher.matcher && (
                                                                 <p className="text-xs text-muted-foreground pl-2 flex items-center gap-2">
-                                                                    <span>matcher:</span>
+                                                                    <span>{t("settings.matcher_label")}:</span>
                                                                     <code className="bg-secondary/60 px-1.5 py-0.5 rounded text-foreground font-mono">{matcher.matcher}</code>
                                                                 </p>
                                                             )}
@@ -529,14 +570,14 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                                                                         key={hookIndex}
                                                                         avatar={<Link2Icon className="w-4 h-4" />}
                                                                         title={getHookLabel(hook)}
-                                                                        subtitle={hook.timeout ? `${t('settings.timeout', 'Timeout')}: ${hook.timeout}s` : undefined}
+                                                                        subtitle={hook.timeout ? `${t("settings.timeout")}: ${hook.timeout}s` : undefined}
                                                                         actions={
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="icon"
                                                                                 className="h-7 w-7 rounded-lg hover:text-red-500 hover:bg-red-500/10"
                                                                                 onClick={() => deleteHookItem(eventType, matcherIndex, hookIndex)}
-                                                                                title={t('common.delete')}
+                                                                                title={t("common.delete")}
                                                                             >
                                                                                 <TrashIcon className="w-3.5 h-3.5" />
                                                                             </Button>
@@ -556,15 +597,46 @@ export function HooksSettingsView(props: { embedded?: boolean; settingsPath?: st
                         ) : (
                             <SettingsEmptyState
                                 icon={Link2Icon}
-                                title={t('settings.no_hooks', "No hooks defined")}
+                                title={t("settings.no_hooks")}
                                 description={search
-                                    ? t('settings.no_match', { search })
-                                    : t('settings.no_hooks_hint', "Hooks allow you to run commands in response to events")}
+                                    ? t("settings.no_match", { search })
+                                    : t("settings.no_hooks_hint")}
                             />
                         )}
                     </>
                 )}
             </div>
+
+            <div className="border-t border-border/50 pt-2">
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setAdvancedOpen(true)}
+                        className="text-xs text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+                    >
+                        {t("settings.advanced_settings")}
+                    </button>
+                    {disableAllHooks && (
+                        <span className="text-xs text-amber-700 dark:text-amber-400">
+                            {t("settings.hooks_disabled_status")}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <Dialog open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                <DialogContent className="sm:max-w-[760px] rounded-2xl border-border/60 bg-background p-0 overflow-hidden shadow-xl">
+                    <DialogHeader className="border-b border-border/40 px-6 py-5 pr-12">
+                        <DialogTitle>{t("settings.advanced_settings")}</DialogTitle>
+                        <DialogDescription>
+                            {t("settings.hooks_advanced_settings_desc")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+                        {advancedControls}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 

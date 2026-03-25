@@ -42,17 +42,6 @@ export function Home({ onFeatureClick, onProjectClick, onSessionClick }: HomePro
 
   return (
     <div className="flex flex-col min-h-full px-6 py-8">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="font-serif text-4xl font-bold text-primary mb-2 tracking-tight flex items-center justify-center gap-3">
-          <img src="/logo.png" alt="Claude Code Impact" className="w-10 h-10" />
-          Claude Code Impact
-        </h1>
-        <p className="text-muted-foreground">{t('home.tagline')}</p>
-      </div>
-
-
-
       {/* Main Content */}
       <div className="flex-1 max-w-4xl mx-auto w-full space-y-6">
         {/* Activity Heatmap + Stats */}

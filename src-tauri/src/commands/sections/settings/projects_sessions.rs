@@ -444,10 +444,8 @@ fn read_session_head(path: &Path, max_lines: usize) -> (Option<String>, usize) {
                 if first_user_message.is_none() {
                     if let Some(msg) = &parsed.message {
                         if let Some(text) = extract_text_from_message_content(&msg.content) {
-                            // Apply restore_slash_command BEFORE truncation to preserve XML structure
-                            let restored = normalize_summary_text(&text);
-                            // Truncate to reasonable length for display (UTF-8 safe)
-                            first_user_message = Some(truncate_summary(&restored, 80));
+                            first_user_message =
+                                extract_fallback_session_summary(&text, parsed.is_meta.unwrap_or(false));
                         }
                     }
                 }
@@ -490,6 +488,37 @@ fn extract_text_from_message_content(content: &Option<serde_json::Value>) -> Opt
 
 fn normalize_summary_text(content: &str) -> String {
     restore_slash_command(content).trim().to_string()
+}
+
+fn extract_fallback_session_summary(content: &str, is_meta: bool) -> Option<String> {
+    if is_meta {
+        return None;
+    }
+
+    let normalized = normalize_summary_text(content);
+    if normalized.is_empty() {
+        return None;
+    }
+
+    if extract_renamed_session_title(content).is_some() {
+        return Some(truncate_summary(&normalized, 80));
+    }
+
+    if contains_non_summary_tags(content) {
+        return None;
+    }
+
+    Some(truncate_summary(&normalized, 80))
+}
+
+fn contains_non_summary_tags(content: &str) -> bool {
+    let lower = content.to_ascii_lowercase();
+    lower.contains("<command-name>")
+        || lower.contains("<command-message>")
+        || lower.contains("<command-args>")
+        || lower.contains("<local-command-stdout>")
+        || lower.contains("<local-command-stderr>")
+        || lower.contains("<local-command-caveat>")
 }
 
 fn extract_renamed_session_title(content: &str) -> Option<String> {
@@ -1124,4 +1153,102 @@ async fn get_session_messages_delta(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod projects_sessions_tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn write_session_file(lines: &[serde_json::Value]) -> NamedTempFile {
+        let mut file = NamedTempFile::new().unwrap();
+        for line in lines {
+            writeln!(file, "{}", serde_json::to_string(line).unwrap()).unwrap();
+        }
+        file.flush().unwrap();
+        file
+    }
+
+    #[test]
+    fn extract_fallback_session_summary_skips_command_prelude_but_keeps_rename() {
+        assert_eq!(
+            extract_fallback_session_summary(
+                "<command-name>/model</command-name><command-message>model</command-message>",
+                false
+            ),
+            None
+        );
+
+        assert_eq!(
+            extract_fallback_session_summary(
+                "<local-command-stdout>Set model to sonnet</local-command-stdout>",
+                false
+            ),
+            None
+        );
+
+        assert_eq!(
+            extract_fallback_session_summary(
+                "<command-name>/rename</command-name><command-message>rename</command-message><command-args>Readable session title</command-args>",
+                false
+            ),
+            Some("/rename Readable session title".to_string())
+        );
+    }
+
+    #[test]
+    fn read_session_head_uses_first_real_user_prompt_after_command_prelude() {
+        let file = write_session_file(&[
+            serde_json::json!({
+                "type": "user",
+                "isMeta": true,
+                "message": {
+                    "role": "user",
+                    "content": "<local-command-caveat>Caveat</local-command-caveat>"
+                }
+            }),
+            serde_json::json!({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": "<command-name>/model</command-name><command-message>model</command-message>"
+                }
+            }),
+            serde_json::json!({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": "<local-command-stdout>Set model to sonnet</local-command-stdout>"
+                }
+            }),
+            serde_json::json!({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": "Testing if it's a 1m context."
+                }
+            }),
+        ]);
+
+        let (summary, message_count) = read_session_head(file.path(), 20);
+
+        assert_eq!(summary, Some("Testing if it's a 1m context.".to_string()));
+        assert_eq!(message_count, 4);
+    }
+
+    #[test]
+    fn read_session_head_resolves_rename_command_into_session_title() {
+        let file = write_session_file(&[serde_json::json!({
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": "<command-name>/rename</command-name><command-message>rename</command-message><command-args>Readable session title</command-args>"
+            }
+        })]);
+
+        let (summary, _) = read_session_head(file.path(), 20);
+
+        assert_eq!(summary, Some("Readable session title".to_string()));
+    }
 }

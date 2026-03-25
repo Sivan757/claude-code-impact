@@ -1,7 +1,9 @@
 use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 
 /// Encode project path to project ID (inverse of decode_project_path).
-/// Claude Code encodes: `{sep}.` -> `--`, then `{sep}` -> `-`
+/// Claude Code encodes: `{sep}.` -> `--`, then `{sep}` -> `-`.
+/// On Windows, the root separator after a drive prefix is also encoded:
+/// `D:\project` -> `D:--project`.
 pub(crate) fn encode_project_path(path: &str) -> String {
     let path = Path::new(path);
     let mut parts: Vec<String> = Vec::new();
@@ -16,9 +18,7 @@ pub(crate) fn encode_project_path(path: &str) -> String {
             }
             Component::RootDir => {
                 has_root = true;
-                if !has_prefix {
-                    parts.push(String::new());
-                }
+                parts.push(String::new());
             }
             Component::CurDir => {}
             Component::ParentDir => parts.push("..".to_string()),
@@ -79,7 +79,7 @@ fn parse_encoded_segments(id: &str) -> (Option<String>, bool, Vec<String>) {
         }
     }
 
-    if prefix.is_none() && index < parts.len() && parts[index].is_empty() {
+    if index < parts.len() && parts[index].is_empty() {
         has_root = true;
         index += 1;
     }
@@ -204,7 +204,7 @@ fn resolve_path_by_backtracking(
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_project_path, encode_project_path};
+    use super::{decode_project_path, encode_project_path, parse_encoded_segments};
     use std::fs;
     use tempfile::TempDir;
 
@@ -218,5 +218,23 @@ mod tests {
         let decoded = decode_project_path(&encoded);
 
         assert_eq!(decoded, project_path.to_string_lossy());
+    }
+
+    #[test]
+    fn parse_prefixed_ids_preserve_drive_root_marker() {
+        let (prefix, has_root, segments) = parse_encoded_segments("D:--project-eda-design-data");
+
+        assert_eq!(prefix.as_deref(), Some("D:"));
+        assert!(has_root);
+        assert_eq!(segments, vec!["project", "eda", "design", "data"]);
+    }
+
+    #[test]
+    fn parse_prefixed_ids_keep_hidden_segments_after_drive_root() {
+        let (prefix, has_root, segments) = parse_encoded_segments("D:---claude-projects");
+
+        assert_eq!(prefix.as_deref(), Some("D:"));
+        assert!(has_root);
+        assert_eq!(segments, vec![".claude", "projects"]);
     }
 }

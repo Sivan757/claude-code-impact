@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { getPathBaseName } from "@/lib/pathDisplay";
 import { useTemplateApply } from "../../config/templates/hooks";
 import type { MergeMode } from "../../config/templates/types";
 import { useConfirmDialog } from "@/components/dialogs/ConfirmDialogProvider";
@@ -78,7 +79,7 @@ export function TemplateApplyDialog({
             <p className="text-sm text-foreground">
               {t("templates.apply_target_prefix")} <strong>{templateName}</strong> {t("templates.apply_target_to")}{" "}
               {projectPath ? (
-                <span className="font-mono text-xs">{projectPath.split("/").pop()}</span>
+                <span className="font-mono text-xs">{getPathBaseName(projectPath)}</span>
               ) : (
                 t("templates.save_source_global_short")
               )}

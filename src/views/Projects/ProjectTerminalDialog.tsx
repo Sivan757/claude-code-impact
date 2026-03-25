@@ -9,6 +9,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { useTerminalLauncher } from "../../hooks/useTerminalLauncher";
+import { getPathBaseName } from "@/lib/pathDisplay";
 import { profileAtom } from "@/store";
 import {
   detectTerminalPlatform,
@@ -34,7 +35,7 @@ export function ProjectTerminalDialog({
   const [profile] = useAtom(profileAtom);
   const preferredTerminalApp = getPreferredTerminalApp(profile);
 
-  const shortPath = cwd.split("/").pop() ?? cwd;
+  const shortPath = getPathBaseName(cwd);
 
   const handleLaunch = (terminalApp?: string) => {
     launchMutation.mutate({
