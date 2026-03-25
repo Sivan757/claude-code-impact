@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.9
+
+- Add a readable slash-command detail toggle and render slash-command payloads directly in session detail for clearer inspection.
+- Refine Hooks settings with an advanced editor dialog, localized hook event/type labels, and matcher-group handling aligned with current Claude Code behavior.
+- Improve path display consistency across project/template launch flows by centralizing basename handling and fixing Windows drive-root path decoding.
+- Deduplicate plugin `CLAUDE.md` scan results, avoid promoting command output into session titles, and remove the redundant dashboard product title banner.
+- Remove obsolete Changesets and GitHub workflow files, along with the unused `update-icon.sh` helper, to simplify the repo.
+
 ## 0.1.8
 
 - Revamp Claude Code settings coverage and streamline the settings UX by removing obsolete Agent Teams and plugin marketplace forms from General Settings.

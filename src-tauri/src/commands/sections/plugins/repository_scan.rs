@@ -464,10 +464,39 @@ fn resolve_component_path(base_path: Option<&Path>, raw_path: &str) -> Option<Pa
 }
 
 fn component_signature(component: &PluginComponent) -> String {
+    fn normalize_signature_path(path: &str) -> String {
+        let candidate = Path::new(path);
+        if let Ok(canonical) = fs::canonicalize(candidate) {
+            return canonical.to_string_lossy().to_string();
+        }
+
+        let mut normalized = PathBuf::new();
+        for component in candidate.components() {
+            match component {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    normalized.pop();
+                }
+                other => normalized.push(other.as_os_str()),
+            }
+        }
+
+        let normalized = normalized.to_string_lossy().to_string();
+        if normalized.is_empty() {
+            path.to_string()
+        } else {
+            normalized
+        }
+    }
+
     format!(
         "{}::{}",
         component.name.to_lowercase(),
-        component.path.clone().unwrap_or_default()
+        component
+            .path
+            .as_deref()
+            .map(normalize_signature_path)
+            .unwrap_or_default()
     )
 }
 
@@ -758,6 +787,7 @@ fn scan_claude_md_components(base_dir: &Path) -> Vec<PluginComponent> {
     fn push_first_existing_candidate(
         base_dir: &Path,
         candidates: &[&str],
+        display_name: &str,
         components: &mut Vec<PluginComponent>,
     ) {
         for relative in candidates {
@@ -767,7 +797,7 @@ fn scan_claude_md_components(base_dir: &Path) -> Vec<PluginComponent> {
             }
 
             components.push(PluginComponent {
-                name: "CLAUDE.md".to_string(),
+                name: display_name.to_string(),
                 description: None,
                 path: Some(path.to_string_lossy().to_string()),
             });
@@ -776,10 +806,16 @@ fn scan_claude_md_components(base_dir: &Path) -> Vec<PluginComponent> {
     }
 
     let mut components = Vec::new();
-    push_first_existing_candidate(base_dir, &["CLAUDE.md", "claude.md"], &mut components);
+    push_first_existing_candidate(
+        base_dir,
+        &["CLAUDE.md", "claude.md"],
+        "CLAUDE.md",
+        &mut components,
+    );
     push_first_existing_candidate(
         base_dir,
         &[".claude/CLAUDE.md", ".claude/claude.md"],
+        ".claude/CLAUDE.md",
         &mut components,
     );
     components
@@ -1903,6 +1939,23 @@ fn scan_marketplace_entry_components(
     components
 }
 
+fn select_plugin_components(
+    has_local_plugin_path: bool,
+    entry_strict: bool,
+    filesystem_components: PluginComponents,
+    entry_components: PluginComponents,
+) -> PluginComponents {
+    if has_local_plugin_path || entry_strict {
+        return merge_plugin_components(filesystem_components, entry_components);
+    }
+
+    if plugin_component_total_count(&entry_components) > 0 {
+        entry_components
+    } else {
+        filesystem_components
+    }
+}
+
 fn scan_plugin_components(plugin_path: &Path) -> PluginComponents {
     let mut components = PluginComponents::default();
 
@@ -2047,13 +2100,12 @@ fn scan_plugin_repository() -> PluginScanResult {
             } else {
                 PluginComponents::default()
             };
-            let components = if entry.strict {
-                merge_plugin_components(filesystem_components, entry_components)
-            } else if plugin_component_total_count(&entry_components) > 0 {
-                entry_components
-            } else {
-                filesystem_components
-            };
+            let components = select_plugin_components(
+                plugin_path.is_some(),
+                entry.strict,
+                filesystem_components,
+                entry_components,
+            );
             let components_source = if plugin_path.is_none() && entry.remote_source {
                 Some("remote".to_string())
             } else {
@@ -3251,9 +3303,64 @@ mod tests {
             .collect();
 
         assert_eq!(components.len(), 2);
+        assert_eq!(components[0].name, "CLAUDE.md");
+        assert_eq!(components[1].name, ".claude/CLAUDE.md");
         assert!(paths.contains(&root_claude_md.to_string_lossy().to_lowercase()));
         assert!(paths.contains(&dot_claude_md.to_string_lossy().to_lowercase()));
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn merge_component_list_dedupes_equivalent_paths() {
+        let root = unique_temp_dir("component-dedupe");
+        let path = root.join("CLAUDE.md");
+        fs::write(&path, "# root").unwrap();
+
+        let mut target = vec![PluginComponent {
+            name: "CLAUDE.md".to_string(),
+            description: None,
+            path: Some(path.to_string_lossy().to_string()),
+        }];
+        merge_component_list(
+            &mut target,
+            vec![PluginComponent {
+                name: "CLAUDE.md".to_string(),
+                description: None,
+                path: Some(root.join(".").join("CLAUDE.md").to_string_lossy().to_string()),
+            }],
+        );
+
+        assert_eq!(target.len(), 1);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn select_plugin_components_keeps_filesystem_components_for_non_strict_local_plugins() {
+        let filesystem_components = PluginComponents {
+            skills: vec![PluginComponent {
+                name: "skill".to_string(),
+                description: None,
+                path: Some("/tmp/skill/SKILL.md".to_string()),
+            }],
+            ..PluginComponents::default()
+        };
+        let entry_components = PluginComponents {
+            claude_md: vec![PluginComponent {
+                name: "CLAUDE.md".to_string(),
+                description: None,
+                path: Some("/tmp/CLAUDE.md".to_string()),
+            }],
+            ..PluginComponents::default()
+        };
+
+        let selected = select_plugin_components(false, false, filesystem_components.clone(), entry_components.clone());
+        assert_eq!(selected.skills.len(), 0);
+        assert_eq!(selected.claude_md.len(), 1);
+
+        let selected = select_plugin_components(true, false, filesystem_components, entry_components);
+        assert_eq!(selected.skills.len(), 1);
+        assert_eq!(selected.claude_md.len(), 1);
     }
 }

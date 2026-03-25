@@ -33,3 +33,4 @@ dist-ssr
 .claude_settings.json
 .security-key
 logs/security/
+.remember/*
