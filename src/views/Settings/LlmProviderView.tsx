@@ -76,7 +76,7 @@ import {
 import { getUiPreference, setUiPreference } from "@/lib/uiPreferences";
 
 type ProviderViewMode = "list" | "card";
-const LEGACY_PROFILE_KEYS = ["claudecodeimpact_llm_profiles", "lovcode_llm_providers"] as const;
+const LEGACY_PROFILE_KEYS = ["llm_profiles"] as const;
 const ANTHROPIC_MODEL_ENV_FIELDS = [
   { envKey: "ANTHROPIC_DEFAULT_OPUS_MODEL", profileKey: "defaultOpusModel" },
   { envKey: "ANTHROPIC_DEFAULT_SONNET_MODEL", profileKey: "defaultSonnetModel" },
@@ -212,7 +212,7 @@ function readLegacyProfilesFromLocalStorage(): { profiles: ProviderProfile[]; co
     }
     if (!Array.isArray(parsed)) continue;
 
-    const converted = key === "lovcode_llm_providers"
+    const converted = key === "llm_profiles"
       ? parsed.map(parseLegacyStoredProvider).filter((item): item is ProviderProfile => Boolean(item))
       : parsed.map(parseLegacyProfile).filter((item): item is ProviderProfile => Boolean(item));
 

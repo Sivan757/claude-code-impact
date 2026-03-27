@@ -1,4 +1,5 @@
 import Editor from "@monaco-editor/react";
+import { cn } from "@/lib/utils";
 
 const EDITOR_OPTIONS = {
   readOnly: true,
@@ -27,7 +28,10 @@ interface CodePreviewProps {
 
 export function CodePreview({ value, language, height = 300, className }: CodePreviewProps) {
   return (
-    <div className={`rounded-lg overflow-hidden border border-border ${className ?? ""}`} style={{ height }}>
+    <div
+      className={cn("rounded-lg overflow-hidden border border-border", className)}
+      style={{ height }}
+    >
       <Editor
         value={value}
         language={language}

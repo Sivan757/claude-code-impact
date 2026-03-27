@@ -1,4 +1,5 @@
 import { forwardRef, type ComponentPropsWithoutRef, type ImgHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 interface AvatarProps extends ComponentPropsWithoutRef<"span"> {
   className?: string;
@@ -9,7 +10,7 @@ export const Avatar = forwardRef<HTMLSpanElement, AvatarProps>(
     return (
       <span
         ref={ref}
-        className={`relative flex shrink-0 overflow-hidden rounded-full ${className}`}
+        className={cn("relative flex shrink-0 overflow-hidden rounded-full", className)}
         {...props}
       >
         {children}
@@ -29,7 +30,7 @@ export const AvatarImage = forwardRef<HTMLImageElement, AvatarImageProps>(
       <img
         ref={ref}
         alt={alt}
-        className={`aspect-square h-full w-full object-cover ${className}`}
+        className={cn("aspect-square h-full w-full object-cover", className)}
         {...props}
       />
     );
@@ -46,7 +47,10 @@ export const AvatarFallback = forwardRef<HTMLSpanElement, AvatarFallbackProps>(
     return (
       <span
         ref={ref}
-        className={`flex h-full w-full items-center justify-center rounded-full bg-muted text-muted-foreground ${className}`}
+        className={cn(
+          "flex h-full w-full items-center justify-center rounded-full bg-muted text-muted-foreground",
+          className,
+        )}
         {...props}
       >
         {children}

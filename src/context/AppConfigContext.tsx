@@ -7,11 +7,17 @@ export interface AppConfig {
   formatPath: (path: string) => string;
 }
 
-export const AppConfigContext = createContext<AppConfig>({
+const DEFAULT_APP_CONFIG: AppConfig = {
   homeDir: "",
   shortenPaths: true,
   setShortenPaths: () => {},
-  formatPath: (p) => p,
+  formatPath: (rawPath) => rawPath,
+};
+
+export const AppConfigContext = createContext<AppConfig>({
+  ...DEFAULT_APP_CONFIG,
 });
 
-export const useAppConfig = () => useContext(AppConfigContext);
+export function useAppConfig(): AppConfig {
+  return useContext(AppConfigContext);
+}

@@ -5,14 +5,17 @@ import { invoke } from "@tauri-apps/api/core";
  * Hook for cached Tauri invoke calls using react-query
  * Data persists across tab switches, invalidated on app restart
  */
-export function useInvokeQuery<T>(
+export function useInvokeQuery<
+  TData,
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+>(
   queryKey: QueryKey,
   command: string,
-  args?: Record<string, unknown>,
+  args?: TArgs,
 ) {
-  return useQuery<T>({
+  return useQuery<TData>({
     queryKey,
-    queryFn: () => invoke<T>(command, args),
+    queryFn: () => invoke<TData>(command, args),
     staleTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -22,14 +25,14 @@ export function useInvokeQuery<T>(
 /**
  * Hook for Tauri invoke mutations with automatic cache invalidation
  */
-export function useInvokeMutation<T, V = void>(
+export function useInvokeMutation<TData, TVariables = void>(
   command: string,
   invalidateKeys?: QueryKey[],
 ) {
   const queryClient = useQueryClient();
 
-  return useMutation<T, Error, V>({
-    mutationFn: (variables) => invoke<T>(command, variables as Record<string, unknown>),
+  return useMutation<TData, Error, TVariables>({
+    mutationFn: (variables) => invoke<TData>(command, variables as Record<string, unknown>),
     onSuccess: () => {
       invalidateKeys?.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: key });

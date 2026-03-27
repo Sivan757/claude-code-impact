@@ -13,8 +13,8 @@ export default function McpDetailPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
 
-  const { data: template, isLoading } = useQuery({
-    queryKey: ["marketplaceMcp", name],
+  const { data: template, isLoading, isError, error } = useQuery({
+    queryKey: ["marketplaceMcp", name ?? ""],
     queryFn: async () => {
       const catalog = await invoke<TemplatesCatalog>("get_templates_catalog");
       return catalog.mcps?.find(t => t.name === name) ?? null;
@@ -22,10 +22,38 @@ export default function McpDetailPage() {
     enabled: !!name,
   });
 
+  if (!name) {
+    return (
+      <FeaturesLayout feature="mcp">
+        <div className="p-6">
+          <p className="text-destructive">Missing MCP name</p>
+          <button onClick={() => navigate("/mcp")} className="mt-2 text-primary hover:underline">
+            ← Back to MCP
+          </button>
+        </div>
+      </FeaturesLayout>
+    );
+  }
+
   if (isLoading) {
     return (
       <FeaturesLayout feature="mcp">
         <LoadingState message={`Loading ${name}...`} />
+      </FeaturesLayout>
+    );
+  }
+
+  if (isError) {
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      <FeaturesLayout feature="mcp">
+        <div className="p-6">
+          <p className="text-destructive">Failed to load MCP "{name}"</p>
+          <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+          <button onClick={() => navigate("/mcp")} className="mt-4 text-primary hover:underline">
+            ← Back to MCP
+          </button>
+        </div>
       </FeaturesLayout>
     );
   }

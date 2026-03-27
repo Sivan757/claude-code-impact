@@ -1,1 +1,1 @@
-export { OutputStylesView } from "./OutputStylesView";
+export { OutputStylesView } from './OutputStylesView';

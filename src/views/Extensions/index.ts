@@ -1,2 +1,2 @@
-export { ExtensionsView } from "./ExtensionsView";
-export { PluginCard } from "./PluginCard";
+export { ExtensionsView } from './ExtensionsView';
+export { PluginCard } from './PluginCard';

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 export interface CommandItem {
   name: string;
@@ -20,24 +20,27 @@ export function SlashCommandMenu({
   onSelect,
 }: SlashCommandMenuProps) {
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const normalizedFilter = filter.trim().toLowerCase();
 
   // Filter and sort commands (case-insensitive)
-  const filtered = commands
-    .filter((cmd) => {
-      const search = filter.toLowerCase();
-      return (
-        cmd.name.toLowerCase().includes(search) ||
-        (cmd.description?.toLowerCase().includes(search) ?? false)
-      );
-    })
-    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+  const filtered = useMemo(() => {
+    return commands
+      .filter((cmd) => {
+        if (!normalizedFilter) return true;
+        return (
+          cmd.name.toLowerCase().includes(normalizedFilter) ||
+          (cmd.description?.toLowerCase().includes(normalizedFilter) ?? false)
+        );
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }, [commands, normalizedFilter]);
 
   // Scroll selected item into view
   useEffect(() => {
     itemRefs.current[selectedIndex]?.scrollIntoView({
       block: "nearest",
     });
-  }, [selectedIndex]);
+  }, [selectedIndex, filtered.length]);
 
   if (filtered.length === 0) {
     return (

@@ -1,1 +1,1 @@
-export { SkillsView } from "./SkillsView";
+export { SkillsView } from './SkillsView';

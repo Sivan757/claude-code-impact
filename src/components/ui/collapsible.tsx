@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface CollapsibleContextValue {
   open: boolean;
@@ -25,14 +26,19 @@ export function Collapsible({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const isControlled = open !== undefined;
   const currentOpen = isControlled ? open : uncontrolledOpen;
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     const nextOpen = !currentOpen;
     if (!isControlled) setUncontrolledOpen(nextOpen);
     onOpenChange?.(nextOpen);
-  };
+  }, [currentOpen, isControlled, onOpenChange]);
+
+  const contextValue = useMemo(
+    () => ({ open: currentOpen, toggle: handleToggle }),
+    [currentOpen, handleToggle],
+  );
   return (
-    <CollapsibleContext.Provider value={{ open: currentOpen, toggle: handleToggle }}>
-      <div className={className} data-state={currentOpen ? "open" : "closed"}>
+    <CollapsibleContext.Provider value={contextValue}>
+      <div className={cn(className)} data-state={currentOpen ? "open" : "closed"}>
         {children}
       </div>
     </CollapsibleContext.Provider>
@@ -52,8 +58,13 @@ export function CollapsibleTrigger({ children, className = "" }: CollapsibleTrig
       role="button"
       tabIndex={0}
       onClick={ctx.toggle}
-      onKeyDown={(e) => e.key === "Enter" && ctx.toggle()}
-      className={`cursor-pointer ${className}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          ctx.toggle();
+        }
+      }}
+      className={cn("cursor-pointer", className)}
       data-state={ctx.open ? "open" : "closed"}
     >
       {children}

@@ -1,1 +1,1 @@
-export { AnnualReport2025 } from "./AnnualReport2025";
+export { AnnualReport2025 } from './AnnualReport2025';

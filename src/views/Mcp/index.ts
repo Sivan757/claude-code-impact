@@ -1,1 +1,1 @@
-export { McpView } from "./McpView";
+export { McpView } from './McpView';

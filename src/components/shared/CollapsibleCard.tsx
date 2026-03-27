@@ -3,6 +3,7 @@ import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent as CollapsibleBody } from "../ui/collapsible";
 import { useAtom } from "jotai";
 import { collapsibleStatesAtom } from "../../store";
+import { cn } from "@/lib/utils";
 
 interface CollapsibleCardProps {
   storageKey: string;
@@ -26,8 +27,8 @@ export function CollapsibleCard({
   const [states, setStates] = useAtom(collapsibleStatesAtom);
   const open = states[storageKey] ?? defaultOpen;
   const setOpen = useCallback(
-    (value: boolean) => setStates(prev => ({ ...prev, [storageKey]: value })),
-    [storageKey, setStates]
+    (value: boolean) => setStates((prev) => ({ ...prev, [storageKey]: value })),
+    [storageKey, setStates],
   );
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -44,7 +45,7 @@ export function CollapsibleCard({
             <ChevronDownIcon className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
           </div>
         </CollapsibleTrigger>
-        <CollapsibleBody className={bodyClassName}>{children}</CollapsibleBody>
+        <CollapsibleBody className={cn(bodyClassName)}>{children}</CollapsibleBody>
       </div>
     </Collapsible>
   );

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
   key: string;
@@ -22,17 +23,20 @@ interface NavSidebarProps {
 export function NavSidebar({ title, items, groups, activeKey, onItemClick }: NavSidebarProps) {
   const renderItem = (item: NavItem) => {
     const isActive = activeKey === item.key;
+    const Icon = item.icon;
 
     return (
       <button
         key={item.key}
         onClick={() => onItemClick(item.key)}
-        className={`ml-2 px-2 py-1.5 rounded-md text-left text-sm transition-colors truncate ${
+        className={cn(
+          "ml-2 px-2 py-1.5 rounded-md text-left text-sm transition-colors truncate flex items-center gap-2",
           isActive
             ? "bg-primary/10 text-primary font-medium"
-            : "text-muted-foreground hover:text-foreground hover:bg-card-alt"
-        }`}
+            : "text-muted-foreground hover:text-foreground hover:bg-card-alt",
+        )}
       >
+        {Icon ? <Icon className="w-4 h-4 shrink-0" /> : null}
         {item.label}
       </button>
     );
@@ -46,7 +50,6 @@ export function NavSidebar({ title, items, groups, activeKey, onItemClick }: Nav
             {title}
           </h2>
         )}
-        {/* Render grouped items */}
         {groups && groups.map((group, idx) => (
           <div key={idx} className={idx > 0 ? "mt-4" : ""}>
             {group.title && (
@@ -59,7 +62,6 @@ export function NavSidebar({ title, items, groups, activeKey, onItemClick }: Nav
             </nav>
           </div>
         ))}
-        {/* Render flat items (backwards compatible) */}
         {items && !groups && (
           <nav className="flex flex-col gap-0.5">
             {items.map(renderItem)}

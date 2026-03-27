@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
-import { SidebarLayout, NavSidebar } from "@/components/shared";
+import { NavSidebar, SidebarLayout } from "@/components/shared";
 import { TEMPLATE_CATEGORIES } from "@/constants";
 import type { TemplateCategory } from "@/types";
 
@@ -10,19 +9,16 @@ interface MarketplaceLayoutProps {
   onCategoryClick: (category: TemplateCategory) => void;
 }
 
-export function MarketplaceLayout({ children, currentCategory, onCategoryClick }: MarketplaceLayoutProps) {
-  const items = useMemo(() =>
-    TEMPLATE_CATEGORIES
-      .filter(c => c.key !== "settings")
-      .map(c => ({ key: c.key, label: c.label })),
-    []
-  );
+const MARKETPLACE_NAV_ITEMS = TEMPLATE_CATEGORIES
+  .filter((category) => category.key !== "settings")
+  .map((category) => ({ key: category.key, label: category.label }));
 
+export function MarketplaceLayout({ children, currentCategory, onCategoryClick }: MarketplaceLayoutProps) {
   return (
     <SidebarLayout
       sidebar={
         <NavSidebar
-          items={items}
+          items={MARKETPLACE_NAV_ITEMS}
           activeKey={currentCategory}
           onItemClick={(key) => onCategoryClick(key as TemplateCategory)}
         />

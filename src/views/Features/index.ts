@@ -1,2 +1,2 @@
-export { FeaturesView } from "./FeaturesView";
-export { FeaturesLayout } from "./FeaturesLayout";
+export { FeaturesLayout } from './FeaturesLayout';
+export { FeaturesView } from './FeaturesView';

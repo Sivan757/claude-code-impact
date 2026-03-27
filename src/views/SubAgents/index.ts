@@ -1,2 +1,2 @@
-export { SubAgentsView } from "./SubAgentsView";
-export { SubAgentDetailView } from "./SubAgentDetailView";
+export { SubAgentDetailView } from './SubAgentDetailView';
+export { SubAgentsView } from './SubAgentsView';

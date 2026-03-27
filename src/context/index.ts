@@ -1,1 +1,1 @@
-export { AppConfigContext, useAppConfig, type AppConfig } from "./AppConfigContext";
+export { AppConfigContext, useAppConfig, type AppConfig } from './AppConfigContext';

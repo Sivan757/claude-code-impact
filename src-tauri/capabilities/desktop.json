@@ -1,12 +1,7 @@
 {
   "identifier": "desktop-capability",
-  "platforms": [
-    "macOS",
-    "windows",
-    "linux"
-  ],
-  "windows": [
-    "main"
-  ],
+  "description": "Desktop capability placeholder for future permissions",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main"],
   "permissions": []
 }
